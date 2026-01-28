@@ -8,6 +8,7 @@ import { FoodBoardView } from './components/FoodBoardView';
 import { ResourceTrackerView } from './components/ResourceTrackerView';
 import { ExerciseView } from './components/ExerciseView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
+import { StatsView } from './components/StatsView';
 import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train } from 'lucide-react';
 
 const MUSHROOM_TASKS = [
@@ -555,7 +556,7 @@ function App() {
       case 'forjas': return <ResourceTrackerView title="Forjas" themeColor="orange" tasks={data.forjas} onUpdate={t => setData(prev => ({ ...prev, forjas: t }))} onBack={() => setView('home')} />;
       case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({...prev, billetesState: bs, huchaCount: hc}))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
       case 'exercise': return <ExerciseView exercise={data.exercise} onUpdate={ex => setData(prev => ({ ...prev, exercise: ex }))} onBack={() => setView('home')} />;
-      case 'stats': 
+      case 'stats': return <StatsView data={data} onBack={() => setView('home')} />;
       default:
         const trainProgress = getTrainProgress();
         const isTrainPleno = trainProgress === 100;
