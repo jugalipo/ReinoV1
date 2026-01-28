@@ -182,7 +182,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
                         aspect-square flex items-center justify-center text-3xl relative transition-all duration-300
                         border-2 ${isFirstRow ? 'rounded-full' : 'rounded-2xl'}
                         ${task.completed
-                            ? 'bg-stone-950 border-stone-900 text-stone-700 grayscale opacity-50 shadow-inner scale-95'
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
                             : isFailed
                                 ? 'bg-red-900/50 border-red-600 text-red-100 shadow-[0_0_15px_rgba(220,38,38,0.3)]'
                                 : isLastSeven 

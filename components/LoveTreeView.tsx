@@ -89,8 +89,19 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
 
   const getDaysSince = (timestamp: number) => {
     if (timestamp === 0) return 999;
-    const diff = Date.now() - timestamp;
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    const now = new Date();
+    const last = new Date(timestamp);
+
+    // Normalize dates to start of day (00:00:00) to calculate calendar day difference
+    // This fixes the issue where <24h was considered "Today" even if it was yesterday
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const interactionDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
+
+    const diffTime = today.getTime() - interactionDay.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
   };
 
   const getLeafColor = (days: number) => {

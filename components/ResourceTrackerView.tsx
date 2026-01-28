@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ResourceTask } from '../types';
-import { ArrowLeft, Plus, Minus, Edit2, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Edit2, Save, X, Banknote, Trophy, PiggyBank } from 'lucide-react';
 
 interface ResourceTrackerViewProps {
   title: string;
@@ -8,9 +8,21 @@ interface ResourceTrackerViewProps {
   tasks: ResourceTask[];
   onUpdate: (tasks: ResourceTask[]) => void;
   onBack: () => void;
+  billetesState?: boolean[];
+  huchaCount?: number;
+  onUpdateBilletes?: (billetes: boolean[], hucha: number) => void;
 }
 
-export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({ title, themeColor, tasks, onUpdate, onBack }) => {
+export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({ 
+    title, 
+    themeColor, 
+    tasks, 
+    onUpdate, 
+    onBack,
+    billetesState = Array(20).fill(false),
+    huchaCount = 0,
+    onUpdateBilletes
+}) => {
   // We use the first task as the "Permanent" one. If none exists, we create a default one.
   const mainTask: ResourceTask = tasks.length > 0 ? tasks[0] : {
       id: 'permanent-objective',
@@ -31,6 +43,10 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({ title,
   // Quarterly Editing State
   const [isEditingQuarterly, setIsEditingQuarterly] = useState(false);
   const [quarterlyEdits, setQuarterlyEdits] = useState(quarterlyTasks);
+
+  // Billetes Logic State
+  const [showBilletesConfirm, setShowBilletesConfirm] = useState(false);
+  const [lastBilletIndex, setLastBilletIndex] = useState<number | null>(null);
 
   // Sync state if task changes externally (or initializes)
   useEffect(() => {
@@ -97,6 +113,41 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({ title,
       const updated = [...quarterlyEdits];
       updated[index] = { ...updated[index], [field]: value };
       setQuarterlyEdits(updated);
+  };
+
+  // --- Billetes Actions ---
+  const toggleBillete = (index: number) => {
+      if (!onUpdateBilletes) return;
+      
+      const newState = [...billetesState];
+      const isActivating = !newState[index];
+      newState[index] = isActivating;
+
+      // Check if this is the 20th billete being activated
+      const activatedCount = newState.filter(v => v).length;
+      if (isActivating && activatedCount === 20) {
+          setLastBilletIndex(index);
+          setShowBilletesConfirm(true);
+      } else {
+          onUpdateBilletes(newState, huchaCount);
+      }
+  };
+
+  const confirmBilletesPleno = () => {
+      if (!onUpdateBilletes) return;
+      onUpdateBilletes(Array(20).fill(false), huchaCount + 1);
+      setShowBilletesConfirm(false);
+      setLastBilletIndex(null);
+  };
+
+  const cancelBilletesPleno = () => {
+      if (lastBilletIndex !== null && onUpdateBilletes) {
+          const revertedState = [...billetesState];
+          revertedState[lastBilletIndex] = false;
+          onUpdateBilletes(revertedState, huchaCount);
+      }
+      setShowBilletesConfirm(false);
+      setLastBilletIndex(null);
   };
 
   const getThemeClasses = () => {
@@ -238,6 +289,42 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({ title,
             </div>
         )}
 
+        {/* BILLETES SECTION (Leones ONLY) */}
+        {title === 'Leones' && (
+            <div className="w-full bg-stone-900 p-6 rounded-3xl border border-stone-800 shadow-sm space-y-6">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Banknote className="w-4 h-4" /> Billetes
+                    </h3>
+                    <div className="flex items-center gap-2 bg-stone-950 px-3 py-1 rounded-full border border-stone-800">
+                        <PiggyBank className="w-4 h-4 text-amber-500" />
+                        <span className="text-lg font-black text-stone-100">{huchaCount}</span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-3">
+                    {billetesState.map((active, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => toggleBillete(idx)}
+                            className={`
+                                aspect-[3/2] rounded-lg flex items-center justify-center transition-all duration-300 border-2
+                                ${active 
+                                    ? 'bg-amber-600 border-amber-400 text-stone-900 shadow-[0_0_10px_rgba(217,119,6,0.3)] scale-105' 
+                                    : 'bg-stone-950 border-stone-800 text-stone-800 opacity-30 hover:opacity-100'}
+                            `}
+                        >
+                            <Banknote className="w-6 h-6" />
+                        </button>
+                    ))}
+                </div>
+                
+                <p className="text-[10px] text-stone-600 text-center font-bold tracking-widest uppercase">
+                    Completa 20 para sumar a la hucha
+                </p>
+            </div>
+        )}
+
         {/* QUARTERLY GOALS (FORJAS ONLY) */}
         {title === 'Forjas' && quarterlyTasks.length > 0 && (
             <div className="w-full pt-8 border-t border-stone-800">
@@ -331,6 +418,39 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({ title,
         )}
 
       </div>
+
+      {/* Billetes Completion Modal */}
+      {showBilletesConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
+                <div className="p-8 flex flex-col items-center text-center">
+                    <div className="w-20 h-20 bg-amber-600/20 rounded-full flex items-center justify-center mb-6 border border-amber-500/50 shadow-[0_0_20px_rgba(217,119,6,0.2)]">
+                        <PiggyBank className="w-10 h-10 text-amber-500" />
+                    </div>
+                    <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Objetivo de Ahorro!</h2>
+                    <p className="text-stone-400 mb-8 text-sm leading-relaxed">
+                        Has llenado tu última cuadrícula de billetes. <br/>¿Quieres sumarlo a la hucha y reiniciar el contador?
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-4 w-full">
+                        <button 
+                            onClick={cancelBilletesPleno}
+                            className="py-4 rounded-2xl border border-stone-800 text-stone-500 hover:bg-stone-800 font-bold transition-all text-sm uppercase"
+                        >
+                            Error
+                        </button>
+                        <button 
+                            onClick={confirmBilletesPleno}
+                            className="py-4 rounded-2xl bg-amber-600 text-stone-950 font-black hover:bg-amber-500 transition-all shadow-lg shadow-amber-900/20 text-sm uppercase"
+                        >
+                            ¡A la Hucha!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

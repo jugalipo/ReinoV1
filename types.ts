@@ -117,5 +117,6 @@ export interface AppData {
   leones: ResourceTask[];
   projects: Task[]; // Independent project list
   exercise: ExerciseState;
-  // books removed
+  billetesState?: boolean[]; // 20 booleans for the money grid
+  huchaCount?: number; // Count of completed sets of 20 billetes
 }
