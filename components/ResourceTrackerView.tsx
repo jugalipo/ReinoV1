@@ -193,7 +193,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
         <h1 className={`text-xl font-bold ${theme.text}`}>{title}</h1>
       </div>
 
-      <div className="flex-1 flex flex-col p-6 items-center space-y-8 overflow-y-auto pb-12">
+      <div className="flex-1 flex flex-col p-6 items-center space-y-4 overflow-y-auto pb-12 no-scrollbar">
         
         {/* MAIN TASK SECTION */}
         {isEditingMain ? (
@@ -243,47 +243,47 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                 </button>
             </div>
         ) : (
-            /* VIEW MODE MAIN */
-            <div className="flex flex-col items-center justify-center w-full space-y-8 py-8">
+            /* VIEW MODE MAIN - Compacted */
+            <div className="flex flex-col items-center justify-center w-full space-y-3 py-2">
                 <div className="text-center w-full relative">
-                    <h2 className="text-3xl font-black text-stone-100 mb-1">{mainTask.name}</h2>
-                    <p className={`text-lg font-mono ${theme.accent} opacity-80`}>
-                        {mainTask.current} <span className="text-stone-500">/</span> {mainTask.target} <span className="text-sm text-stone-600">{mainTask.unit}</span>
+                    <h2 className="text-2xl font-black text-stone-100 mb-0.5">{mainTask.name}</h2>
+                    <p className={`text-base font-mono ${theme.accent} opacity-80`}>
+                        {mainTask.current} <span className="text-stone-500">/</span> {mainTask.target} <span className="text-xs text-stone-600">{mainTask.unit}</span>
                     </p>
                     
                     <button 
                         onClick={() => setIsEditingMain(true)}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-stone-600 hover:text-stone-300 transition-colors bg-stone-900/50 rounded-full border border-stone-800/50"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 text-stone-600 hover:text-stone-300 transition-colors bg-stone-900/50 rounded-full border border-stone-800/50"
                     >
-                        <Edit2 className="w-4 h-4" />
+                        <Edit2 className="w-3.5 h-3.5" />
                     </button>
                 </div>
 
-                <div className="w-full space-y-2">
-                    <div className="h-8 bg-stone-900 rounded-full overflow-hidden relative border border-stone-800 shadow-inner">
+                <div className="w-full">
+                    <div className="h-6 bg-stone-900 rounded-full overflow-hidden relative border border-stone-800 shadow-inner">
                         <div 
                             className={`h-full transition-all duration-500 ease-out ${theme.bar}`} 
                             style={{ width: `${percent}%` }}
                         ></div>
-                        <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md">
+                        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white drop-shadow-md">
                             {Math.round(percent)}%
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-6 w-full max-w-xs">
+                <div className="flex items-center gap-4 w-full max-w-[200px]">
                     <button 
                         onClick={() => updateMainProgress(-1)}
-                        className={`flex-1 aspect-square rounded-2xl flex items-center justify-center transition-all active:scale-90 ${theme.buttonSecondary} border border-stone-700`}
+                        className={`flex-1 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 ${theme.buttonSecondary} border border-stone-700`}
                     >
-                        <Minus className="w-8 h-8 text-stone-400" />
+                        <Minus className="w-5 h-5 text-stone-400" />
                     </button>
 
                     <button 
                         onClick={() => updateMainProgress(1)}
-                        className={`flex-[1.5] aspect-square rounded-3xl flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-black/40 ${theme.button} border border-white/10`}
+                        className={`flex-1 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-md shadow-black/40 ${theme.button} border border-white/10`}
                     >
-                        <Plus className="w-12 h-12 text-white" />
+                        <Plus className="w-5 h-5 text-white" />
                     </button>
                 </div>
             </div>
@@ -291,18 +291,18 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
         {/* BILLETES SECTION (Leones ONLY) */}
         {title === 'Leones' && (
-            <div className="w-full bg-stone-900 p-6 rounded-3xl border border-stone-800 shadow-sm space-y-6">
+            <div className="w-full bg-stone-900 p-4 rounded-3xl border border-stone-800 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Banknote className="w-4 h-4" /> Billetes
+                    <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Banknote className="w-3 h-3" /> Billetes
                     </h3>
-                    <div className="flex items-center gap-2 bg-stone-950 px-3 py-1 rounded-full border border-stone-800">
-                        <PiggyBank className="w-4 h-4 text-amber-500" />
-                        <span className="text-lg font-black text-stone-100">{huchaCount}</span>
+                    <div className="flex items-center gap-1.5 bg-stone-950 px-2.5 py-1 rounded-full border border-stone-800">
+                        <PiggyBank className="w-3.5 h-3.5 text-amber-500" />
+                        <span className="text-base font-black text-stone-100">{huchaCount}</span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-5 gap-2">
                     {billetesState.map((active, idx) => (
                         <button
                             key={idx}
@@ -310,16 +310,16 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                             className={`
                                 aspect-[3/2] rounded-lg flex items-center justify-center transition-all duration-300 border-2
                                 ${active 
-                                    ? 'bg-amber-600 border-amber-400 text-stone-900 shadow-[0_0_10px_rgba(217,119,6,0.3)] scale-105' 
-                                    : 'bg-stone-950 border-stone-800 text-stone-800 opacity-30 hover:opacity-100'}
+                                    ? 'bg-amber-600 border-amber-400 text-stone-900 shadow-[0_0_8px_rgba(217,119,6,0.3)] scale-105' 
+                                    : 'bg-stone-950 border-stone-800 text-stone-800 opacity-20 hover:opacity-100'}
                             `}
                         >
-                            <Banknote className="w-6 h-6" />
+                            <Banknote className="w-4 h-4" />
                         </button>
                     ))}
                 </div>
                 
-                <p className="text-[10px] text-stone-600 text-center font-bold tracking-widest uppercase">
+                <p className="text-[8px] text-stone-600 text-center font-bold tracking-widest uppercase">
                     Completa 20 para sumar a la hucha
                 </p>
             </div>
@@ -327,40 +327,40 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
         {/* QUARTERLY GOALS (FORJAS ONLY) */}
         {title === 'Forjas' && quarterlyTasks.length > 0 && (
-            <div className="w-full pt-8 border-t border-stone-800">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-stone-400 uppercase tracking-widest text-sm">Objetivos de Estación</h3>
+            <div className="w-full pt-4 border-t border-stone-800">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-stone-500 uppercase tracking-widest text-[10px]">Objetivos de Estación</h3>
                     <button 
                         onClick={() => setIsEditingQuarterly(!isEditingQuarterly)} 
-                        className="p-2 text-stone-600 hover:text-stone-300 transition-colors rounded-full hover:bg-stone-800"
+                        className="p-1.5 text-stone-600 hover:text-stone-300 transition-colors rounded-full hover:bg-stone-800"
                     >
-                        {isEditingQuarterly ? <X className="w-5 h-5" /> : <Edit2 className="w-4 h-4" />}
+                        {isEditingQuarterly ? <X className="w-4 h-4" /> : <Edit2 className="w-3.5 h-3.5" />}
                     </button>
                 </div>
 
                 {isEditingQuarterly ? (
-                    <div className="space-y-6 bg-stone-900/50 p-4 rounded-2xl border border-stone-800">
+                    <div className="space-y-4 bg-stone-900/50 p-3 rounded-2xl border border-stone-800">
                         {quarterlyEdits.map((task, i) => (
-                            <div key={task.id} className="space-y-2 p-3 rounded-xl bg-stone-950 border border-stone-800">
-                                <div className={`text-xs font-bold uppercase ${quarterlyColors[i]?.text || 'text-stone-500'}`}>Objetivo {i+1}</div>
+                            <div key={task.id} className="space-y-2 p-2 rounded-xl bg-stone-950 border border-stone-800">
+                                <div className={`text-[9px] font-bold uppercase ${quarterlyColors[i]?.text || 'text-stone-500'}`}>Objetivo {i+1}</div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <input 
                                         value={task.name}
                                         onChange={(e) => handleQuarterlyEditChange(i, 'name', e.target.value)}
-                                        className="col-span-2 bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-sm outline-none focus:border-stone-600"
+                                        className="col-span-2 bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-xs outline-none focus:border-stone-600"
                                         placeholder="Nombre"
                                     />
                                     <input 
                                         type="number"
                                         value={task.target}
                                         onChange={(e) => handleQuarterlyEditChange(i, 'target', e.target.value)}
-                                        className="bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-sm outline-none focus:border-stone-600"
+                                        className="bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-xs outline-none focus:border-stone-600"
                                         placeholder="Meta"
                                     />
                                     <input 
                                         value={task.unit}
                                         onChange={(e) => handleQuarterlyEditChange(i, 'unit', e.target.value)}
-                                        className="bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-sm outline-none focus:border-stone-600"
+                                        className="bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-xs outline-none focus:border-stone-600"
                                         placeholder="Unidad"
                                     />
                                 </div>
@@ -368,34 +368,34 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                         ))}
                         <button 
                             onClick={saveQuarterlyChanges}
-                            className={`w-full py-3 rounded-xl font-bold text-stone-100 flex justify-center items-center gap-2 mt-4 ${theme.button}`}
+                            className={`w-full py-2.5 rounded-xl font-bold text-stone-100 flex justify-center items-center gap-2 mt-2 text-sm ${theme.button}`}
                         >
-                            <Save className="w-5 h-5" /> Guardar Todos
+                            <Save className="w-4 h-4" /> Guardar Todos
                         </button>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {quarterlyTasks.map((task, i) => {
                              const colors = quarterlyColors[i] || { bg: 'bg-stone-800', bar: 'bg-stone-500', text: 'text-stone-500', border: 'border-stone-700' };
                              const qPercent = Math.min(100, (task.current / task.target) * 100);
 
                              return (
-                                <div key={task.id} className="flex items-center gap-3">
+                                <div key={task.id} className="flex items-center gap-2">
                                     <button 
                                         onClick={() => updateQuarterlyProgress(i, -1)}
-                                        className="w-8 h-8 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-400 flex items-center justify-center border border-stone-700 flex-shrink-0"
+                                        className="w-7 h-7 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-400 flex items-center justify-center border border-stone-700 flex-shrink-0"
                                     >
-                                        <Minus className="w-4 h-4" />
+                                        <Minus className="w-3.5 h-3.5" />
                                     </button>
                                     
                                     <div className="flex-1">
-                                        <div className="flex justify-between items-end mb-1 px-1">
-                                            <span className="font-bold text-stone-200 text-sm">{task.name}</span>
-                                            <span className={`text-xs font-mono font-bold ${colors.text}`}>
+                                        <div className="flex justify-between items-end mb-0.5 px-0.5">
+                                            <span className="font-bold text-stone-300 text-[11px]">{task.name}</span>
+                                            <span className={`text-[10px] font-mono font-bold ${colors.text}`}>
                                                 {task.current}/{task.target}{task.unit}
                                             </span>
                                         </div>
-                                        <div className={`h-4 w-full rounded-full overflow-hidden border ${colors.border} ${colors.bg}`}>
+                                        <div className={`h-3 w-full rounded-full overflow-hidden border ${colors.border} ${colors.bg}`}>
                                             <div 
                                                 className={`h-full transition-all duration-500 ${colors.bar}`}
                                                 style={{ width: `${qPercent}%` }}
@@ -405,9 +405,9 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
                                     <button 
                                         onClick={() => updateQuarterlyProgress(i, 1)}
-                                        className="w-8 h-8 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-400 flex items-center justify-center border border-stone-700 flex-shrink-0"
+                                        className="w-7 h-7 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-400 flex items-center justify-center border border-stone-700 flex-shrink-0"
                                     >
-                                        <Plus className="w-4 h-4" />
+                                        <Plus className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
                              );
