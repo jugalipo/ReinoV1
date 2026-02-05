@@ -219,14 +219,11 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
   // Helper to parse Name, Duration and Color based on Emoji
   const parseTrainInfo = (text: string) => {
-    // Regex to find time at end: e.g. 1h, 30', 15'
-    // Matches whitespace then digits then h or ' or min at the end of string
     const timeMatch = text.match(/\s(\d+(?:h|'|min))$/);
     const duration = timeMatch ? timeMatch[1] : '';
     const name = timeMatch ? text.replace(timeMatch[0], '') : text;
     
     let accentColor = 'bg-stone-600'; // Default
-    // Determine color based on emoji presence
     if (name.includes('🦁')) {
         accentColor = 'bg-amber-500'; // Lion - Orange/Yellow
     } else if (name.includes('🍏')) {
@@ -246,7 +243,6 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
       <div className="space-y-3">
             {list.map((task) => {
                const { name, duration, accentColor } = parseTrainInfo(task.text);
-               // Force white accent for annual tasks
                const finalAccentColor = isAnnual ? 'bg-stone-200' : accentColor;
 
                return (
@@ -428,7 +424,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
       {/* Add Task Modal */}
       {addingTaskType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                      <h3 className="font-bold text-stone-200 text-lg">
@@ -474,7 +470,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
       {/* Delete Confirmation Modal */}
       {taskToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-6 flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-600/50">
@@ -504,9 +500,9 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
         </div>
       )}
 
-      {/* Subtasks Modal */}
+      {/* Subtasks Modal - Changed from absolute to fixed */}
       {activeTaskId && activeTask && !isEditing && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
              <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden flex flex-col max-h-[80vh]">
                  <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                      <div>

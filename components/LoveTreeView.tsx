@@ -94,7 +94,6 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
     const last = new Date(timestamp);
 
     // Normalize dates to start of day (00:00:00) to calculate calendar day difference
-    // This fixes the issue where <24h was considered "Today" even if it was yesterday
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const interactionDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
 
@@ -132,7 +131,6 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
       return `${days} días sin hablar`;
   };
 
-  // Generate deterministic positions
   const getLeafPosition = (index: number, total: number) => {
     const seed = index * 137.5; 
     const r = 20 + (index % 5) * 15 + Math.random() * 10; 
@@ -184,8 +182,6 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                 })}
             </svg>
         </div>
-
-        {/* Legend Removed */}
 
         {/* Ranked List View */}
         <div className="space-y-3 pb-8">
@@ -250,9 +246,9 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
         </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Modal - Changed from absolute to fixed */}
       {selectedFriend && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
              <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-pink-900/30 overflow-hidden flex flex-col max-h-[90vh]">
                  <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-900">
                      <div className="flex items-center gap-3">
