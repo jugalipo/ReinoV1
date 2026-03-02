@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppData, Friend } from '../types';
-import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star } from 'lucide-react';
+import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings } from 'lucide-react';
 
 interface StatsViewProps {
   data: AppData;
@@ -62,6 +62,12 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
   const paddedInteractionsHistory = Array(Math.max(0, 6 - interactionsHistoryToDisplay.length)).fill(0).concat(interactionsHistoryToDisplay);
   const interactionsMax = Math.max(...paddedInteractionsHistory, 10); // Floor of 10 for better scaling
 
+  // Logic for 10-week food evolution
+  const currentFoodScore = food.score;
+  const foodHistoryToDisplay = [...(stats.foodHistory || []).slice(-9), currentFoodScore];
+  const paddedFoodHistory = Array(Math.max(0, 10 - foodHistoryToDisplay.length)).fill(0).concat(foodHistoryToDisplay);
+  const foodMax = 50; // Max score is 50
+
   return (
     <div className="flex flex-col h-full bg-stone-950 overflow-y-auto no-scrollbar pb-12">
       <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 sticky top-0 z-10 border-b border-stone-800">
@@ -78,26 +84,22 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
           <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
             <Trophy className="w-4 h-4" /> Logros del Reino
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-stone-900 p-4 rounded-2xl border border-orange-900/30 flex flex-col items-center">
-              <Flame className="w-8 h-8 text-orange-500 mb-2" />
-              <span className="text-3xl font-black text-white">{stats.hunoPlenos}</span>
-              <span className="text-[10px] font-bold text-stone-500 uppercase">Huno Plenos</span>
+          <div className="grid grid-cols-4 gap-3">
+            <div className="bg-stone-900 p-3 rounded-2xl border border-blue-900/30 flex flex-col items-center justify-center gap-2">
+              <Train className="w-6 h-6 text-blue-500" />
+              <span className="text-2xl font-black text-white leading-none">{stats.perfectTrainMonths}</span>
             </div>
-            <div className="bg-stone-900 p-4 rounded-2xl border border-yellow-900/30 flex flex-col items-center">
-              <Star className="w-8 h-8 text-yellow-500 mb-2" />
-              <span className="text-3xl font-black text-white">{stats.projectPlenos}</span>
-              <span className="text-[10px] font-bold text-stone-500 uppercase">Proyectos</span>
+            <div className="bg-stone-900 p-3 rounded-2xl border border-red-900/30 flex flex-col items-center justify-center gap-2">
+              <MushroomIcon className="w-6 h-6 text-red-500" />
+              <span className="text-2xl font-black text-white leading-none">{stats.perfectSetsWeeks}</span>
             </div>
-            <div className="bg-stone-900 p-4 rounded-2xl border border-blue-900/30 flex flex-col items-center">
-              <Train className="w-8 h-8 text-blue-500 mb-2" />
-              <span className="text-3xl font-black text-white">{stats.perfectTrainMonths}</span>
-              <span className="text-[10px] font-bold text-stone-500 uppercase">Meses Trenes</span>
+            <div className="bg-stone-900 p-3 rounded-2xl border border-orange-900/30 flex flex-col items-center justify-center gap-2">
+              <Sword className="w-6 h-6 text-orange-500" />
+              <span className="text-2xl font-black text-white leading-none">{stats.hunoPlenos}</span>
             </div>
-            <div className="bg-stone-900 p-4 rounded-2xl border border-red-900/30 flex flex-col items-center">
-              <MushroomIcon className="w-8 h-8 text-red-500 mb-2" />
-              <span className="text-3xl font-black text-white">{stats.perfectSetsWeeks}</span>
-              <span className="text-[10px] font-bold text-stone-500 uppercase">Semanas Setas</span>
+            <div className="bg-stone-900 p-3 rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-2">
+              <Settings className="w-6 h-6 text-stone-400" />
+              <span className="text-2xl font-black text-white leading-none">{stats.projectPlenos}</span>
             </div>
           </div>
         </section>
@@ -107,24 +109,18 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
           <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
             <Dumbbell className="w-4 h-4" /> Cuerpo y Esfuerzo
           </h2>
-          <div className="bg-stone-900 rounded-3xl p-6 border border-stone-800 space-y-6">
-            <div className="grid grid-cols-2 gap-8">
-              <div>
-                <span className="text-xs font-bold text-stone-500 uppercase block mb-1">Días Entrenados</span>
-                <span className="text-2xl font-black text-indigo-400">{exercise.daysTrained}</span>
-              </div>
-              <div>
-                <span className="text-xs font-bold text-stone-500 uppercase block mb-1">Tiempo Total</span>
-                <span className="text-2xl font-black text-indigo-400">{formatMinutes(exercise.totalMinutes || 0)}</span>
-              </div>
-              <div>
-                <span className="text-xs font-bold text-stone-500 uppercase block mb-1">Sprints</span>
-                <span className="text-2xl font-black text-cyan-400">{exercise.sprintCount}</span>
-              </div>
-              <div>
-                <span className="text-xs font-bold text-stone-500 uppercase block mb-1">Estiramientos</span>
-                <span className="text-2xl font-black text-emerald-400">{exercise.stretchCount}</span>
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-stone-900 p-3 rounded-2xl border border-emerald-900/30 flex flex-col items-center justify-center gap-2">
+              <Dumbbell className="w-6 h-6 text-emerald-500" />
+              <span className="text-2xl font-black text-white leading-none">
+                {exercise.daysTrained + exercise.sprintCount + exercise.stretchCount}
+              </span>
+            </div>
+            <div className="bg-stone-900 p-3 rounded-2xl border border-indigo-900/30 flex flex-col items-center justify-center gap-2">
+              <Timer className="w-6 h-6 text-indigo-500" />
+              <span className="text-2xl font-black text-white leading-none">
+                {Math.floor((exercise.totalMinutes || 0) / 60)}h
+              </span>
             </div>
           </div>
         </section>
@@ -134,24 +130,48 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
           <div>
             <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <MushroomIcon className="w-4 h-4 text-red-500" /> Evolución de Setas (10 sem)
+                <Train className="w-4 h-4 text-blue-500" /> Evolución de Trenes (6 meses)
               </div>
               <span className="text-[9px] text-stone-500 font-mono">Última barra: Actual</span>
             </h2>
             <div className="h-24 flex gap-1 px-1">
-              {paddedSetsHistory.map((v, i) => renderHistoryBar(v, setsMax, 'bg-red-600', i === 9))}
+              {paddedTrainsHistory.map((v, i) => (
+                <React.Fragment key={i}>
+                  {renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 5)}
+                </React.Fragment>
+              ))}
             </div>
           </div>
 
           <div>
             <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Train className="w-4 h-4 text-blue-500" /> Evolución de Trenes (6 meses)
+                <MushroomIcon className="w-4 h-4 text-red-500" /> Evolución de Setas (10 sem)
               </div>
               <span className="text-[9px] text-stone-500 font-mono">Última barra: Actual</span>
             </h2>
             <div className="h-24 flex gap-1 px-1">
-              {paddedTrainsHistory.map((v, i) => renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 5))}
+              {paddedSetsHistory.map((v, i) => (
+                <React.Fragment key={i}>
+                  {renderHistoryBar(v, setsMax, 'bg-red-600', i === 9)}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Utensils className="w-4 h-4 text-lime-500" /> Evolución de Nutrición (10 sem)
+              </div>
+              <span className="text-[9px] text-stone-500 font-mono">Última barra: Actual</span>
+            </h2>
+            <div className="h-24 flex gap-1 px-1">
+              {paddedFoodHistory.map((v, i) => (
+                <React.Fragment key={i}>
+                  {renderHistoryBar(v, foodMax, 'bg-lime-600', i === 9)}
+                </React.Fragment>
+              ))}
             </div>
           </div>
 
@@ -163,18 +183,12 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
               <span className="text-[9px] text-stone-500 font-mono">Última barra: Actual</span>
             </h2>
             <div className="h-24 flex gap-1 px-1">
-              {paddedInteractionsHistory.map((v, i) => renderHistoryBar(v, interactionsMax, 'bg-pink-600', i === 5))}
+              {paddedInteractionsHistory.map((v, i) => (
+                <React.Fragment key={i}>
+                  {renderHistoryBar(v, interactionsMax, 'bg-pink-600', i === 5)}
+                </React.Fragment>
+              ))}
             </div>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-             <Utensils className="w-4 h-4" /> Nutrición
-          </h2>
-          <div className="bg-stone-900 rounded-2xl p-4 border border-lime-900/20 flex items-center justify-between">
-              <span className="font-bold text-stone-300">Puntuación Actual</span>
-              <span className="text-3xl font-black text-lime-500">{food.score}</span>
           </div>
         </section>
 

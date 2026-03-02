@@ -85,6 +85,33 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
       setTaskToDelete(null);
   };
 
+  // Helper to parse Name and Duration based on text
+  const parseSetInfo = (text: string) => {
+    const timeMatch = text.match(/\s(\d+(?:h|'|min))$/);
+    const duration = timeMatch ? timeMatch[1] : '';
+    const name = timeMatch ? text.replace(timeMatch[0], '') : text;
+    return { name, duration };
+  };
+
+  const parseDurationToMinutes = (durationStr: string): number => {
+    if (!durationStr) return 0;
+    if (durationStr.endsWith('h')) {
+      return parseInt(durationStr.replace('h', '')) * 60;
+    } else if (durationStr.endsWith("'")) {
+      return parseInt(durationStr.replace("'", ''));
+    } else if (durationStr.endsWith('min')) {
+      return parseInt(durationStr.replace('min', ''));
+    }
+    return 0;
+  };
+
+  const totalMinutes = tasks.reduce((acc, task) => {
+    const { duration } = parseSetInfo(task.text);
+    return acc + parseDurationToMinutes(duration);
+  }, 0);
+  
+  const totalHours = Math.round(totalMinutes / 60);
+
   // SVG Helper for Pie Slices
   const createSlicePath = (index: number, total: number, radius: number, cx: number, cy: number) => {
     if (total === 1) {
@@ -129,10 +156,15 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
       <div className="p-4 flex-1 overflow-y-auto pb-20">
         
         {/* Week Label Centered */}
-        <div className="flex justify-center mb-6 mt-2">
+        <div className="flex justify-center items-center gap-3 mb-6 mt-2">
             <span className="text-lg font-bold text-red-400/90 bg-stone-900/50 px-6 py-2 rounded-full border border-red-900/30 shadow-sm">
                 {getWeekLabel()}
             </span>
+            {totalHours > 0 && (
+                <span className="flex items-center gap-1 text-sm font-mono font-bold text-stone-400 bg-stone-800 px-4 py-2 rounded-full border border-stone-700 shadow-sm">
+                    {totalHours}h
+                </span>
+            )}
         </div>
 
         {/* Circle Visualization (Hide in edit mode to save space/distraction) */}
@@ -162,7 +194,9 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
 
         {/* Task List */}
         <div className="space-y-3">
-          {listTasks.map((task, index) => (
+          {listTasks.map((task, index) => {
+            const { name, duration } = parseSetInfo(task.text);
+            return (
             <div
               key={task.id}
               className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
@@ -187,21 +221,28 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                     </div>
                 ) : (
                     <div 
-                        className="flex items-center gap-3 flex-1 cursor-pointer" 
+                        className="flex items-center justify-between flex-1 cursor-pointer" 
                         onClick={() => toggleTask(task.id)}
                     >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 ${
-                            task.completed ? 'bg-red-600 text-white border-red-600' : 'text-red-500/50 border-red-900'
-                        }`}>
-                            {task.completed ? <Check className="w-5 h-5" /> : index + 1}
+                        <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 flex-shrink-0 ${
+                                task.completed ? 'bg-red-600 text-white border-red-600' : 'text-red-500/50 border-red-900'
+                            }`}>
+                                {task.completed ? <Check className="w-5 h-5" /> : index + 1}
+                            </div>
+                            <span className={`font-medium ${task.completed ? 'text-red-400 line-through opacity-70' : 'text-stone-300'}`}>
+                                {name}
+                            </span>
                         </div>
-                        <span className={`font-medium ${task.completed ? 'text-red-400 line-through opacity-70' : 'text-stone-300'}`}>
-                            {task.text}
-                        </span>
+                        {duration && (
+                            <span className="flex items-center gap-1 text-xs font-mono font-bold text-stone-400 bg-stone-800 px-3 py-1.5 rounded-full border border-stone-700 ml-4 flex-shrink-0">
+                                {duration}
+                            </span>
+                        )}
                     </div>
                 )}
             </div>
-          ))}
+          )})}
         </div>
 
         {/* Add Button (Only in Edit Mode) */}

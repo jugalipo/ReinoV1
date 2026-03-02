@@ -239,6 +239,25 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
     return { name, duration, accentColor };
   };
 
+  const parseDurationToMinutes = (durationStr: string): number => {
+    if (!durationStr) return 0;
+    if (durationStr.endsWith('h')) {
+      return parseInt(durationStr.replace('h', '')) * 60;
+    } else if (durationStr.endsWith("'")) {
+      return parseInt(durationStr.replace("'", ''));
+    } else if (durationStr.endsWith('min')) {
+      return parseInt(durationStr.replace('min', ''));
+    }
+    return 0;
+  };
+
+  const totalMonthlyMinutes = tasks.reduce((acc, task) => {
+    const { duration } = parseTrainInfo(task.text);
+    return acc + parseDurationToMinutes(duration);
+  }, 0);
+  
+  const totalMonthlyHours = Math.round(totalMonthlyMinutes / 60);
+
   const renderTaskList = (list: Task[], isAnnual: boolean) => (
       <div className="space-y-3">
             {list.map((task) => {
@@ -363,12 +382,6 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                     <div className="absolute w-full h-3 bg-stone-800 rounded-full overflow-hidden">
                         <div className="w-full h-full" style={{ backgroundImage: 'linear-gradient(90deg, transparent 50%, #475569 50%)', backgroundSize: '20px 100%' }}></div>
                     </div>
-                    
-                    {/* Station at end */}
-                    <div className="absolute right-0 -top-6 flex flex-col items-center">
-                        <div className="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded mb-1 border border-blue-700">Estación</div>
-                        <div className="w-4 h-12 bg-stone-700 rounded"></div>
-                    </div>
 
                     {/* Moving Train */}
                     <div 
@@ -383,9 +396,14 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                         </div>
                     </div>
                 </div>
-                <p className="text-center text-blue-400/60 mt-2 text-sm mb-6">
-                    {completedCount} de {totalCount} vagones cargados
-                </p>
+                
+                <div className="flex justify-center mt-6 mb-6">
+                    {totalMonthlyHours > 0 && (
+                        <span className="flex items-center gap-1 text-sm font-mono font-bold text-blue-400 bg-blue-900/20 px-4 py-2 rounded-full border border-blue-800/50 shadow-sm">
+                            {totalMonthlyHours}h
+                        </span>
+                    )}
+                </div>
 
                 {/* Annual Progress (Simple Bar) */}
                 <div className="border-t border-stone-800 pt-4 mt-2">

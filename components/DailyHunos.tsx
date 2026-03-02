@@ -180,14 +180,14 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
                     title={task.text} // Tooltip showing full text
                     className={`
                         aspect-square flex items-center justify-center text-3xl relative transition-all duration-300
-                        border-2 ${isFirstRow ? 'rounded-full' : 'rounded-2xl'}
+                        ${isFirstRow ? 'rounded-full' : 'rounded-2xl'}
                         ${task.completed
-                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
+                            ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
                             : isFailed
-                                ? 'bg-red-900/50 border-red-600 text-red-100 shadow-[0_0_15px_rgba(220,38,38,0.3)]'
+                                ? 'border-8 bg-red-900/50 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)]'
                                 : isLastSeven 
-                                    ? 'bg-transparent border-transparent text-stone-400 hover:text-stone-200 hover:bg-stone-800/30' 
-                                    : 'bg-stone-800 border-stone-700 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
+                                    ? 'border-0 bg-transparent border-transparent text-stone-400 hover:text-stone-200 hover:bg-stone-800/30' 
+                                    : 'border-2 bg-stone-800 border-stone-700 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
                         }
                     `}
                 >
@@ -238,7 +238,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
       {/* Pleno Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
+            <div className="bg-stone-900 w-full max-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-6 flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-orange-900/30 rounded-full flex items-center justify-center mb-4 border border-orange-600/50">
                         <CheckCircle2 className="w-10 h-10 text-orange-500" />

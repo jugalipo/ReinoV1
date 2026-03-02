@@ -1,4 +1,3 @@
-
 export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'leones' | 'exercise';
 
 export interface Task {
@@ -73,6 +72,7 @@ export interface FoodState {
   ritualCount: number; // 0 to 10
   wheel: FoodWheel;
   weeklyBonuses: FoodBonuses;
+  dishes?: Record<string, boolean>; // Daily meal checklist
   history: {
     action: string;
     timestamp: number;
@@ -96,6 +96,7 @@ export interface Stats {
   setsHistory: number[]; // Array of completed counts for previous weeks
   trainsHistory: number[]; // Array of completed counts for previous months
   interactionsHistory: number[]; // Array of interaction counts for previous months
+  foodHistory?: number[]; // Array of food scores for previous weeks
   lastTotalInteractions: number; // Snapshot of total interactions at the start of the current month
 }
 

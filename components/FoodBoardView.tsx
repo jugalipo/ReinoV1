@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FoodState, FoodWheel, FoodBonuses } from '../types';
-import { ArrowLeft, ChefHat, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem } from 'lucide-react';
+import { ArrowLeft, ChefHat, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check } from 'lucide-react';
 
 interface FoodBoardViewProps {
   foodState: FoodState;
@@ -9,7 +9,7 @@ interface FoodBoardViewProps {
 }
 
 export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdate, onBack }) => {
-  const { score, history, fridgeCount, ritualCount, wheel, weeklyBonuses } = foodState;
+  const { score, history, wheel, weeklyBonuses, dishes = {} } = foodState;
   const [showWheelConfirm, setShowWheelConfirm] = useState(false);
   const [lastToggledItem, setLastToggledItem] = useState<keyof FoodWheel | null>(null);
 
@@ -24,17 +24,21 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       return Math.max(0, Math.min(50, score + delta));
   };
 
-  const handleAction = (type: 'cook' | 'fast' | 'delivery' | 'fah') => {
+  const handleAction = (type: 'cook' | 'fast' | 'delivery' | 'fah' | 'fridge' | 'ritual') => {
     let delta = 0;
-    if (type === 'cook') delta = 1;
-    else if (type === 'fast') delta = 2;
-    else if (type === 'delivery') delta = -2;
-    else if (type === 'fah') delta = -1;
+    let label = '';
+    
+    if (type === 'cook') { delta = 1; label = 'Comida'; }
+    else if (type === 'fast') { delta = 2; label = 'Ayuno'; }
+    else if (type === 'delivery') { delta = -2; label = 'Domicilio'; }
+    else if (type === 'fah') { delta = -1; label = 'FAH'; }
+    else if (type === 'fridge') { delta = -1; label = 'Nevera'; }
+    else if (type === 'ritual') { delta = 1; label = 'Ritual'; }
 
     onUpdate({
       ...foodState,
       score: updateScore(delta),
-      history: addHistory(type, delta)
+      history: addHistory(label, delta)
     });
   };
 
@@ -50,31 +54,40 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       });
   };
 
-  const incrementFridge = () => {
-      const newCount = fridgeCount + 1;
-      if (newCount >= 20) {
+  const getDishCount = (baseName: string, max: number) => {
+      let count = 0;
+      for (let i = 0; i < max; i++) {
+          const key = baseName + ' '.repeat(i);
+          if (dishes[key]) count++;
+      }
+      return count;
+  };
+
+  const incrementDish = (baseName: string, max: number) => {
+      let count = getDishCount(baseName, max);
+      if (count < max) {
+          const key = baseName + ' '.repeat(count);
           onUpdate({
               ...foodState,
-              score: updateScore(-1),
-              fridgeCount: 0,
-              history: addHistory('Nevera 20x', -1)
+              dishes: {
+                  ...dishes,
+                  [key]: true
+              }
           });
-      } else {
-          onUpdate({ ...foodState, fridgeCount: newCount });
       }
   };
 
-  const incrementRitual = () => {
-      const newCount = ritualCount + 1;
-      if (newCount >= 10) {
+  const decrementDish = (baseName: string, max: number) => {
+      let count = getDishCount(baseName, max);
+      if (count > 0) {
+          const key = baseName + ' '.repeat(count - 1);
           onUpdate({
               ...foodState,
-              score: updateScore(1),
-              ritualCount: 0,
-              history: addHistory('Ritual 10x', 1)
+              dishes: {
+                  ...dishes,
+                  [key]: false
+              }
           });
-      } else {
-          onUpdate({ ...foodState, ritualCount: newCount });
       }
   };
 
@@ -119,6 +132,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
               ...foodState, 
               score: 0, 
               weeklyBonuses: { organs: false, legumes: false, fast24: false },
+              dishes: {},
               history: [] 
           });
       }
@@ -140,6 +154,32 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       { val: 50, label: 'Fruto', icon: Gem }
   ];
 
+  const mealChecklist = [
+    { name: "Huevos cocidos", icon: "🥚", max: 3 },
+    { name: "Huevos fritos", icon: "🥚", max: 2 },
+    { name: "Tortilla", icon: "🥚", max: 3 },
+    { name: "Huevos revueltos", icon: "🥚", max: 2 },
+    { name: "Merluza", icon: "🐟", max: 2 },
+    { name: "Salmón", icon: "🐟", max: 1 },
+    { name: "Bacalao", icon: "🐟", max: 1 },
+    { name: "Atún", icon: "🐟", max: 1 },
+    { name: "Pescado", icon: "🐟", max: 3 },
+    { name: "Marisco", icon: "🐟", max: 2 },
+    { name: "Trucha", icon: "🐟", max: 2 },
+    { name: "Ternera", icon: "🥩", max: 1 },
+    { name: "Cerdo", icon: "🥩", max: 2 },
+    { name: "Pollo", icon: "🥩", max: 2 },
+    { name: "Pavo", icon: "🥩", max: 2 },
+    { name: "Carnes", icon: "🥩", max: 4 },
+    { name: "Órganos", icon: "🥩", max: 2 },
+    { name: "Conejo", icon: "🥩", max: 1 },
+    { name: "Pasta", icon: "🍲", max: 1 },
+    { name: "Arroz", icon: "🍲", max: 1 },
+    { name: "Lentejas", icon: "🍲", max: 2 },
+    { name: "Garbanzos", icon: "🍲", max: 3 },
+    { name: "Alubias", icon: "🍲", max: 2 }
+  ];
+
   return (
     <div className="flex flex-col h-full bg-stone-950">
       <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between sticky top-0 z-10 border-b border-stone-800">
@@ -154,7 +194,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-12">
+      <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-20 no-scrollbar">
         
         {/* Main Counter */}
         <div className="flex flex-col items-center justify-center py-6">
@@ -190,49 +230,32 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-4 gap-3">
-            <button onClick={() => handleAction('cook')} className="bg-stone-900 aspect-square rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <ChefHat className="w-6 h-6 text-emerald-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-emerald-500">+1</span>
+        {/* Action Buttons Grid - Single row (6 columns) */}
+        <div className="grid grid-cols-6 gap-2">
+            <button onClick={() => handleAction('cook')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
+                <ChefHat className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black text-emerald-600/80">+1</span>
             </button>
-            <button onClick={() => handleAction('fast')} className="bg-stone-900 aspect-square rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <Timer className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-blue-500">+2</span>
+            <button onClick={() => handleAction('fast')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
+                <Timer className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black text-blue-600/80">+2</span>
             </button>
-            <button onClick={() => handleAction('fah')} className="bg-stone-900 aspect-square rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <span className="text-xl group-hover:scale-110 transition-transform">🍰</span>
-                <span className="text-[10px] font-black text-orange-500">-1</span>
+            <button onClick={() => handleAction('ritual')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
+                <Flame className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black text-orange-600/80">+1</span>
             </button>
-            <button onClick={() => handleAction('delivery')} className="bg-stone-900 aspect-square rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <Bike className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-red-500">-2</span>
+            <button onClick={() => handleAction('fridge')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
+                <Snowflake className="w-5 h-5 text-cyan-500 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black text-cyan-600/80">-1</span>
             </button>
-        </div>
-
-        {/* Secondary Counters */}
-        <div className="grid grid-cols-2 gap-4">
-            <div className="bg-stone-900 p-4 rounded-2xl border border-stone-800 space-y-3">
-                <div className="flex items-center justify-between">
-                    <Snowflake className="w-4 h-4 text-cyan-500" />
-                    <span className="text-[10px] font-bold text-stone-500 uppercase">Nevera</span>
-                </div>
-                <div className="flex items-end justify-between">
-                    <span className="text-3xl font-mono font-black text-cyan-200">{fridgeCount}<span className="text-xs text-stone-600">/20</span></span>
-                    <button onClick={incrementFridge} className="bg-cyan-600 text-stone-950 w-7 h-7 rounded-lg flex items-center justify-center font-bold text-lg">+</button>
-                </div>
-            </div>
-
-            <div className="bg-stone-900 p-4 rounded-2xl border border-stone-800 space-y-3">
-                <div className="flex items-center justify-between">
-                    <Flame className="w-4 h-4 text-orange-500" />
-                    <span className="text-[10px] font-bold text-stone-500 uppercase">Ritual</span>
-                </div>
-                <div className="flex items-end justify-between">
-                    <span className="text-3xl font-mono font-black text-orange-200">{ritualCount}<span className="text-xs text-stone-600">/10</span></span>
-                    <button onClick={incrementRitual} className="bg-orange-600 text-stone-950 w-7 h-7 rounded-lg flex items-center justify-center font-bold text-lg">+</button>
-                </div>
-            </div>
+            <button onClick={() => handleAction('fah')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
+                <span className="text-lg group-hover:scale-110 transition-transform">🍰</span>
+                <span className="text-[10px] font-black text-orange-600/80">-1</span>
+            </button>
+            <button onClick={() => handleAction('delivery')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
+                <Bike className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black text-red-600/80">-2</span>
+            </button>
         </div>
 
         {/* Rueda Section */}
@@ -300,6 +323,69 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                     <span className="text-xl">🌑</span>
                     <span className="text-[10px] font-black">AYUNO 24h</span>
                 </button>
+            </div>
+        </div>
+
+        {/* Meal Checklist (Platos Cocinados) - New Section */}
+        <div className="space-y-4 pt-4 border-t border-stone-800">
+            <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-widest px-1">Menú del Superviviente</h3>
+            <div className="bg-stone-900/60 rounded-3xl overflow-hidden border border-stone-800">
+                {[...mealChecklist].sort((a, b) => {
+                    const aCount = getDishCount(a.name, a.max);
+                    const bCount = getDishCount(b.name, b.max);
+                    
+                    const getStatus = (count: number, max: number) => {
+                        if (count === 0) return 0; // Unstarted (top)
+                        if (count === max) return 2; // Full (bottom)
+                        return 1; // Partial (middle)
+                    };
+
+                    const aStatus = getStatus(aCount, a.max);
+                    const bStatus = getStatus(bCount, b.max);
+
+                    return aStatus - bStatus;
+                }).map((meal, index) => {
+                    const count = getDishCount(meal.name, meal.max);
+                    const isFull = count === meal.max;
+                    const hasAny = count > 0;
+                    return (
+                        <div
+                            key={`${meal.name}-${index}`}
+                            className={`
+                                w-full flex items-center justify-between p-3 border-b border-stone-800/50 last:border-0 transition-all
+                                ${isFull ? 'bg-lime-900/20' : hasAny ? 'bg-yellow-900/20' : ''}
+                            `}
+                        >
+                            <button 
+                                onClick={() => decrementDish(meal.name, meal.max)}
+                                disabled={count === 0}
+                                className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-stone-800 disabled:opacity-30 disabled:hover:bg-transparent text-stone-300 transition-colors bg-stone-950 border border-stone-800"
+                            >
+                                -
+                            </button>
+                            
+                            <div className="flex-1 flex items-center gap-3 px-4">
+                                <span className="text-2xl">{meal.icon}</span>
+                                <span className={`text-sm font-bold tracking-tight transition-colors ${isFull ? 'text-lime-400' : hasAny ? 'text-yellow-400' : 'text-stone-300'}`}>
+                                    {meal.name}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <span className={`text-xs font-bold ${isFull ? 'text-lime-500' : hasAny ? 'text-yellow-500' : 'text-stone-500'}`}>
+                                    {count} de {meal.max}
+                                </span>
+                                <button 
+                                    onClick={() => incrementDish(meal.name, meal.max)}
+                                    disabled={isFull}
+                                    className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-stone-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors bg-stone-950 border border-stone-800 ${isFull ? 'text-lime-500' : hasAny ? 'text-yellow-500' : 'text-lime-500'}`}
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
 

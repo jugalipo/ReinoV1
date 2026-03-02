@@ -207,16 +207,21 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                             {/* Text Info */}
                             <div>
                                 <h4 className="font-bold text-lg text-stone-100 leading-tight">{f.name}</h4>
-                                <p className={`text-xs font-bold ${textColorClass}`}>
-                                    {getDaysText(days)}
+                                <p className="text-xs font-bold text-stone-500">
+                                    {total} interacciones
                                 </p>
                             </div>
                         </div>
 
                         {/* Counter Badge */}
-                        <div className="bg-stone-950 px-3 py-1.5 rounded-xl border border-stone-800 flex items-center gap-2 shadow-inner">
-                            <BarChart2 className="w-4 h-4 text-stone-600" />
-                            <span className="text-stone-300 font-mono font-bold">{total}</span>
+                        <div className={`px-3 py-1.5 rounded-xl border flex flex-col items-center justify-center shadow-inner ${
+                            days <= 7 ? 'bg-emerald-950/30 border-emerald-900/50' :
+                            days <= 14 ? 'bg-yellow-950/30 border-yellow-900/50' :
+                            days <= 30 ? 'bg-orange-950/30 border-orange-900/50' :
+                            'bg-red-950/30 border-red-900/50'
+                        }`}>
+                            <span className={`text-lg font-black leading-none ${textColorClass}`}>{days}</span>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${textColorClass} opacity-70`}>días</span>
                         </div>
                     </div>
                  )
