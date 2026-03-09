@@ -18,6 +18,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ data, onUpdateData
     rows.push(['META', 'Last Date', data.lastDate || '', '', '']);
     rows.push(['META', 'Last Sets Reset', new Date(data.lastSetsReset).toLocaleString(), data.lastSetsReset, '']);
     rows.push(['META', 'Last Trains Reset', new Date(data.lastTrainsReset).toLocaleString(), data.lastTrainsReset, '']);
+    rows.push(['META', 'Sets Pleno Claimed', data.setsPlenoClaimed ? 'YES' : 'NO', '', '']);
+    rows.push(['META', 'Trains Pleno Claimed', data.trainsPlenoClaimed ? 'YES' : 'NO', '', '']);
     
     rows.push(['STATS', 'Perfect Sets Weeks', data.stats.perfectSetsWeeks, '', '']);
     rows.push(['STATS', 'Huno Plenos', data.stats.hunoPlenos, '', '']);
@@ -29,6 +31,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ data, onUpdateData
     rows.push(['STATS HISTORY', 'Sets History', JSON.stringify(data.stats.setsHistory), '', '']);
     rows.push(['STATS HISTORY', 'Trains History', JSON.stringify(data.stats.trainsHistory), '', '']);
     rows.push(['STATS HISTORY', 'Interactions History', JSON.stringify(data.stats.interactionsHistory), '', '']);
+    if (data.stats.foodHistory) {
+        rows.push(['STATS HISTORY', 'Food History', JSON.stringify(data.stats.foodHistory), '', '']);
+    }
+
+    // --- HUNOS HISTORY ---
+    if (data.hunosHistory) {
+        Object.entries(data.hunosHistory).forEach(([date, completedIds]) => {
+            rows.push(['HUNOS HISTORY', date, completedIds.length, JSON.stringify(completedIds), '']);
+        });
+    }
 
     // --- EXERCISE ---
     if (data.exercise) {
@@ -78,6 +90,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ data, onUpdateData
         rows.push(['LEON', t.name, t.current, `Target: ${t.target} ${t.unit}`, '']);
     });
 
+    // --- BILLETES & LEONES GRIDS ---
+    if (data.billetesState) {
+        rows.push(['GRID', 'Billetes State', JSON.stringify(data.billetesState), '', '']);
+    }
+    if (data.huchaCount !== undefined) {
+        rows.push(['GRID', 'Hucha Count', data.huchaCount, '', '']);
+    }
+    if (data.leonesState) {
+        rows.push(['GRID', 'Leones State', JSON.stringify(data.leonesState), '', '']);
+    }
+    if (data.leonesCount !== undefined) {
+        rows.push(['GRID', 'Leones Count', data.leonesCount, '', '']);
+    }
+
     // --- FRIENDS ---
     data.friends.forEach(f => {
         const interactions = JSON.stringify(f.interactions);
@@ -96,6 +122,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ data, onUpdateData
     rows.push(['FOOD', 'Ritual Count', data.food.ritualCount, '', '']);
     rows.push(['FOOD', 'Wheel State', JSON.stringify(data.food.wheel), '', '']);
     rows.push(['FOOD', 'Bonuses State', JSON.stringify(data.food.weeklyBonuses), '', '']);
+    if (data.food.dishes) {
+        rows.push(['FOOD', 'Dishes State', JSON.stringify(data.food.dishes), '', '']);
+    }
     
     // Food History
     data.food.history.forEach(h => {

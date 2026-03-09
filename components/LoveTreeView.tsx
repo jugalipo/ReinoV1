@@ -1,22 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Friend, FriendInteractions } from '../types';
-import { ArrowLeft, Plus, Trash2, Heart, X, Check, BarChart2 } from 'lucide-react';
+import { Friend, FriendInteractions, ReminderEvent } from '../types';
+import { ArrowLeft, Plus, Trash2, Heart, X, Check, BarChart2, Edit2, Save } from 'lucide-react';
+import { RemindersSection } from './RemindersSection';
 
 interface LoveTreeViewProps {
   friends: Friend[];
   onUpdate: (friends: Friend[]) => void;
   onBack: () => void;
+  reminders?: ReminderEvent[];
+  onUpdateReminders?: (reminders: ReminderEvent[]) => void;
 }
 
-export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, onBack }) => {
+const DEFAULT_REMINDERS: ReminderEvent[] = [
+  { id: '1', title: 'Nos casamos', date: '2022-05-22', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+  { id: '2', title: 'Empezamos a salir', date: '2017-05-24', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+  { id: '3', title: 'Nos fuimos a vivir juntos', date: '2017-09-04', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+  { id: '4', title: 'Empezó a trabajar', date: '2020-10-16', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+  { id: '5', title: 'En Hacienda', date: '2024-06-15', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+  { id: '6', title: 'Días Cotizados', date: '2020-07-18', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+  { id: '7', title: 'Santa Alicia', date: '2000-06-23', notifyYearly: true, notifyMonthly: false, notify100Days: false, hideAge: true },
+  { id: '8', title: 'Cumpleaños Alicia', date: '1993-06-14', notifyYearly: true, notifyMonthly: false, notify100Days: false },
+];
+
+export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, onBack, reminders, onUpdateReminders }) => {
   const [newFriendName, setNewFriendName] = useState('');
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [newTaskInput, setNewTaskInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const [isEditingFriend, setIsEditingFriend] = useState(false);
+  const [editFriendName, setEditFriendName] = useState('');
+  const [editInteractions, setEditInteractions] = useState<FriendInteractions>({ person: 0, call: 0, gift: 0, photo: 0, message: 0 });
+
   // Reset delete confirmation when selecting a different friend
   useEffect(() => {
       setShowDeleteConfirm(false);
+      setIsEditingFriend(false);
   }, [selectedFriendId]);
 
   // Sort friends by total interactions (descending)
@@ -57,6 +76,33 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
     const updatedList = friends.filter((f) => f.id !== id);
     onUpdate(updatedList);
     setSelectedFriendId(null);
+  };
+
+  const startEditingFriend = () => {
+      const selectedFriend = friends.find(f => f.id === selectedFriendId);
+      if (selectedFriend) {
+          setEditFriendName(selectedFriend.name);
+          setEditInteractions({ ...selectedFriend.interactions });
+          setIsEditingFriend(true);
+      }
+  };
+
+  const saveFriendEdits = () => {
+      const selectedFriend = friends.find(f => f.id === selectedFriendId);
+      if (selectedFriend) {
+          const updated = friends.map(f => {
+              if (f.id === selectedFriend.id) {
+                  return {
+                      ...f,
+                      name: editFriendName,
+                      interactions: editInteractions
+                  };
+              }
+              return f;
+          });
+          onUpdate(updated);
+          setIsEditingFriend(false);
+      }
   };
 
   const addTask = (friendId: string) => {
@@ -146,15 +192,15 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
   const selectedFriendDays = selectedFriend ? getDaysSince(selectedFriend.lastInteraction) : 0;
 
   return (
-    <div className="flex flex-col h-full bg-pink-950/20 relative">
-      <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 sticky top-0 z-10 border-b border-stone-800">
+    <div className="fixed inset-0 z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+      <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800 shrink-0">
         <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
           <ArrowLeft className="w-6 h-6 text-pink-500" />
         </button>
         <h1 className="text-xl font-bold text-pink-200">Brotes</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 bg-pink-950/20">
         {/* Tree Visualization */}
         <div className="bg-stone-900 rounded-2xl shadow-sm border border-pink-900/50 mb-6 relative overflow-hidden h-80 flex items-center justify-center flex-shrink-0">
             <svg width="300" height="320" viewBox="0 0 300 320">
@@ -183,6 +229,12 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
             </svg>
         </div>
 
+        {/* Reminders Section */}
+        <RemindersSection 
+          reminders={reminders || DEFAULT_REMINDERS} 
+          onUpdateReminders={onUpdateReminders || (() => {})} 
+        />
+
         {/* Ranked List View */}
         <div className="space-y-3 pb-8">
             <h3 className="font-bold text-stone-500 text-sm px-1">Ránking de Interacciones</h3>
@@ -208,7 +260,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                             <div>
                                 <h4 className="font-bold text-lg text-stone-100 leading-tight">{f.name}</h4>
                                 <p className="text-xs font-bold text-stone-500">
-                                    {total} interacciones
+                                    {total} brotes
                                 </p>
                             </div>
                         </div>
@@ -261,19 +313,36 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                             {selectedFriend.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <h3 className="font-bold text-pink-200 text-lg truncate pr-4">{selectedFriend.name}</h3>
+                            {isEditingFriend ? (
+                                <input 
+                                    value={editFriendName}
+                                    onChange={e => setEditFriendName(e.target.value)}
+                                    className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-pink-200 font-bold w-32 outline-none"
+                                />
+                            ) : (
+                                <h3 className="font-bold text-pink-200 text-lg truncate pr-4">{selectedFriend.name}</h3>
+                            )}
                             <p className={`text-xs font-bold ${getLeafColorClass(selectedFriendDays)}`}>
                                 {getDaysText(selectedFriendDays)}
                             </p>
                         </div>
                      </div>
                      
-                     <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-2">
                          {/* Days Counter */}
                         <span className={`text-4xl font-black tracking-tighter ${getLeafColorClass(selectedFriendDays)}`}>
                              {selectedFriendDays === 999 ? '∞' : selectedFriendDays}
                         </span>
-                        <button onClick={() => setSelectedFriendId(null)} className="p-1 hover:bg-stone-700 rounded-full">
+                        {isEditingFriend ? (
+                            <button onClick={saveFriendEdits} className="p-1 hover:bg-stone-700 rounded-full ml-2">
+                                <Save className="w-5 h-5 text-green-500" />
+                            </button>
+                        ) : (
+                            <button onClick={startEditingFriend} className="p-1 hover:bg-stone-700 rounded-full ml-2">
+                                <Edit2 className="w-5 h-5 text-stone-400" />
+                            </button>
+                        )}
+                        <button onClick={() => { setSelectedFriendId(null); setIsEditingFriend(false); }} className="p-1 hover:bg-stone-700 rounded-full">
                             <X className="w-6 h-6 text-stone-400" />
                         </button>
                      </div>
@@ -285,26 +354,29 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                     <div className="mb-6">
                         <p className="text-stone-500 text-xs font-bold uppercase mb-3">Registrar Interacción</p>
                         <div className="grid grid-cols-5 gap-2">
-                            <button onClick={() => recordInteraction(selectedFriend.id, 'person')} className="flex flex-col items-center justify-center gap-1 aspect-square bg-stone-950 rounded-2xl border border-stone-800 hover:border-pink-500 transition-colors">
-                                <span className="text-2xl">🫂</span>
-                                <span className="text-xs font-mono font-bold text-stone-400">{selectedFriend.interactions.person}</span>
-                            </button>
-                            <button onClick={() => recordInteraction(selectedFriend.id, 'call')} className="flex flex-col items-center justify-center gap-1 aspect-square bg-stone-950 rounded-2xl border border-stone-800 hover:border-pink-500 transition-colors">
-                                <span className="text-2xl">📞</span>
-                                <span className="text-xs font-mono font-bold text-stone-400">{selectedFriend.interactions.call}</span>
-                            </button>
-                            <button onClick={() => recordInteraction(selectedFriend.id, 'gift')} className="flex flex-col items-center justify-center gap-1 aspect-square bg-stone-950 rounded-2xl border border-stone-800 hover:border-pink-500 transition-colors">
-                                <span className="text-2xl">🎁</span>
-                                <span className="text-xs font-mono font-bold text-stone-400">{selectedFriend.interactions.gift}</span>
-                            </button>
-                            <button onClick={() => recordInteraction(selectedFriend.id, 'photo')} className="flex flex-col items-center justify-center gap-1 aspect-square bg-stone-950 rounded-2xl border border-stone-800 hover:border-pink-500 transition-colors">
-                                <span className="text-2xl">📸</span>
-                                <span className="text-xs font-mono font-bold text-stone-400">{selectedFriend.interactions.photo}</span>
-                            </button>
-                            <button onClick={() => recordInteraction(selectedFriend.id, 'message')} className="flex flex-col items-center justify-center gap-1 aspect-square bg-stone-950 rounded-2xl border border-stone-800 hover:border-pink-500 transition-colors">
-                                <span className="text-2xl">💬</span>
-                                <span className="text-xs font-mono font-bold text-stone-400">{selectedFriend.interactions.message}</span>
-                            </button>
+                            {(['person', 'call', 'gift', 'photo', 'message'] as const).map((type) => {
+                                const icons: Record<string, string> = { person: '🫂', call: '📞', gift: '🎁', photo: '📸', message: '💬' };
+                                return (
+                                    <div key={type} className="flex flex-col items-center justify-center gap-1 aspect-square bg-stone-950 rounded-2xl border border-stone-800 hover:border-pink-500 transition-colors relative">
+                                        {isEditingFriend ? (
+                                            <>
+                                                <span className="text-xl">{icons[type]}</span>
+                                                <input 
+                                                    type="number" 
+                                                    value={editInteractions[type]}
+                                                    onChange={e => setEditInteractions({...editInteractions, [type]: Math.max(0, parseInt(e.target.value) || 0)})}
+                                                    className="w-10 bg-stone-900 text-center text-xs font-mono font-bold text-stone-200 rounded outline-none border border-stone-700"
+                                                />
+                                            </>
+                                        ) : (
+                                            <button onClick={() => recordInteraction(selectedFriend.id, type)} className="w-full h-full flex flex-col items-center justify-center gap-1">
+                                                <span className="text-2xl">{icons[type]}</span>
+                                                <span className="text-xs font-mono font-bold text-stone-400">{selectedFriend.interactions[type]}</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 

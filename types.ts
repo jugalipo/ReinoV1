@@ -19,6 +19,7 @@ export interface ResourceTask {
   unit: string;
   current: number;
   target: number;
+  isPrincipal?: boolean;
 }
 
 export interface Book {
@@ -100,6 +101,44 @@ export interface Stats {
   lastTotalInteractions: number; // Snapshot of total interactions at the start of the current month
 }
 
+export interface ReminderEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  notifyYearly: boolean;
+  notifyMonthly: boolean;
+  notify100Days: boolean;
+  hideAge?: boolean;
+}
+
+export interface PianoState {
+  piezaDesafio: string;
+  piezaConsolidacion: string;
+  piezaLectura: string;
+  henleLevel: number;
+  checklist: {
+    recuperacionActiva: boolean;
+    lecturaPrimeraVista: boolean;
+    tecnicaPrecision: boolean;
+    construccionIntercalada: boolean;
+    consolidacion: boolean;
+    audicionCritica: boolean;
+  };
+  currentScaleIndex?: number;
+  sesionesDesafio?: number;
+  sesionesConsolidacion?: number;
+  scaleExercises?: {
+    octava: boolean;
+    decima: boolean;
+    sexta: boolean;
+    tercera: boolean;
+    arpegiosEnlazados: boolean;
+    arpegiosExtendidos: boolean;
+    acordes: boolean;
+  };
+  hanonExercise?: number;
+}
+
 export interface AppData {
   lastDate?: string; // YYYY-MM-DD to track daily resets
   lastSetsReset: number; // timestamp of last weekly reset
@@ -120,4 +159,8 @@ export interface AppData {
   exercise: ExerciseState;
   billetesState?: boolean[]; // 20 booleans for the money grid
   huchaCount?: number; // Count of completed sets of 20 billetes
+  leonesState?: boolean[]; // 20 booleans for the lions grid
+  leonesCount?: number; // Count of completed sets of 20 lions
+  reminders?: ReminderEvent[]; // Important dates to remember
+  piano?: PianoState;
 }

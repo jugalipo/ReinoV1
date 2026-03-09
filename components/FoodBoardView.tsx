@@ -1,6 +1,27 @@
 import React, { useState } from 'react';
 import { FoodState, FoodWheel, FoodBonuses } from '../types';
-import { ArrowLeft, ChefHat, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check } from 'lucide-react';
+import { ArrowLeft, UtensilsCrossed, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check } from 'lucide-react';
+
+const CakeSliceOff = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M16 13H3" />
+    <path d="M16 17H3" />
+    <path d="m7.2 7.9-3.388 2.5A2 2 0 0 0 3 12.01V20a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-8.654c0-2-2.44-6.026-6.44-8.026a1 1 0 0 0-1.082.057L10.4 5.6" />
+    <circle cx="9" cy="7" r="2" />
+    <line x1="2" y1="2" x2="22" y2="22" />
+  </svg>
+);
 
 interface FoodBoardViewProps {
   foodState: FoodState;
@@ -181,8 +202,8 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   ];
 
   return (
-    <div className="flex flex-col h-full bg-stone-950">
-      <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between sticky top-0 z-10 border-b border-stone-800">
+    <div className="fixed inset-0 z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+      <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
         <div className="flex items-center gap-4">
              <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
                 <ArrowLeft className="w-6 h-6 text-lime-500" />
@@ -201,12 +222,10 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             <div className={`text-7xl transition-all duration-300 ${getScoreColor()}`}>
                 {score}
             </div>
-            <div className="text-[10px] text-stone-500 uppercase tracking-[0.2em] mt-2 font-bold">Puntuación de Supervivencia</div>
         </div>
 
         {/* Medals / Milestones Section */}
         <div className="bg-stone-900/40 rounded-3xl p-6 border border-stone-800/50">
-            <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-widest text-center mb-6">Hitos del Superviviente</h3>
             <div className="flex justify-between items-start gap-1">
                 {milestones.map((m) => {
                     const isAchieved = score >= m.val;
@@ -233,23 +252,23 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         {/* Action Buttons Grid - Single row (6 columns) */}
         <div className="grid grid-cols-6 gap-2">
             <button onClick={() => handleAction('cook')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <ChefHat className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                <UtensilsCrossed className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
                 <span className="text-[10px] font-black text-emerald-600/80">+1</span>
             </button>
             <button onClick={() => handleAction('fast')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
                 <Timer className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
                 <span className="text-[10px] font-black text-blue-600/80">+2</span>
             </button>
-            <button onClick={() => handleAction('ritual')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
+            <button onClick={() => handleAction('ritual')} className="bg-stone-900 aspect-square rounded-full border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
                 <Flame className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
                 <span className="text-[10px] font-black text-orange-600/80">+1</span>
             </button>
-            <button onClick={() => handleAction('fridge')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
+            <button onClick={() => handleAction('fridge')} className="bg-stone-900 aspect-square rounded-full border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
                 <Snowflake className="w-5 h-5 text-cyan-500 group-hover:scale-110 transition-transform" />
                 <span className="text-[10px] font-black text-cyan-600/80">-1</span>
             </button>
             <button onClick={() => handleAction('fah')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <span className="text-lg group-hover:scale-110 transition-transform">🍰</span>
+                <CakeSliceOff className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
                 <span className="text-[10px] font-black text-orange-600/80">-1</span>
             </button>
             <button onClick={() => handleAction('delivery')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
@@ -260,7 +279,6 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
 
         {/* Rueda Section */}
         <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800">
-            <h3 className="text-[10px] font-black text-stone-500 mb-4 text-center uppercase tracking-widest">Esenciales Diarios (+3)</h3>
             <div className="grid grid-cols-6 gap-2">
                 {[
                     { key: 'lemon', icon: '🍋' },
@@ -288,7 +306,6 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
 
         {/* Weekly Bonuses Section */}
         <div className="space-y-3">
-            <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-widest px-1">Retos de Temporada</h3>
             <div className="grid grid-cols-3 gap-3">
                 <button 
                     onClick={() => handleBonus('organs', 3)}

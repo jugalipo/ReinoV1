@@ -176,15 +176,15 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   };
 
   return (
-    <div className="flex flex-col h-full bg-emerald-950/20 relative">
-      <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 sticky top-0 z-10 border-b border-stone-800">
+    <div className="fixed inset-0 z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+      <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800 shrink-0">
         <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
           <ArrowLeft className="w-6 h-6 text-emerald-500" />
         </button>
         <h1 className="text-xl font-bold text-emerald-200">Sala de Entrenamiento</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-12">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-12 bg-emerald-950/20">
         
         {/* MAIN SERIES COUNTER */}
         <div className="bg-stone-900 rounded-2xl p-6 border border-stone-800 shadow-xl relative overflow-hidden">

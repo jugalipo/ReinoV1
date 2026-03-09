@@ -7,9 +7,10 @@ import { LoveTreeView } from './components/LoveTreeView';
 import { FoodBoardView } from './components/FoodBoardView';
 import { ResourceTrackerView } from './components/ResourceTrackerView';
 import { ExerciseView } from './components/ExerciseView';
+import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
-import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music } from 'lucide-react';
 
 const MUSHROOM_TASKS = [
   "🍄 Agenda 15'", 
@@ -23,24 +24,58 @@ const MUSHROOM_TASKS = [
 ];
 
 const TRAIN_TASKS = [
-  "🦁Cuentas 1h", "🦁Compra 30'", "🦁Reino 30'", "🦁Cine 1h", "🦁Libros 15'", "🦁Cartera 15'", 
-  "🦁Subs 30'", "🦁RRSS 15'", "🦁Arroz 15'", "🦁Medidas 1h", "🦁Destrasteo 2h", "🦁Notas 30'", 
-  "🦁Papeles 15'", "🦁Escáner 15'", "🦁Digital 30' (llevo 40)", "🦁Silla 5'", "🦁StayFocus 5'", 
-  "🦁Compranda 30'", "🍏Sauna 1h", "🍏Día sin Pantallas 15'", "🍏Videnda 30h", "🍏Liturgia 30'", 
-  "❤️Turistáculo 30'", "❤️Bosque 15'", "❤️Viaje 30'", "❤️Anfitrión 15'", "❤️Donanda 30'", 
-  "❤️S Aristocráticas 15'", "❤️Querida Alicia 2h", "❤️Aliciología 1h", "❤️El Chef 1h", 
-  "❤️Querida Familia 1h", "❤️Falmuerzo 15'", "📘Reválidas 2h", "📘Dora 30'", "📘Eficiencia 2h", 
-  "📘Desafío Cuerpo 5'"
+  { text: "🦁 Cuentas 1h ⭐", subtasks: ["Clasificar gastos ING", "Anotar gastos", "Presupuesto", "Balance", "Transferencias"] },
+  { text: "🦁 Compra 30' ⭐", subtasks: ["Lista", "Primera compra", "Revisión"] },
+  { text: "🦁 Reino 30'", subtasks: ["Actualizar excel Reino", "Tablón del Reino"] },
+  { text: "🦁 Cine 1h", subtasks: ["Ver estrenos ⭐", "Torrents", "Descargar 2"] },
+  { text: "🦁 Libros 15'", subtasks: ["Librículas ⭐", "GoodReads"] },
+  { text: "🦁 Cartera 15'", subtasks: ["Ver gráficos", "Hacer compras", "Apuntar en Reino"] },
+  { text: "🦁 Vídeos 30'", subtasks: ["Canales de Youtube", "Guardar para más tarde", "Ver 1 vídeo", "Ver 2 vídeos", "Ver 3 vídeos", "Ver 4 vídeos", "Ver 5 vídeos", "Ver 6 vídeos", "Ver 7 vídeos", "Ver 8 vídeos", "Ver 9 vídeos", "Ver 10 vídeos"] },
+  { text: "🦁 RRSS 15'", subtasks: ["Youtube", "Tiktok", "Instagram", "Apuntar Estadísticas de RRSS"] },
+  { text: "🦁 Arroz 15'", subtasks: ["Contar tareas", "Colocar granos de arroz -"] },
+  { text: "🦁 Medidas 1h", subtasks: ["Peso Alicia", "Foto", "Peso", "Plicómetro", "Perímetros", "Calcular pasos", "Ver Daylio", "Tensión", "Dominadas", "Flexiones", "Sentadillas", "Abdominales", "Pino", "Contadores ⭐", "Horas de móvil", "Actualizar DTH ⭐", "Nota Cuerpo ⭐"] },
+  { text: "🦁 Destrasteo 2h", subtasks: ["Actualizar destrasteos ⭐", "Destrasteo Objetos -", "Destrasteo Habitaciones -", "Destrasteo Limpieza -", "Destrasteo (decoración) -", "Destrasteo (Memorando) -"] },
+  { text: "🦁 Notas 30'", subtasks: ["Activos", "Cuerpo", "Amor", "Proyectos", "Diario"] },
+  { text: "🦁 Papeles 15'", subtasks: ["Seleccionar ⭐", "Leer"] },
+  { text: "🦁 Escáner 15'", subtasks: ["Enchufar ⭐", "Escanear"] },
+  { text: "🦁 Digital 30'", subtasks: ["Fondos de pantalla ⭐", "Carpetas pc", "Google Fotos", "Móvil", "Navegador", "IAs", "WhatsApp", "Telegram"] },
+  { text: "🦁 Silla 5'", subtasks: ["Sacar inflador", "Inflar la silla"] },
+  { text: "🦁 StayFocus 5'", subtasks: ["Descargar copia de seguridad", "Guardar en Drive"] },
+  { text: "🦁 Compranda 30'", subtasks: ["Lista de Compranda ⭐", "Compras por internet", "Quedar para compras en la calle"] },
+  { text: "🦁 Ser o no ser 15'", subtasks: ["Escribir lo que no soy", "Escribir lo que no soy"] },
+  { text: "🍏 Sauna 1h", subtasks: ["Poner la bañera", "Poner música", "Sauna", "Agua fría"] },
+  { text: "🍏 Día sin Pantallas 15'", subtasks: ["Elegir ⭐", "Poner bloqueos", "Día sin Pantallas -"] },
+  { text: "🍏 Videnda 30h", subtasks: ["Actualizar excel ⭐", "Dvd", "Garci", "Serie", "Alicia", "Mes", "Videnda", "Revista"] },
+  { text: "🍏 Liturgia 30'", subtasks: ["Sacar el libro ⭐", "Leer liturgia"] },
+  { text: "❤️ Turistáculo 30'", subtasks: ["Elegir ⭐", "Comprar ⭐", "Quedar -"] },
+  { text: "❤️ Bosque 15'", subtasks: ["Elegir Bosque ⭐", "Quedar -"] },
+  { text: "❤️ Viaje 30'", subtasks: ["Elegir Viaje ⭐", "Comprar Viaje ⭐", "Ir de Viaje -"] },
+  { text: "❤️ Anfitrión 15'", subtasks: ["Elegir Anfitrión ⭐", "Invitar Anfitrión", "Anfitrionar -"] },
+  { text: "❤️ Donanda 30'", subtasks: ["Escribir Donanda ⭐", "Preparar", "Entregar -"] },
+  { text: "❤️ S Aristocráticas 15'", subtasks: ["Elegir ⭐", "Reservar ⭐", "Ir -"] },
+  { text: "❤️ Querida Alicia 2h", subtasks: ["Escribir", "Grabar", "Programar subida"] },
+  { text: "❤️ Aliciología 1h", subtasks: ["Elegir tema", "Profundizar -"] },
+  { text: "❤️ El Chef 1h", subtasks: ["Receta de Alicia ⭐", "Elegir receta ⭐", "Compromiso con Alicia ⭐", "Cocinar -"] },
+  { text: "❤️ Querida Familia 1h", subtasks: ["Eleigr Querida Familia ⭐", "Escribir Querida Familia -"] },
+  { text: "❤️ Falmuerzo 15'", subtasks: ["Invitar ⭐", "Falmuerzo -"] },
+  { text: "📘 Diario en vídeo 10'", subtasks: ["Pensar", "Grabar"] },
+  { text: "📘 Reválidas 2h", subtasks: ["Latín", "Inglés", "Árabe", "Imagen", "Matemáticas", "Literatura", "Trading", "Música", "Diccionario", "Biología", "Países"] },
+  { text: "📘 Dora 30'", subtasks: ["Elegir Dora ⭐", "Hacer -"] },
+  { text: "📘 Eficiencia 2h", subtasks: ["Escribir Eficiencia ⭐", "Limpieza -", "Orden -", "Alimentos -", "Ejercicio -", "PC / móvil -", "Limites -", "Registros -", "Web / RRSS -", "Personas -", "Dinero -", "Afilar hacha: móvil pc apps atajos -"] },
+  { text: "📘 Desafío Cuerpo 5'", subtasks: ["Elegir desafío ⭐", "Comprometerme ⭐", "Ejecutar -", "(Test anual) -"] }
 ];
 
 const ANNUAL_TRAIN_TASKS = [
-  "🚂Inventarios",
-  "🚂Prontuario",
-  "🚂Confesiones",
-  "🚂Testamento",
-  "🚂Álbum",
-  "🚂Aspavientos",
-  "🚂Illustrator del Reino"
+  { text: "🚂 Peluquería (IMPAR)", subtasks: ["Cita Peluquería", "Corte", "Descafeinado 15"] },
+  { text: "🚂 Pulsera FIT-09", subtasks: ["Sacar pulsera", "Configurar móvil", "Medir", "Anotar resultados"] },
+  { text: "🚂 Agenda (DIC)", subtasks: ["Revisar mejoras de Agenda", "Maquetar nueva Agenda", "Imprimir Agenda"] },
+  { text: "🚂 Inventarios (DIC)", subtasks: ["Anotar inventarios", "Biblioteca", "Legenda", "Cartelera", "Videnda", "Cancionero", "Memorando", "Gimnasio", "Flores", "Alcancía", "Museo", "Baúl mundo", "Amortizaciones", "Palabrario", "Liceo"] },
+  { text: "🚂 Prontuario (DIC)", subtasks: ["Añadir textos Prontuario", "Ordenar textos", "Corregir y refinar", "Maquetar", "Imprimir"] },
+  { text: "🚂 Álbum (DIC)", subtasks: ["Elegir fotos", "Editar fotos", "Maquetar", "Imprimir"] },
+  { text: "🚂 Confesiones (DIC)", subtasks: ["Añadir novedades", "Revisar", "Maquetar", "Imprimir"] },
+  { text: "🚂 Testamento (DIC)", subtasks: ["Revisar testamento", "(Pedir cita)"] },
+  { text: "🚂 Aspavientos (DIC)", subtasks: ["Ordenar textos", "Revisar y corregir", "Maquetar", "Imprimir"] },
+  { text: "🚂 Cosas del Reino (DIC)", subtasks: ["Actualizar Índices de la Biblioteca", "Revisar mapa Reino", "Excel Servanda", "Nuevos propósitos anuales", "Los Illustrator del Reino", "Excel del Reino"] }
 ];
 
 const HUNOS_TASKS = [
@@ -110,17 +145,17 @@ const INITIAL_DATA: AppData = {
     plenoCompleted: false
   })),
   hunosHistory: {},
-  trains: TRAIN_TASKS.map((text, i) => ({
+  trains: TRAIN_TASKS.map((task, i) => ({
     id: `train-${i}`,
-    text,
+    text: task.text,
     completed: false,
-    subtasks: []
+    subtasks: task.subtasks.map((st, j) => ({ id: `sub-${i}-${j}`, text: st, completed: false }))
   })),
-  annualTrains: ANNUAL_TRAIN_TASKS.map((text, i) => ({
+  annualTrains: ANNUAL_TRAIN_TASKS.map((task, i) => ({
     id: `annual-train-${i}`,
-    text,
+    text: task.text,
     completed: false,
-    subtasks: []
+    subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i}-${j}`, text: st, completed: false }))
   })),
   sets: MUSHROOM_TASKS.map((text, i) => ({
       id: `set-${i}`,
@@ -252,11 +287,11 @@ function App() {
         }
         if (!parsed.leones) parsed.leones = [];
         if (!parsed.annualTrains) {
-            parsed.annualTrains = ANNUAL_TRAIN_TASKS.map((text, i) => ({
+            parsed.annualTrains = ANNUAL_TRAIN_TASKS.map((task, i) => ({
                 id: `annual-train-${i}`,
-                text,
+                text: task.text,
                 completed: false,
-                subtasks: []
+                subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i}-${j}`, text: st, completed: false }))
             }));
         }
         if (!parsed.exercise) {
@@ -546,8 +581,17 @@ function App() {
     return Math.round((data.trains.filter(t => t.completed).length / data.trains.length) * 100);
   };
   
-  const getResourceProgress = (tasks: ResourceTask[]) => {
+  const getResourceProgress = (tasks: ResourceTask[], isForjas: boolean = false) => {
       if (tasks.length === 0) return 0;
+      
+      if (isForjas) {
+          // Quarterly Tasks are indices 1-4 (if they exist)
+          const quarterlyTasks = tasks.length > 1 ? tasks.slice(1, 5) : [];
+          if (quarterlyTasks.length === 0) return 0;
+          
+          return quarterlyTasks.reduce((acc, task) => acc + Math.min(100, (task.current / task.target) * 100), 0) / quarterlyTasks.length;
+      }
+      
       const task = tasks[0]; 
       if (task.target === 0) return 0;
       return Math.min(100, (task.current / task.target) * 100);
@@ -608,11 +652,12 @@ function App() {
     switch (view) {
       case 'trains': return <TrainView tasks={data.trains} annualTasks={data.annualTrains} onUpdate={handleTrainsUpdate} onUpdateAnnual={(t) => setData(prev => ({ ...prev, annualTrains: t }))} onBack={() => setView('home')} />;
       case 'sets': return <SetsView tasks={data.sets} onUpdate={handleSetsUpdate} onBack={() => setView('home')} />;
-      case 'love': return <LoveTreeView friends={data.friends} onUpdate={(f) => setData(prev => ({ ...prev, friends: f }))} onBack={() => setView('home')} />;
+      case 'love': return <LoveTreeView friends={data.friends} onUpdate={(f) => setData(prev => ({ ...prev, friends: f }))} onBack={() => setView('home')} reminders={data.reminders} onUpdateReminders={(r) => setData(prev => ({ ...prev, reminders: r }))} />;
       case 'food': return <FoodBoardView foodState={data.food} onUpdate={(f) => setData(prev => ({ ...prev, food: f }))} onBack={() => setView('home')} />;
       case 'forjas': return <ResourceTrackerView title="Forjas" themeColor="orange" tasks={data.forjas} onUpdate={t => setData(prev => ({ ...prev, forjas: t }))} onBack={() => setView('home')} />;
-      case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({...prev, billetesState: bs, huchaCount: hc}))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
+      case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({...prev, billetesState: bs, huchaCount: hc}))} leonesState={data.leonesState || Array(20).fill(false)} leonesCount={data.leonesCount || 0} onUpdateLeones={(ls, lc) => setData(prev => ({...prev, leonesState: ls, leonesCount: lc}))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
       case 'exercise': return <ExerciseView exercise={data.exercise} onUpdate={ex => setData(prev => ({ ...prev, exercise: ex }))} onBack={() => setView('home')} />;
+      case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;
       case 'stats': return <StatsView data={data} onBack={() => setView('home')} />;
       default:
         const trainProgress = getTrainProgress();
@@ -682,11 +727,11 @@ function App() {
                     </div>
                 </button>
                 <button onClick={() => setView('leones')} className="aspect-square bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-900/50 transition-colors border border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
-                <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Flame className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas)}%` }}></div></div></button>
+                <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Flame className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
             </div>
             <button onClick={() => setView('exercise')} className="w-full bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl p-4 flex items-center gap-4 group transition-colors mb-3"><div className="p-2 bg-emerald-900/40 rounded-xl flex-shrink-0"><Dumbbell className="w-6 h-6 text-emerald-500" /></div><div className="flex-1 flex gap-1 h-10">{Array.from({ length: 9 }).map((_, i) => ( <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${ i < data.exercise.seriesCurrent ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30' }`} /> ))}</div></button>
             <DailyHunos tasks={data.hunos} onUpdate={handleHunosUpdate} />
-            <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300"><div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><GearIcon className="w-6 h-6 text-stone-400" /><h2 className="text-xl font-bold text-stone-200">Proyectos</h2></div><button onClick={() => setIsEditingProjects(!isEditingProjects)} className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}>{isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}</button></div>{isEditingProjects ? ( <div className="space-y-3 animate-in fade-in duration-300">{data.projects.map(proj => ( <div key={proj.id} className="flex gap-2"><input type="text" value={proj.text} onChange={(e) => handleProjectTextChange(proj.id, e.target.value)} className="flex-1 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" /><button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button></div> ))}<button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button></div> ) : ( <div className="grid grid-cols-4 gap-3">{data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin proyectos activos.</p>}{data.projects.map((proj, idx) => ( <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${ proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100' }`}><span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span></button> ))}</div> )}</div>
+            <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300"><div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><GearIcon className="w-6 h-6 text-stone-400" /><h2 className="text-xl font-bold text-stone-200">Proyectos</h2></div><button onClick={() => setIsEditingProjects(!isEditingProjects)} className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}>{isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}</button></div>{isEditingProjects ? ( <div className="space-y-3 animate-in fade-in duration-300">{data.projects.map(proj => ( <div key={proj.id} className="flex gap-2"><input type="text" value={proj.text} onChange={(e) => handleProjectTextChange(proj.id, e.target.value)} className="flex-1 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" /><button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button></div> ))}<button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button></div> ) : ( <><div className="grid grid-cols-4 gap-3">{data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin proyectos activos.</p>}{data.projects.map((proj, idx) => ( <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${ proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100' }`}><span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span></button> ))}</div><button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all"><Music className="w-5 h-5" /><span className="font-bold">Profundizar en Piano</span></button></> )}</div>
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
             {showHistory && <HistoryEditorModal data={data} onUpdateData={setData} onClose={() => setShowHistory(false)} />}
             
