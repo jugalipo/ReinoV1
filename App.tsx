@@ -13,14 +13,16 @@ import { StatsView } from './components/StatsView';
 import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music } from 'lucide-react';
 
 const MUSHROOM_TASKS = [
-  "🍄 Agenda 15'", 
-  "🍄 Bloqueos 5'", 
-  "🍄 Lavadora(S) 30'",
-  "🍄 Foto Cocina y Mesa 15'", 
-  "🍄 Esteticién 10'", 
-  "🍄 Web Reino",
-  "🍄 Wasap 15'", 
-  "🍄 Disco 5'"
+  { text: "🍄 Cascada 🍄 20'", subtasks: ["Fecha", "Agenda semanal al PC", "Cambiar pijama", "Disco al ordenador", "Whattsapps no leídos", "Contadores DTH", "Ferrocopos", "Cumple y Calla", "Neceser", "Una calle de Granada", "Actualizar excel Reino"] },
+  { text: "🍄 Bloqueos 5'", subtasks: ["Bloqueos Mac", "Bloqueo móvil", "Bloqueo tablet"] },
+  { text: "🍄 Agenda 15'", subtasks: [] },
+  { text: "🍄 Lavadora(S) 30'", subtasks: ["Ajuar cambiar", "Lavadoras ajuar", "Destender"] },
+  { text: "🍄 Foto Cocina 15'", subtasks: [] },
+  { text: "🍄 Ruta con mapa 15'", subtasks: [] },
+  { text: "🍄 Esteticién 10'", subtasks: ["Uñas", "Pinzas", "Afeitar", "Alicia U", "Alicia C"] },
+  { text: "🍄 Web Reino", subtasks: ["Actualizar plugins", "Añadir un detalle"] },
+  { text: "🍄 1 Wasap antiguo 15'", subtasks: [] },
+  { text: "🍄 Disco 5'", subtasks: [] }
 ];
 
 const TRAIN_TASKS = [
@@ -157,10 +159,11 @@ const INITIAL_DATA: AppData = {
     completed: false,
     subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i}-${j}`, text: st, completed: false }))
   })),
-  sets: MUSHROOM_TASKS.map((text, i) => ({
+  sets: MUSHROOM_TASKS.map((task, i) => ({
       id: `set-${i}`,
-      text,
-      completed: false
+      text: task.text,
+      completed: false,
+      subtasks: task.subtasks.map((st, j) => ({ id: `sub-${i}-${j}`, text: st, completed: false }))
   })),
   friends: [],
   food: { 

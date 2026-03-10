@@ -38,7 +38,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ data, onUpdateData
     // --- HUNOS HISTORY ---
     if (data.hunosHistory) {
         Object.entries(data.hunosHistory).forEach(([date, completedIds]) => {
-            rows.push(['HUNOS HISTORY', date, completedIds.length, JSON.stringify(completedIds), '']);
+            rows.push(['HUNOS HISTORY', date, (completedIds as string[]).length, JSON.stringify(completedIds), '']);
         });
     }
 

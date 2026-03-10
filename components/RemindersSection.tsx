@@ -11,48 +11,80 @@ export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, o
   const [isEditing, setIsEditing] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const getTodayMessages = () => {
+  const getUpcomingReminders = () => {
     const today = new Date();
-    const messages: string[] = [];
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    const upcoming: { message: string, isToday: boolean, daysLeft: number }[] = [];
 
     reminders.forEach(reminder => {
       const eventDate = new Date(reminder.date);
-      
-      // Reset time to compare only dates
-      const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
       
-      const diffTime = todayDate.getTime() - eventDateOnly.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
-      let months = (todayDate.getFullYear() - eventDateOnly.getFullYear()) * 12;
-      months -= eventDateOnly.getMonth();
-      months += todayDate.getMonth();
-      
-      let years = todayDate.getFullYear() - eventDateOnly.getFullYear();
-      
-      const isSameDayOfMonth = todayDate.getDate() === eventDateOnly.getDate();
-      const isSameMonth = todayDate.getMonth() === eventDateOnly.getMonth();
-
-      if (reminder.notifyYearly && isSameDayOfMonth && isSameMonth && years > 0) {
-        messages.push(reminder.hideAge ? reminder.title : `${years} años: ${reminder.title}`);
+      // 1. Yearly
+      if (reminder.notifyYearly) {
+        let nextAnniversary = new Date(todayDate.getFullYear(), eventDateOnly.getMonth(), eventDateOnly.getDate());
+        if (nextAnniversary.getTime() < todayDate.getTime()) {
+          nextAnniversary = new Date(todayDate.getFullYear() + 1, eventDateOnly.getMonth(), eventDateOnly.getDate());
+        }
+        
+        const diffTime = nextAnniversary.getTime() - todayDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays <= 7) {
+          const years = nextAnniversary.getFullYear() - eventDateOnly.getFullYear();
+          if (years > 0) {
+            const msg = reminder.hideAge ? reminder.title : `${years} años: ${reminder.title}`;
+            upcoming.push({ message: msg, isToday: diffDays === 0, daysLeft: diffDays });
+          }
+        }
       }
       
-      if (reminder.notifyMonthly && isSameDayOfMonth && months > 0) {
-        messages.push(`${months} meses: ${reminder.title}`);
+      // 2. Monthly
+      if (reminder.notifyMonthly) {
+        let nextMonthAnniversary = new Date(todayDate.getFullYear(), todayDate.getMonth(), eventDateOnly.getDate());
+        if (nextMonthAnniversary.getTime() < todayDate.getTime()) {
+          nextMonthAnniversary = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, eventDateOnly.getDate());
+        }
+        
+        const diffTime = nextMonthAnniversary.getTime() - todayDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays <= 7) {
+          let months = (nextMonthAnniversary.getFullYear() - eventDateOnly.getFullYear()) * 12;
+          months -= eventDateOnly.getMonth();
+          months += nextMonthAnniversary.getMonth();
+          
+          if (months > 0) {
+            upcoming.push({ message: `${months} meses: ${reminder.title}`, isToday: diffDays === 0, daysLeft: diffDays });
+          }
+        }
       }
       
-      if (reminder.notify100Days && diffDays > 0 && diffDays % 100 === 0) {
-        messages.push(`${diffDays} días: ${reminder.title}`);
+      // 3. 100 Days
+      if (reminder.notify100Days) {
+        const diffTimeFromStart = todayDate.getTime() - eventDateOnly.getTime();
+        const diffDaysFromStart = Math.floor(diffTimeFromStart / (1000 * 60 * 60 * 24));
+        
+        if (diffDaysFromStart >= 0) {
+            let next100Multiple = Math.ceil(diffDaysFromStart / 100) * 100;
+            if (next100Multiple === 0) next100Multiple = 100;
+            
+            const daysLeft = next100Multiple - diffDaysFromStart;
+            
+            if (daysLeft <= 7) {
+                upcoming.push({ message: `${next100Multiple} días: ${reminder.title}`, isToday: daysLeft === 0, daysLeft: daysLeft });
+            }
+        }
       }
     });
 
-    return messages;
+    return upcoming.sort((a, b) => a.daysLeft - b.daysLeft);
   };
 
-  const todayMessages = getTodayMessages();
+  const upcomingReminders = getUpcomingReminders();
 
-  if (!isEditing && todayMessages.length === 0) {
+  if (!isEditing && upcomingReminders.length === 0) {
     return (
       <div className="flex justify-end mb-4 px-2">
         <button 
@@ -68,12 +100,22 @@ export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, o
   return (
     <div className="mb-6">
       {!isEditing ? (
-        <div className="bg-pink-950/30 border border-pink-900/50 rounded-2xl p-4 flex items-start justify-between gap-4">
-          <div className="flex-1 space-y-2">
-            {todayMessages.map((msg, i) => (
-              <div key={i} className="flex items-center gap-2 text-pink-200 font-medium">
-                <Bell className="w-4 h-4 text-pink-500 shrink-0" />
-                <span>{msg}</span>
+        <div className="bg-stone-900/50 border border-stone-800/50 rounded-2xl p-4 flex items-start justify-between gap-4">
+          <div className="flex-1 space-y-3">
+            {upcomingReminders.map((reminder, i) => (
+              <div key={i} className={`flex items-center gap-3 ${reminder.isToday ? 'text-pink-200 font-bold' : 'text-stone-400 font-medium'}`}>
+                {reminder.isToday ? (
+                  <div className="p-1.5 rounded-full bg-pink-500/20 text-pink-500">
+                      <Bell className="w-4 h-4 shrink-0" />
+                  </div>
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-pink-500/20 text-pink-500 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold">{reminder.daysLeft}</span>
+                  </div>
+                )}
+                <div className="flex-1 flex items-center justify-between">
+                    <span>{reminder.message}</span>
+                </div>
               </div>
             ))}
           </div>

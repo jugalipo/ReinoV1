@@ -22,6 +22,37 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
   const completedCount = visibleTasks.filter(t => t.completed).length;
   const progressPercent = visibleTasks.length > 0 ? (completedCount / visibleTasks.length) * 100 : 0;
 
+  const getCoreScore = () => {
+    let score = 0;
+    tasks.forEach(t => {
+      if (t.completed) {
+        if (t.text.includes('Leones') || t.text.includes('🦁')) score += 2;
+        else if (t.text.includes('Gimnasia') || t.text.includes('Gim')) score += 1;
+        else if (t.text.includes('Amor') || t.text.includes('❤️')) score += 1;
+        else if (t.text.includes('Leer')) score += 1;
+      }
+    });
+    return score;
+  };
+
+  const coreScore = getCoreScore();
+  const coreTotal = 5;
+
+  const getClipPath = (value: number, total: number) => {
+    const percentage = value / total;
+    const degrees = percentage * 360;
+    
+    if (percentage === 0) return '50% 50%, 50% 0, 50% 0';
+    if (percentage <= 0.125) return `50% 50%, 50% 0, ${50 + Math.tan(degrees * Math.PI / 180) * 50}% 0`;
+    if (percentage <= 0.25) return `50% 50%, 50% 0, 100% 0, 100% ${50 - Math.tan((90 - degrees) * Math.PI / 180) * 50}%`;
+    if (percentage <= 0.375) return `50% 50%, 50% 0, 100% 0, 100% 50%, 100% ${50 + Math.tan((degrees - 90) * Math.PI / 180) * 50}%`;
+    if (percentage <= 0.5) return `50% 50%, 50% 0, 100% 0, 100% 100%, ${50 + Math.tan((180 - degrees) * Math.PI / 180) * 50}% 100%`;
+    if (percentage <= 0.625) return `50% 50%, 50% 0, 100% 0, 100% 100%, 50% 100%, ${50 - Math.tan((degrees - 180) * Math.PI / 180) * 50}% 100%`;
+    if (percentage <= 0.75) return `50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 ${50 + Math.tan((270 - degrees) * Math.PI / 180) * 50}%`;
+    if (percentage <= 0.875) return `50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 50%, 0 ${50 - Math.tan((degrees - 270) * Math.PI / 180) * 50}%`;
+    return `50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 0, ${50 - Math.tan((360 - degrees) * Math.PI / 180) * 50}% 0`;
+  };
+
   // --- VIEW MODE ACTIONS ---
 
   const toggleTask = (id: string) => {
@@ -131,6 +162,18 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
         <div className="flex items-center gap-2">
             <Sword className="w-6 h-6 text-stone-400" />
             <h2 className="text-xl font-bold text-stone-200">Hunos</h2>
+            
+            {/* Core Hunos Pie Chart */}
+            {!isEditing && (
+                <div className="ml-2 w-6 h-6 rounded-full border border-orange-500/30 overflow-hidden bg-orange-950/50 relative" title={`Principal del día: ${coreScore}/${coreTotal}`}>
+                  <div 
+                    className="absolute inset-0 bg-orange-500"
+                    style={{
+                      clipPath: `polygon(50% 50%, 50% 0, ${coreScore >= coreTotal ? '100% 0, 100% 100%, 0 100%, 0 0, 50% 0' : getClipPath(coreScore, coreTotal)})`
+                    }}
+                  />
+                </div>
+            )}
         </div>
         
         <div className="flex items-center gap-3">

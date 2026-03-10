@@ -327,9 +327,11 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                             {name}
                         </span>
                         {task.subtasks && task.subtasks.length > 0 && (
-                            <div className="flex items-center gap-1 text-xs text-stone-500 mt-1">
-                                <CornerDownRight className="w-3 h-3" />
-                                {task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}
+                            <div className="mt-2 w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-green-500 transition-all duration-300" 
+                                    style={{ width: `${(task.subtasks.filter(s => s.completed).length / task.subtasks.length) * 100}%` }}
+                                />
                             </div>
                         )}
                     </div>
