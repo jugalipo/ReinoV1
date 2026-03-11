@@ -22,7 +22,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
-  const renderHistoryBar = (value: number, max: number, colorClass: string, isCurrent: boolean = false) => {
+  const renderHistoryBar = (value: number, max: number, colorClass: string, isCurrent: boolean = false, hideText: boolean = false) => {
     const height = max === 0 ? 0 : (value / max) * 100;
     return (
       <div className="flex-1 flex flex-col items-center gap-1 group">
@@ -32,7 +32,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
             style={{ height: `${Math.max(5, height)}%` }}
           ></div>
         </div>
-        <span className={`text-[8px] font-mono ${isCurrent ? 'text-white font-bold' : 'text-stone-600'} group-hover:text-stone-400`}>{value}</span>
+        {!hideText && <span className={`text-[8px] font-mono ${isCurrent ? 'text-white font-bold' : 'text-stone-600'} group-hover:text-stone-400`}>{value}</span>}
+        {hideText && <span className={`text-[8px] font-mono opacity-0 group-hover:opacity-100 transition-opacity ${isCurrent ? 'text-white font-bold' : 'text-stone-600'}`}>{value}</span>}
       </div>
     );
   };
@@ -61,6 +62,37 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
   const interactionsHistoryToDisplay = [...stats.interactionsHistory.slice(-5), currentMonthInteractions];
   const paddedInteractionsHistory = Array(Math.max(0, 6 - interactionsHistoryToDisplay.length)).fill(0).concat(interactionsHistoryToDisplay);
   const interactionsMax = Math.max(...paddedInteractionsHistory, 10); // Floor of 10 for better scaling
+
+  // Logic for 30-day Hunos evolution
+  const getCoreScoreForIds = (completedIds: string[]) => {
+    let score = 0;
+    completedIds.forEach(id => {
+      const task = data.hunos.find(t => t.id === id);
+      if (task) {
+        if (task.text.includes('Leones') || task.text.includes('🦁')) score += 2;
+        else if (task.text.includes('Gimnasia') || task.text.includes('Gim')) score += 1;
+        else if (task.text.includes('Amor') || task.text.includes('❤️')) score += 1;
+        else if (task.text.includes('Leer')) score += 1;
+      }
+    });
+    return Math.min(score, 5);
+  };
+
+  const hunosHistoryToDisplay: number[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateKey = d.toDateString();
+    
+    if (i === 0) {
+      const currentCompletedIds = data.hunos.filter(t => t.completed).map(t => t.id);
+      hunosHistoryToDisplay.push(getCoreScoreForIds(currentCompletedIds));
+    } else {
+      const pastCompletedIds = (data.hunosHistory || {})[dateKey] || [];
+      hunosHistoryToDisplay.push(getCoreScoreForIds(pastCompletedIds));
+    }
+  }
+  const hunosMax = 5;
 
   // Logic for 10-week food evolution
   const currentFoodScore = food.score;
@@ -128,11 +160,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
         {/* HISTORICOS (CHARTS) */}
         <section className="space-y-6">
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Train className="w-4 h-4 text-blue-500" /> Evolución de Trenes (6 meses)
-              </div>
-              <span className="text-[9px] text-stone-500 font-mono">Última barra: Actual</span>
+            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Train className="w-4 h-4 text-blue-500" /> TRENES (6 MESES)
             </h2>
             <div className="h-24 flex gap-1 px-1">
               {paddedTrainsHistory.map((v, i) => (
@@ -144,11 +173,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
           </div>
 
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <MushroomIcon className="w-4 h-4 text-red-500" /> Evolución de Setas (10 sem)
-              </div>
-              <span className="text-[9px] text-stone-500 font-mono">Última barra: Actual</span>
+            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <MushroomIcon className="w-4 h-4 text-red-500" /> SETAS (10 SEM)
             </h2>
             <div className="h-24 flex gap-1 px-1">
               {paddedSetsHistory.map((v, i) => (
@@ -160,11 +186,21 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
           </div>
 
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Utensils className="w-4 h-4 text-lime-500" /> Evolución de Nutrición (10 sem)
-              </div>
-              <span className="text-[9px] text-stone-500 font-mono">Última barra: Actual</span>
+            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Sword className="w-4 h-4 text-orange-500" /> HUNOS (30 DÍAS)
+            </h2>
+            <div className="h-24 flex gap-[2px] px-1">
+              {hunosHistoryToDisplay.map((v, i) => (
+                <React.Fragment key={i}>
+                  {renderHistoryBar(v, hunosMax, 'bg-orange-600', i === 29, true)}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Utensils className="w-4 h-4 text-lime-500" /> JUMANGIARE (10 SEM)
             </h2>
             <div className="h-24 flex gap-1 px-1">
               {paddedFoodHistory.map((v, i) => (
@@ -176,11 +212,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
           </div>
 
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-pink-500" /> Interacciones Sociales (6 meses)
-              </div>
-              <span className="text-[9px] text-stone-500 font-mono">Última barra: Actual</span>
+            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Heart className="w-4 h-4 text-pink-500" /> BROTES (6 MESES)
             </h2>
             <div className="h-24 flex gap-1 px-1">
               {paddedInteractionsHistory.map((v, i) => (
