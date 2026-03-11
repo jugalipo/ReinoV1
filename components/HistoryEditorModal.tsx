@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppData } from '../types';
-import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, ArrowLeft } from 'lucide-react';
+import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft } from 'lucide-react';
 
 interface HistoryEditorModalProps {
   data: AppData;
@@ -14,6 +14,8 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
     d.setDate(d.getDate() - 1);
     return d;
   });
+  const [importData, setImportData] = useState<AppData | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Helper to get formatted key for storage (YYYY-MM-DD) which matches toDateString format used in App.tsx
   const getFormattedDateKey = (date: Date) => {
@@ -108,6 +110,52 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
       return currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
+  const exportJSON = () => {
+    const jsonContent = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonContent], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `el_reino_backup_${dateStr}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError(null);
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsed = JSON.parse(content) as AppData;
+        
+        // Basic validation to ensure it's El Reino data
+        if (parsed && parsed.stats && parsed.hunos) {
+            setImportData(parsed);
+        } else {
+            setImportError("El archivo no parece ser una copia de seguridad válida de El Reino.");
+        }
+      } catch (error) {
+        setImportError("Error al leer el archivo. Asegúrate de que es un archivo .json válido.");
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input
+  };
+
+  const confirmImport = () => {
+      if (importData) {
+          onUpdateData(importData);
+          onClose();
+      }
+  };
+
   const exportCSV = () => {
     // Generic Header structure to fit all data types
     const headers = ['Category', 'Item/Name', 'Value/Status', 'Details/JSON', 'Timestamp/Extra'];
@@ -135,11 +183,31 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
     }
 
     // --- HUNOS HISTORY ---
+    const getHunosScore = (completedIds: string[]) => {
+        let score = 0;
+        completedIds.forEach(id => {
+            const task = data.hunos.find(t => t.id === id);
+            if (task) {
+                if (task.text.includes('Leones') || task.text.includes('🦁')) score += 2;
+                else if (task.text.includes('Gimnasia') || task.text.includes('Gim')) score += 1;
+                else if (task.text.includes('Amor') || task.text.includes('❤️')) score += 1;
+                else if (task.text.includes('Leer')) score += 1;
+            }
+        });
+        return Math.min(score, 5);
+    };
+
     if (data.hunosHistory) {
         Object.entries(data.hunosHistory).forEach(([date, completedIds]) => {
-            rows.push(['HUNOS HISTORY', date, (completedIds as string[]).length, JSON.stringify(completedIds), '']);
+            const score = getHunosScore(completedIds as string[]);
+            rows.push(['HUNOS HISTORY', date, (completedIds as string[]).length, JSON.stringify(completedIds), `Score: ${score}/5`]);
         });
     }
+    
+    // Add current day's score to history export
+    const currentCompletedIds = data.hunos.filter(t => t.completed).map(t => t.id);
+    const currentScore = getHunosScore(currentCompletedIds);
+    rows.push(['HUNOS HISTORY', new Date().toDateString(), currentCompletedIds.length, JSON.stringify(currentCompletedIds), `Score: ${currentScore}/5 (Current)`]);
 
     // --- EXERCISE ---
     if (data.exercise) {
@@ -229,6 +297,43 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
     data.food.history.forEach(h => {
         rows.push(['FOOD HISTORY', h.action, h.delta, '', new Date(h.timestamp).toLocaleString()]);
     });
+
+    // --- REMINDERS ---
+    if (data.reminders) {
+        data.reminders.forEach(r => {
+            const details = JSON.stringify({ 
+                yearly: r.notifyYearly, 
+                monthly: r.notifyMonthly, 
+                days100: r.notify100Days, 
+                hideAge: r.hideAge 
+            });
+            rows.push(['REMINDER', r.title, r.date, details, '']);
+        });
+    }
+
+    // --- PIANO ---
+    if (data.piano) {
+        rows.push(['PIANO', 'Pieza Desafío', data.piano.piezaDesafio, '', '']);
+        rows.push(['PIANO', 'Pieza Consolidación', data.piano.piezaConsolidacion, '', '']);
+        rows.push(['PIANO', 'Pieza Lectura', data.piano.piezaLectura, '', '']);
+        rows.push(['PIANO', 'Henle Level', data.piano.henleLevel, '', '']);
+        rows.push(['PIANO', 'Checklist', JSON.stringify(data.piano.checklist), '', '']);
+        if (data.piano.currentScaleIndex !== undefined) {
+            rows.push(['PIANO', 'Current Scale Index', data.piano.currentScaleIndex, '', '']);
+        }
+        if (data.piano.sesionesDesafio !== undefined) {
+            rows.push(['PIANO', 'Sesiones Desafío', data.piano.sesionesDesafio, '', '']);
+        }
+        if (data.piano.sesionesConsolidacion !== undefined) {
+            rows.push(['PIANO', 'Sesiones Consolidación', data.piano.sesionesConsolidacion, '', '']);
+        }
+        if (data.piano.scaleExercises) {
+            rows.push(['PIANO', 'Scale Exercises', JSON.stringify(data.piano.scaleExercises), '', '']);
+        }
+        if (data.piano.hanonExercise !== undefined) {
+            rows.push(['PIANO', 'Hanon Exercise', data.piano.hanonExercise, '', '']);
+        }
+    }
 
     // Create CSV content
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -381,14 +486,53 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
            {/* Export Data Section (Moved from Settings) */}
            <div className="pt-6 border-t border-stone-800">
                <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider mb-3 px-2">Gestión de Datos</h3>
-               <div className="bg-stone-900 p-4 rounded-xl border border-stone-800">
-                   <h3 className="font-bold text-stone-300 mb-2 flex items-center gap-2">
-                       <Download className="w-5 h-5" /> Exportar Datos
-                   </h3>
-                   <p className="text-sm text-stone-500 mb-4">Descarga tu historial completo en formato CSV.</p>
-                   <button onClick={exportCSV} className="w-full bg-stone-800 hover:bg-stone-700 text-stone-200 px-4 py-3 rounded-lg text-sm font-medium border border-stone-700 transition-colors">
-                       Descargar Copia Completa (.CSV)
-                   </button>
+               <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-4">
+                   <div>
+                       <h3 className="font-bold text-stone-300 mb-2 flex items-center gap-2">
+                           <Download className="w-5 h-5" /> Exportar Datos
+                       </h3>
+                       <p className="text-sm text-stone-500 mb-4">Descarga tu historial completo. El CSV es para leerlo en Excel, el JSON es para restaurar la aplicación.</p>
+                       <div className="grid grid-cols-2 gap-3">
+                           <button onClick={exportCSV} className="w-full bg-stone-800 hover:bg-stone-700 text-stone-200 px-4 py-3 rounded-lg text-sm font-medium border border-stone-700 transition-colors">
+                               Copia CSV (Lectura)
+                           </button>
+                           <button onClick={exportJSON} className="w-full bg-stone-800 hover:bg-stone-700 text-stone-200 px-4 py-3 rounded-lg text-sm font-medium border border-stone-700 transition-colors">
+                               Copia JSON (Restaurar)
+                           </button>
+                       </div>
+                   </div>
+
+                   <div className="pt-4 border-t border-stone-800">
+                       <h3 className="font-bold text-stone-300 mb-2 flex items-center gap-2">
+                           <Upload className="w-5 h-5" /> Importar Datos
+                       </h3>
+                       <p className="text-sm text-stone-500 mb-4">Restaura una copia de seguridad (.json) para recuperar tu progreso.</p>
+                       
+                       {importError && (
+                           <div className="mb-4 p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                               {importError}
+                           </div>
+                       )}
+
+                       {importData ? (
+                           <div className="mb-4 p-4 bg-orange-900/30 border border-orange-500/50 rounded-lg">
+                               <p className="text-orange-200 text-sm mb-3 font-medium">¿Estás seguro de sobreescribir todos tus datos actuales con esta copia de seguridad? Esta acción no se puede deshacer.</p>
+                               <div className="flex gap-3">
+                                   <button onClick={confirmImport} className="flex-1 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                       Sí, Restaurar
+                                   </button>
+                                   <button onClick={() => setImportData(null)} className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                       Cancelar
+                                   </button>
+                               </div>
+                           </div>
+                       ) : (
+                           <label className="w-full bg-stone-800 hover:bg-stone-700 text-stone-200 px-4 py-3 rounded-lg text-sm font-medium border border-stone-700 transition-colors cursor-pointer flex items-center justify-center">
+                               <span>Seleccionar archivo .JSON</span>
+                               <input type="file" accept=".json" onChange={handleImportFile} className="hidden" />
+                           </label>
+                       )}
+                   </div>
                </div>
            </div>
 
