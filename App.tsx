@@ -280,8 +280,27 @@ const getWeekLabel = () => {
     return `Semana ${weekNum} · ${sunday.getDate()} ${monthNames[sunday.getMonth()]}`;
 };
 
+const sanitizeForFirestore = (obj: any): any => {
+  if (obj === undefined) return null;
+  if (obj === null) return null;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForFirestore);
+  }
+  const result: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      if (value !== undefined) {
+        result[key] = sanitizeForFirestore(value);
+      }
+    }
+  }
+  return result;
+};
+
 const serializeAppData = (data: AppData) => {
-  return [
+  const rawDocs = [
     { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
@@ -292,6 +311,10 @@ const serializeAppData = (data: AppData) => {
     { id: 'leones', data: { items: data.leones } },
     { id: 'hunosHistory', data: { items: data.hunosHistory } },
   ];
+  return rawDocs.map(doc => ({
+    id: doc.id,
+    data: sanitizeForFirestore(doc.data)
+  }));
 };
 
 const deserializeAppData = (docs: any[]): AppData => {
