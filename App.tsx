@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppData, ViewState, Friend, Task, ResourceTask, WeeklyTask } from './types';
 import { DailyHunos } from './components/DailyHunos';
 import { TrainView } from './components/TrainView';
@@ -10,7 +10,61 @@ import { ExerciseView } from './components/ExerciseView';
 import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
-import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, LogOut } from 'lucide-react';
+import { auth, db, loginWithGoogle, logout } from './firebase';
+import { collection, doc, writeBatch, onSnapshot, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 const MUSHROOM_TASKS = [
   { text: "🍄 Cascada 🍄 20'", subtasks: ["Fecha", "Agenda semanal al PC", "Cambiar pijama", "Disco al ordenador", "Whattsapps no leídos", "Contadores DTH", "Ferrocopos", "Cumple y Calla", "Neceser", "Una calle de Granada", "Actualizar excel Reino"] },
@@ -226,6 +280,202 @@ const getWeekLabel = () => {
     return `Semana ${weekNum} · ${sunday.getDate()} ${monthNames[sunday.getMonth()]}`;
 };
 
+const serializeAppData = (data: AppData) => {
+  return [
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano } },
+    { id: 'hunos', data: { items: data.hunos } },
+    { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
+    { id: 'sets', data: { items: data.sets } },
+    { id: 'friends', data: { items: data.friends } },
+    { id: 'projects', data: { items: data.projects } },
+    { id: 'forjas', data: { items: data.forjas } },
+    { id: 'leones', data: { items: data.leones } },
+    { id: 'hunosHistory', data: { items: data.hunosHistory } },
+  ];
+};
+
+const deserializeAppData = (docs: any[]): AppData => {
+  const result: any = { ...INITIAL_DATA };
+  docs.forEach(doc => {
+    if (doc.id === 'core') {
+      Object.assign(result, doc.data);
+    } else if (doc.id === 'hunos') {
+      result.hunos = doc.data.items || INITIAL_DATA.hunos;
+    } else if (doc.id === 'trains') {
+      result.trains = doc.data.items || INITIAL_DATA.trains;
+      result.annualTrains = doc.data.annual || INITIAL_DATA.annualTrains;
+    } else if (doc.id === 'sets') {
+      result.sets = doc.data.items || INITIAL_DATA.sets;
+    } else if (doc.id === 'friends') {
+      result.friends = doc.data.items || INITIAL_DATA.friends;
+    } else if (doc.id === 'projects') {
+      result.projects = doc.data.items || INITIAL_DATA.projects;
+    } else if (doc.id === 'forjas') {
+      result.forjas = doc.data.items || INITIAL_DATA.forjas;
+    } else if (doc.id === 'leones') {
+      result.leones = doc.data.items || INITIAL_DATA.leones;
+    } else if (doc.id === 'hunosHistory') {
+      result.hunosHistory = doc.data.items || INITIAL_DATA.hunosHistory;
+    }
+  });
+  return result as AppData;
+};
+
+const processResets = (parsed: AppData): AppData => {
+  const result = { ...parsed };
+  
+  if (!result.stats) { result.stats = { perfectSetsWeeks: 0, hunoPlenos: 0, perfectTrainMonths: 0, projectPlenos: 0, setsHistory: [], trainsHistory: [], interactionsHistory: [], lastTotalInteractions: 0 }; }
+  if (typeof result.stats.projectPlenos === 'undefined') { result.stats.projectPlenos = 0; }
+  if (typeof result.setsPlenoClaimed === 'undefined') { result.setsPlenoClaimed = false; }
+  if (typeof result.trainsPlenoClaimed === 'undefined') { result.trainsPlenoClaimed = false; }
+  if (!result.hunosHistory) { result.hunosHistory = {}; }
+  if (!result.stats.setsHistory) { result.stats.setsHistory = []; }
+  if (!result.stats.trainsHistory) { result.stats.trainsHistory = []; }
+  if (!result.stats.interactionsHistory) { result.stats.interactionsHistory = []; }
+  if (!result.lastSetsReset) { result.lastSetsReset = Date.now(); }
+  if (!result.lastTrainsReset) { result.lastTrainsReset = Date.now(); }
+  if (!result.food.dishes) { result.food.dishes = {}; }
+
+  const calculateTotalInteractions = (friendsList: Friend[]) => {
+      return friendsList.reduce((acc, friend) => {
+          const interactions = (Object.values(friend.interactions || {}) as number[]).reduce((a, b) => a + b, 0);
+          return acc + interactions;
+      }, 0);
+  };
+  if (typeof result.stats.lastTotalInteractions === 'undefined') {
+      result.stats.lastTotalInteractions = calculateTotalInteractions(result.friends || []);
+  }
+  if (!result.forjas) { result.forjas = []; }
+  const quarterlyDefaults = [
+      { id: 'q1-money', name: 'Dinero', current: 0, target: 1000, unit: '€' },
+      { id: 'q2-health', name: 'Salud', current: 0, target: 10, unit: 'kg' },
+      { id: 'q3-love', name: 'Amor', current: 0, target: 50, unit: 'pts' },
+      { id: 'q4-proj', name: 'Proyectos', current: 0, target: 100, unit: 'h' }
+  ];
+  if (result.forjas.length < 5) {
+       if (result.forjas.length === 0) {
+           result.forjas.push({ id: 'permanent-objective', name: 'Objetivo Principal', current: 0, target: 100, unit: 'pts' });
+       }
+       for (let i = result.forjas.length; i < 5; i++) {
+           result.forjas.push(quarterlyDefaults[i-1]);
+       }
+  }
+  if (!result.leones) { result.leones = []; }
+  if (!result.annualTrains) {
+      result.annualTrains = ANNUAL_TRAIN_TASKS.map((task, i) => ({
+          id: `annual-train-${i}`,
+          text: task.text,
+          completed: false,
+          subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i}-${j}`, text: st, completed: false }))
+      }));
+  }
+  if (!result.exercise) {
+      result.exercise = { seriesCurrent: 0, daysTrained: 0, totalMinutes: 0, sprintCount: 0, stretchCount: 0 };
+  }
+  if (typeof result.exercise.totalMinutes === 'undefined') {
+      result.exercise.totalMinutes = 0;
+  }
+  if (!result.projects || result.projects.length === 0) {
+      result.projects = PROJECT_DEFINITIONS.map((def, i) => ({ id: `new-proj-${i}`, text: def.text, completed: false }));
+  } else {
+       result.projects = result.projects.map(p => {
+           if (p.text === "Trivium 10p") {
+               return { ...p, text: "Trivium 🎓 10p" };
+           }
+           return p;
+       });
+  }
+  if (typeof result.food.fridgeCount === 'undefined') {
+      result.food = { ...result.food, fridgeCount: 0, ritualCount: 0, lastWeeklyReset: Date.now(), wheel: { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false }, weeklyBonuses: { organs: false, legumes: false, fast24: false } };
+  }
+  if (result.friends) {
+      result.friends = result.friends.map((f: any) => ({ ...f, interactions: f.interactions || { person: 0, call: 0, gift: 0, photo: 0, message: 0 }, tasks: f.tasks || [] }));
+  }
+  if (result.hunos) {
+      result.hunos = result.hunos.map(task => {
+          if (task.text === "1 FAH 🚫🍰") {
+              return { ...task, text: "1 FAH 🍰" };
+          }
+          return task;
+      });
+  }
+  if (!result.billetesState) { result.billetesState = Array(20).fill(false); }
+  if (typeof result.huchaCount === 'undefined') { result.huchaCount = 0; }
+
+  const now = new Date();
+  const today = now.toDateString();
+  if (result.lastDate !== today) {
+      const yesterdayKey = result.lastDate || '';
+      if (yesterdayKey) {
+          const completedIds = result.hunos.filter(t => t.completed).map(t => t.id);
+          if (!result.hunosHistory) result.hunosHistory = {};
+          result.hunosHistory[yesterdayKey] = completedIds;
+      }
+      result.hunos = result.hunos.map(task => ({ ...task, failedYesterday: !task.completed, completed: false }));
+      result.food.dishes = {};
+      result.lastDate = today;
+  }
+  
+  const day = now.getDay();
+  const diff = now.getDate() - day;
+  const startOfCurrentWeek = new Date(now.setDate(diff));
+  startOfCurrentWeek.setHours(0, 0, 0, 0);
+  const lastSetsResetDate = new Date(result.lastSetsReset);
+  if (lastSetsResetDate.getTime() < startOfCurrentWeek.getTime()) {
+      const completedCount = result.sets.filter(t => t.completed).length;
+      const allSetsCompleted = completedCount === result.sets.length;
+      if (allSetsCompleted && !result.setsPlenoClaimed) {
+          result.stats.perfectSetsWeeks += 1;
+      }
+      if (!result.stats.setsHistory) result.stats.setsHistory = [];
+      result.stats.setsHistory.push(completedCount);
+      if (result.stats.setsHistory.length > 52) result.stats.setsHistory.shift();
+      result.sets = result.sets.map(t => ({ ...t, completed: false }));
+      result.setsPlenoClaimed = false;
+      result.lastSetsReset = Date.now();
+  }
+  
+  const lastFoodResetDate = new Date(result.food.lastWeeklyReset || 0);
+  if (lastFoodResetDate.getTime() < startOfCurrentWeek.getTime()) {
+      if (!result.stats.foodHistory) result.stats.foodHistory = [];
+      result.stats.foodHistory.push(result.food.score);
+      if (result.stats.foodHistory.length > 52) result.stats.foodHistory.shift();
+      result.food.score = 0;
+      result.food.weeklyBonuses = { organs: false, legumes: false, fast24: false };
+      result.food.lastWeeklyReset = Date.now();
+  }
+  
+  const lastTrainsResetDate = new Date(result.lastTrainsReset);
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const resetMonth = lastTrainsResetDate.getMonth();
+  const resetYear = lastTrainsResetDate.getFullYear();
+  if (currentYear > resetYear) {
+       result.annualTrains = result.annualTrains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.map(s => ({ ...s, completed: false })) }));
+  }
+  if (currentYear > resetYear || (currentYear === resetYear && currentMonth > resetMonth)) {
+       const completedCount = result.trains.filter(t => t.completed).length;
+       const allTrainsCompleted = result.trains.every(t => t.completed);
+       if (allTrainsCompleted && !result.trainsPlenoClaimed) {
+           result.stats.perfectTrainMonths += 1;
+       }
+       if (!result.stats.trainsHistory) result.stats.trainsHistory = [];
+       result.stats.trainsHistory.push(completedCount);
+       if (result.stats.trainsHistory.length > 12) result.stats.trainsHistory.shift();
+       const currentTotalInteractions = calculateTotalInteractions(result.friends);
+       const interactionsThisMonth = currentTotalInteractions - (result.stats.lastTotalInteractions || 0);
+       if (!result.stats.interactionsHistory) result.stats.interactionsHistory = [];
+       result.stats.interactionsHistory.push(interactionsThisMonth);
+       if (result.stats.interactionsHistory.length > 12) result.stats.interactionsHistory.shift();
+       result.stats.lastTotalInteractions = currentTotalInteractions;
+       result.trains = result.trains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.map(s => ({ ...s, completed: false })) }));
+       result.trainsPlenoClaimed = false;
+       result.lastTrainsReset = Date.now();
+  }
+  
+  return result;
+};
+
 function App() {
   const [view, setView] = useState<ViewState>('home');
   const [data, setData] = useState<AppData>(INITIAL_DATA);
@@ -241,211 +491,134 @@ function App() {
   const [newProjectText, setNewProjectText] = useState('');
   const [showProjectPromptModal, setShowProjectPromptModal] = useState(false);
 
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const lastSnapshotData = useRef<string>('');
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [view]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('warrior_habits_v4');
-    if (saved) {
-      try {
-        const parsed: AppData = JSON.parse(saved);
-        if (!parsed.stats) parsed.stats = { perfectSetsWeeks: 0, hunoPlenos: 0, perfectTrainMonths: 0, projectPlenos: 0, setsHistory: [], trainsHistory: [], interactionsHistory: [], lastTotalInteractions: 0 };
-        if (typeof parsed.stats.projectPlenos === 'undefined') parsed.stats.projectPlenos = 0;
-        if (typeof parsed.setsPlenoClaimed === 'undefined') parsed.setsPlenoClaimed = false;
-        if (typeof parsed.trainsPlenoClaimed === 'undefined') parsed.trainsPlenoClaimed = false;
-        if (!parsed.hunosHistory) parsed.hunosHistory = {};
-        if (!parsed.stats.setsHistory) parsed.stats.setsHistory = [];
-        if (!parsed.stats.trainsHistory) parsed.stats.trainsHistory = [];
-        if (!parsed.stats.interactionsHistory) parsed.stats.interactionsHistory = [];
-        if (!parsed.lastSetsReset) parsed.lastSetsReset = Date.now();
-        if (!parsed.lastTrainsReset) parsed.lastTrainsReset = Date.now();
-        
-        // Initialize dishes if missing
-        if (!parsed.food.dishes) parsed.food.dishes = {};
-
-        const calculateTotalInteractions = (friendsList: Friend[]) => {
-            return friendsList.reduce((acc, friend) => {
-                const interactions = (Object.values(friend.interactions || {}) as number[]).reduce((a, b) => a + b, 0);
-                return acc + interactions;
-            }, 0);
-        };
-        if (typeof parsed.stats.lastTotalInteractions === 'undefined') {
-            parsed.stats.lastTotalInteractions = calculateTotalInteractions(parsed.friends || []);
-        }
-        if (!parsed.forjas) parsed.forjas = [];
-        const quarterlyDefaults = [
-            { id: 'q1-money', name: 'Dinero', current: 0, target: 1000, unit: '€' },
-            { id: 'q2-health', name: 'Salud', current: 0, target: 10, unit: 'kg' },
-            { id: 'q3-love', name: 'Amor', current: 0, target: 50, unit: 'pts' },
-            { id: 'q4-proj', name: 'Proyectos', current: 0, target: 100, unit: 'h' }
-        ];
-        if (parsed.forjas.length < 5) {
-             if (parsed.forjas.length === 0) {
-                 parsed.forjas.push({ id: 'permanent-objective', name: 'Objetivo Principal', current: 0, target: 100, unit: 'pts' });
-             }
-             for (let i = parsed.forjas.length; i < 5; i++) {
-                 parsed.forjas.push(quarterlyDefaults[i-1]);
-             }
-        }
-        if (!parsed.leones) parsed.leones = [];
-        if (!parsed.annualTrains) {
-            parsed.annualTrains = ANNUAL_TRAIN_TASKS.map((task, i) => ({
-                id: `annual-train-${i}`,
-                text: task.text,
-                completed: false,
-                subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i}-${j}`, text: st, completed: false }))
-            }));
-        }
-        if (!parsed.exercise) {
-            parsed.exercise = {
-                seriesCurrent: 0,
-                daysTrained: 0,
-                totalMinutes: 0,
-                sprintCount: 0,
-                stretchCount: 0
-            };
-        }
-        if (typeof parsed.exercise.totalMinutes === 'undefined') {
-            parsed.exercise.totalMinutes = 0;
-        }
-        if (!parsed.projects || parsed.projects.length === 0) {
-            parsed.projects = PROJECT_DEFINITIONS.map((def, i) => ({
-                id: `new-proj-${i}`,
-                text: def.text,
-                completed: false
-            }));
-        } else {
-             parsed.projects = parsed.projects.map(p => {
-                 if (p.text === "Trivium 10p") {
-                     return { ...p, text: "Trivium 🎓 10p" };
-                 }
-                 return p;
-             });
-        }
-        if (typeof parsed.food.fridgeCount === 'undefined') {
-            parsed.food = {
-                ...parsed.food,
-                fridgeCount: 0,
-                ritualCount: 0,
-                lastWeeklyReset: Date.now(),
-                wheel: { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false },
-                weeklyBonuses: { organs: false, legumes: false, fast24: false }
-            };
-        }
-        if (parsed.friends) {
-            parsed.friends = parsed.friends.map((f: any) => ({
-                ...f,
-                interactions: f.interactions || { person: 0, call: 0, gift: 0, photo: 0, message: 0 },
-                tasks: f.tasks || []
-            }));
-        }
-        if (parsed.hunos) {
-            parsed.hunos = parsed.hunos.map(task => {
-                if (task.text === "1 FAH 🚫🍰") {
-                    return { ...task, text: "1 FAH 🍰" };
-                }
-                return task;
-            });
-        }
-        if (!parsed.billetesState) parsed.billetesState = Array(20).fill(false);
-        if (typeof parsed.huchaCount === 'undefined') parsed.huchaCount = 0;
-
-        const now = new Date();
-        const today = now.toDateString();
-        if (parsed.lastDate !== today) {
-            const yesterdayKey = parsed.lastDate || '';
-            if (yesterdayKey) {
-                const completedIds = parsed.hunos.filter(t => t.completed).map(t => t.id);
-                if (!parsed.hunosHistory) parsed.hunosHistory = {};
-                parsed.hunosHistory[yesterdayKey] = completedIds;
-            }
-            parsed.hunos = parsed.hunos.map(task => ({
-                ...task,
-                failedYesterday: !task.completed,
-                completed: false
-            }));
-            // Reset daily meal dishes
-            parsed.food.dishes = {};
-            parsed.lastDate = today;
-        }
-        const day = now.getDay();
-        const diff = now.getDate() - day;
-        const startOfCurrentWeek = new Date(now.setDate(diff));
-        startOfCurrentWeek.setHours(0, 0, 0, 0);
-        const lastSetsResetDate = new Date(parsed.lastSetsReset);
-        if (lastSetsResetDate.getTime() < startOfCurrentWeek.getTime()) {
-            const completedCount = parsed.sets.filter(t => t.completed).length;
-            const allSetsCompleted = completedCount === parsed.sets.length;
-            if (allSetsCompleted && !parsed.setsPlenoClaimed) {
-                parsed.stats.perfectSetsWeeks += 1;
-            }
-            if (!parsed.stats.setsHistory) parsed.stats.setsHistory = [];
-            parsed.stats.setsHistory.push(completedCount);
-            if (parsed.stats.setsHistory.length > 52) parsed.stats.setsHistory.shift();
-            parsed.sets = parsed.sets.map(t => ({ ...t, completed: false }));
-            parsed.setsPlenoClaimed = false;
-            parsed.lastSetsReset = Date.now();
-        }
-        const lastFoodResetDate = new Date(parsed.food.lastWeeklyReset || 0);
-        if (lastFoodResetDate.getTime() < startOfCurrentWeek.getTime()) {
-            if (!parsed.stats.foodHistory) parsed.stats.foodHistory = [];
-            parsed.stats.foodHistory.push(parsed.food.score);
-            if (parsed.stats.foodHistory.length > 52) parsed.stats.foodHistory.shift();
-            parsed.food.score = 0;
-            parsed.food.weeklyBonuses = { organs: false, legumes: false, fast24: false };
-            parsed.food.lastWeeklyReset = Date.now();
-        }
-        const lastTrainsResetDate = new Date(parsed.lastTrainsReset);
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        const resetMonth = lastTrainsResetDate.getMonth();
-        const resetYear = lastTrainsResetDate.getFullYear();
-        if (currentYear > resetYear) {
-             parsed.annualTrains = parsed.annualTrains.map(t => ({
-                 ...t,
-                 completed: false,
-                 subtasks: t.subtasks?.map(s => ({ ...s, completed: false }))
-             }));
-        }
-        if (currentYear > resetYear || (currentYear === resetYear && currentMonth > resetMonth)) {
-             const completedCount = parsed.trains.filter(t => t.completed).length;
-             const allTrainsCompleted = parsed.trains.every(t => t.completed);
-             if (allTrainsCompleted && !parsed.trainsPlenoClaimed) {
-                 parsed.stats.perfectTrainMonths += 1;
-             }
-             if (!parsed.stats.trainsHistory) parsed.stats.trainsHistory = [];
-             parsed.stats.trainsHistory.push(completedCount);
-             if (parsed.stats.trainsHistory.length > 12) parsed.stats.trainsHistory.shift();
-             const currentTotalInteractions = calculateTotalInteractions(parsed.friends);
-             const interactionsThisMonth = currentTotalInteractions - (parsed.stats.lastTotalInteractions || 0);
-             if (!parsed.stats.interactionsHistory) parsed.stats.interactionsHistory = [];
-             parsed.stats.interactionsHistory.push(interactionsThisMonth);
-             if (parsed.stats.interactionsHistory.length > 12) parsed.stats.interactionsHistory.shift();
-             parsed.stats.lastTotalInteractions = currentTotalInteractions;
-             parsed.trains = parsed.trains.map(t => ({
-                 ...t,
-                 completed: false,
-                 subtasks: t.subtasks?.map(s => ({ ...s, completed: false }))
-             }));
-             parsed.trainsPlenoClaimed = false;
-             parsed.lastTrainsReset = Date.now();
-        }
-        setData(parsed);
-      } catch (e) {
-        console.error("Failed to load data", e);
-      }
-    }
-    setLoaded(true);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthReady(true);
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (loaded) {
-      localStorage.setItem('warrior_habits_v4', JSON.stringify(data));
-    }
-  }, [data, loaded]);
+    if (!authReady) return;
 
-  if (!loaded) return <div className="min-h-screen flex items-center justify-center bg-stone-950 text-stone-400">Cargando...</div>;
+    if (!user) {
+      setLoaded(true);
+      return;
+    }
+
+    const habitsRef = collection(db, 'users', user.uid, 'habits');
+
+    const migrateData = async () => {
+      try {
+        const localDataStr = localStorage.getItem('warrior_habits_v4');
+        if (localDataStr) {
+          const localData = JSON.parse(localDataStr);
+          const snapshot = await getDocs(habitsRef);
+          
+          if (snapshot.empty) {
+            console.log("Migrating local data to Firestore...");
+            const batch = writeBatch(db);
+            const docs = serializeAppData(localData);
+            docs.forEach(d => {
+              batch.set(doc(habitsRef, d.id), d.data);
+            });
+            await batch.commit();
+          }
+          
+          console.log("Purging local storage...");
+          localStorage.removeItem('warrior_habits_v4');
+        }
+      } catch (error) {
+        console.error("Migration failed:", error);
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/habits`);
+      }
+    };
+
+    migrateData().then(() => {
+      const unsubscribe = onSnapshot(habitsRef, (snapshot) => {
+        if (!snapshot.empty) {
+          const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
+          const newData = deserializeAppData(docs);
+          const processedData = processResets(newData);
+          lastSnapshotData.current = JSON.stringify(processedData);
+          setData(processedData);
+        } else {
+          const batch = writeBatch(db);
+          const docs = serializeAppData(INITIAL_DATA);
+          docs.forEach(d => {
+            batch.set(doc(habitsRef, d.id), d.data);
+          });
+          batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+          lastSnapshotData.current = JSON.stringify(INITIAL_DATA);
+          setData(INITIAL_DATA);
+        }
+        setLoaded(true);
+      }, (error) => {
+        console.error("Firestore sync error:", error);
+        handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
+        setLoaded(true);
+      });
+
+      return () => unsubscribe();
+    });
+  }, [user, authReady]);
+
+  useEffect(() => {
+    if (loaded && user) {
+      const currentDataStr = JSON.stringify(data);
+      if (currentDataStr !== lastSnapshotData.current) {
+        lastSnapshotData.current = currentDataStr;
+        const batch = writeBatch(db);
+        const docs = serializeAppData(data);
+        const habitsRef = collection(db, 'users', user.uid, 'habits');
+        docs.forEach(d => {
+          batch.set(doc(habitsRef, d.id), d.data);
+        });
+        batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+      }
+    }
+  }, [data, loaded, user]);
+
+  if (!loaded || !authReady) return <div className="min-h-screen flex items-center justify-center bg-stone-950 text-stone-400">Cargando...</div>;
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-950 text-stone-200 p-6">
+        <h1 className="text-4xl font-black text-stone-100 tracking-tighter mb-8">EL REINO</h1>
+        <p className="text-stone-400 mb-8 text-center max-w-sm">
+          Inicia sesión para sincronizar tus hábitos entre dispositivos.
+        </p>
+        <button 
+          onClick={loginWithGoogle}
+          className="bg-stone-100 text-stone-900 font-bold py-3 px-6 rounded-xl hover:bg-white transition-colors"
+        >
+          Iniciar sesión con Google
+        </button>
+      </div>
+    );
+  }
+
+  const exportData = () => {
+    const dataStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `el_reino_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleHunosUpdate = (newTasks: Task[], incrementPleno: boolean = false) => {
     const gymTaskNew = newTasks.find(t => t.text.includes('Gim'));
@@ -672,8 +845,10 @@ function App() {
             <header className="mb-6 mt-4 flex justify-between items-start">
               <h1 className="text-4xl font-black text-stone-100 tracking-tighter">EL REINO</h1>
               <div className="flex gap-2">
+                <button onClick={exportData} title="Exportar Datos" className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><Download className="w-6 h-6 text-stone-500" /></button>
                 <button onClick={() => setShowHistory(true)} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><CalendarClock className="w-6 h-6 text-stone-500" /></button>
                 <button onClick={() => setView('stats')} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><BarChart3 className="w-6 h-6 text-stone-500" /></button>
+                <button onClick={logout} title="Cerrar Sesión" className="p-2 bg-stone-900 rounded-xl hover:bg-red-900/50 transition-colors border border-stone-800"><LogOut className="w-6 h-6 text-stone-500 hover:text-red-400" /></button>
               </div>
             </header>
             <div className="grid grid-cols-2 gap-4 mb-4">

@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user owns the resource (for user-owned documents)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Match the user's habits collection
+    match /users/{userId}/habits/{habitId} {
+      // Only the owner can read and write their own habit documents
+      allow read, write: if isOwner(userId);
+    }
+  }
+}

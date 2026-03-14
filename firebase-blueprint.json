@@ -1,0 +1,16 @@
+{
+  "entities": {
+    "HabitDocument": {
+      "title": "HabitDocument",
+      "description": "A document storing part of the user's habit data.",
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "firestore": {
+    "users/{userId}/habits/{habitId}": {
+      "schema": { "$ref": "HabitDocument" },
+      "description": "User's habit data split into multiple documents."
+    }
+  }
+}
