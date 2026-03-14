@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AppData } from '../types';
+import { sanitizeForFirestore } from '../App';
 import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft } from 'lucide-react';
 
 interface HistoryEditorModalProps {
@@ -137,7 +138,9 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
         
         // Basic validation to ensure it's El Reino data
         if (parsed && parsed.stats && parsed.hunos) {
-            setImportData(parsed);
+            // Pasamos TODOS los objetos y arrays por la función sanitizeForFirestore
+            const sanitizedData = sanitizeForFirestore(parsed);
+            setImportData(sanitizedData);
         } else {
             setImportError("El archivo no parece ser una copia de seguridad válida de El Reino.");
         }
