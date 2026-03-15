@@ -518,6 +518,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const lastSnapshotData = useRef<string>('');
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -545,6 +546,7 @@ function App() {
 
     const initializeData = async () => {
       setIsInitializing(true);
+      isFirstRender.current = true;
       try {
         const snapshot = await getDocs(habitsRef);
         
@@ -613,6 +615,11 @@ function App() {
 
   useEffect(() => {
     if (isInitializing || !loaded || !user) return;
+    
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     
     const currentDataStr = JSON.stringify(data);
     if (currentDataStr !== lastSnapshotData.current) {
