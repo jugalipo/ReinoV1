@@ -4,14 +4,15 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import firebaseConfig from './firebase-applet-config.json';
 
 // Initialize Firebase SDK
-const app = initializeApp({
-  apiKey: "AIzaSyBLnNjuQNoC1E4hSnhlrXzGl2pVMPHf_YA",
-  authDomain: "el-reino-354ca.firebaseapp.com",
-  projectId: "el-reino-354ca",
-  storageBucket: "el-reino-354ca.firebasestorage.app",
-  messagingSenderId: "504444808693",
-  appId: "1:504444808693:web:97ca0afbbf428d0cc344bc"
-});
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || process.env.VITE_FIREBASE_APP_ID
+};
+const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore with offline persistence
 export const db = initializeFirestore(app, {
