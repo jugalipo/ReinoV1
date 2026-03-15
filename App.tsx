@@ -503,6 +503,7 @@ function App() {
   const [view, setView] = useState<ViewState>('home');
   const [data, setData] = useState<AppData>(INITIAL_DATA);
   const [loaded, setLoaded] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   
   const [showProjectConfirm, setShowProjectConfirm] = useState(false);
@@ -535,39 +536,18 @@ function App() {
 
     if (!user) {
       setLoaded(true);
+      setIsInitializing(false);
       return;
     }
 
     const habitsRef = collection(db, 'users', user.uid, 'habits');
+    let unsubscribe: () => void;
 
-    const migrateData = async () => {
+    const initializeData = async () => {
+      setIsInitializing(true);
       try {
-        const localDataStr = localStorage.getItem('warrior_habits_v4');
-        if (localDataStr) {
-          const localData = JSON.parse(localDataStr);
-          const snapshot = await getDocs(habitsRef);
-          
-          if (snapshot.empty) {
-            console.log("Migrating local data to Firestore...");
-            const batch = writeBatch(db);
-            const docs = serializeAppData(localData);
-            docs.forEach(d => {
-              batch.set(doc(habitsRef, d.id), d.data);
-            });
-            await batch.commit();
-          }
-          
-          console.log("Purging local storage...");
-          localStorage.removeItem('warrior_habits_v4');
-        }
-      } catch (error) {
-        console.error("Migration failed:", error);
-        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/habits`);
-      }
-    };
-
-    migrateData().then(() => {
-      const unsubscribe = onSnapshot(habitsRef, (snapshot) => {
+        const snapshot = await getDocs(habitsRef);
+        
         if (!snapshot.empty) {
           const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
           const newData = deserializeAppData(docs);
@@ -575,41 +555,77 @@ function App() {
           lastSnapshotData.current = JSON.stringify(processedData);
           setData(processedData);
         } else {
-          const batch = writeBatch(db);
-          const docs = serializeAppData(INITIAL_DATA);
-          docs.forEach(d => {
-            batch.set(doc(habitsRef, d.id), d.data);
-          });
-          batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
-          lastSnapshotData.current = JSON.stringify(INITIAL_DATA);
-          setData(INITIAL_DATA);
+          const localDataStr = localStorage.getItem('warrior_habits_v4');
+          if (localDataStr) {
+            console.log("Migrating local data to Firestore...");
+            const localData = JSON.parse(localDataStr);
+            const batch = writeBatch(db);
+            const docs = serializeAppData(localData);
+            docs.forEach(d => {
+              batch.set(doc(habitsRef, d.id), d.data);
+            });
+            await batch.commit();
+            console.log("Purging local storage...");
+            localStorage.removeItem('warrior_habits_v4');
+            
+            const processedData = processResets(localData);
+            lastSnapshotData.current = JSON.stringify(processedData);
+            setData(processedData);
+          } else {
+            const batch = writeBatch(db);
+            const docs = serializeAppData(INITIAL_DATA);
+            docs.forEach(d => {
+              batch.set(doc(habitsRef, d.id), d.data);
+            });
+            await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+            lastSnapshotData.current = JSON.stringify(INITIAL_DATA);
+            setData(INITIAL_DATA);
+          }
         }
-        setLoaded(true);
-      }, (error) => {
-        console.error("Firestore sync error:", error);
+      } catch (error) {
+        console.error("Initialization failed:", error);
         handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
+      } finally {
+        setIsInitializing(false);
         setLoaded(true);
-      });
+        
+        unsubscribe = onSnapshot(habitsRef, (snapshot) => {
+          if (!snapshot.empty) {
+            const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
+            const newData = deserializeAppData(docs);
+            const processedData = processResets(newData);
+            lastSnapshotData.current = JSON.stringify(processedData);
+            setData(processedData);
+          }
+        }, (error) => {
+          console.error("Firestore sync error:", error);
+          handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
+        });
+      }
+    };
 
-      return () => unsubscribe();
-    });
+    initializeData();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [user, authReady]);
 
   useEffect(() => {
-    if (loaded && user) {
-      const currentDataStr = JSON.stringify(data);
-      if (currentDataStr !== lastSnapshotData.current) {
-        lastSnapshotData.current = currentDataStr;
-        const batch = writeBatch(db);
-        const docs = serializeAppData(data);
-        const habitsRef = collection(db, 'users', user.uid, 'habits');
-        docs.forEach(d => {
-          batch.set(doc(habitsRef, d.id), d.data);
-        });
-        batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
-      }
+    if (isInitializing || !loaded || !user) return;
+    
+    const currentDataStr = JSON.stringify(data);
+    if (currentDataStr !== lastSnapshotData.current) {
+      lastSnapshotData.current = currentDataStr;
+      const batch = writeBatch(db);
+      const docs = serializeAppData(data);
+      const habitsRef = collection(db, 'users', user.uid, 'habits');
+      docs.forEach(d => {
+        batch.set(doc(habitsRef, d.id), d.data);
+      });
+      batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
     }
-  }, [data, loaded, user]);
+  }, [data, loaded, user, isInitializing]);
 
   if (!loaded || !authReady) return <div className="min-h-screen flex items-center justify-center bg-stone-950 text-stone-400">Cargando...</div>;
 
