@@ -272,7 +272,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
     : 0;
 
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col animate-in fade-in duration-200 ${theme.bg}`}>
+    <div className={`fixed inset-0 max-w-md mx-auto z-50 flex flex-col animate-in fade-in duration-200 ${theme.bg}`}>
       <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800 shrink-0">
         <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
           <ArrowLeft className={`w-6 h-6 ${theme.accent}`} />
@@ -583,7 +583,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
       {/* Billetes Completion Modal */}
       {showBilletesConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
                 <div className="p-8 flex flex-col items-center text-center">
                     <div className="w-20 h-20 bg-amber-600/20 rounded-full flex items-center justify-center mb-6 border border-amber-500/50 shadow-[0_0_20px_rgba(217,119,6,0.2)]">
@@ -615,7 +615,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
       {/* Leones Completion Modal */}
       {showLeonesConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
                 <div className="p-8 flex flex-col items-center text-center">
                     <div className="w-20 h-20 bg-amber-600/20 rounded-full flex items-center justify-center mb-6 border border-amber-500/50 shadow-[0_0_20px_rgba(217,119,6,0.2)]">

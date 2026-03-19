@@ -149,8 +149,6 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
     const { duration } = parseSetInfo(task.text);
     return acc + parseDurationToMinutes(duration);
   }, 0);
-  
-  const totalHours = Math.round(totalMinutes / 60);
 
   // SVG Helper for Pie Slices
   const createSlicePath = (index: number, total: number, radius: number, cx: number, cy: number) => {
@@ -176,7 +174,7 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
       <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
         <div className="flex items-center gap-4">
             <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
@@ -200,9 +198,9 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
             <span className="text-lg font-bold text-red-400/90 bg-stone-900/50 px-6 py-2 rounded-full border border-red-900/30 shadow-sm">
                 {getWeekLabel()}
             </span>
-            {totalHours >= 0 && (
+            {totalMinutes >= 0 && (
                 <span className="flex items-center gap-1 text-sm font-mono font-bold text-stone-400 bg-stone-800 px-4 py-2 rounded-full border border-stone-700 shadow-sm">
-                    {totalHours}h
+                    {totalMinutes}min
                 </span>
             )}
         </div>
@@ -279,7 +277,7 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                   {/* Subtasks */}
                   {task.subtasks && task.subtasks.length > 0 && (
                       <div className="mt-3 ml-11 space-y-2 border-l-2 border-stone-800 pl-4">
-                          {task.subtasks.map(sub => (
+                          {[...(task.subtasks || [])].sort((a, b) => Number(a.completed) - Number(b.completed)).map(sub => (
                               <div 
                                   key={sub.id} 
                                   className="flex items-center gap-3 cursor-pointer"
@@ -325,7 +323,7 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
 
       {/* Delete Confirmation Modal */}
       {taskToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-6 flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-600/50">

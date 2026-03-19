@@ -10,7 +10,7 @@ import { ExerciseView } from './components/ExerciseView';
 import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
-import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -301,7 +301,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -468,6 +468,23 @@ const processResets = (parsed: AppData): AppData => {
       result.food.lastWeeklyReset = Date.now();
   }
   
+  if (!result.weeklyGoals) {
+      result.weeklyGoals = {
+          leones: { text: "", completed: false },
+          forjas: { text: "", completed: false },
+          puerto: { text: "", completed: false },
+          lastReset: Date.now()
+      };
+  }
+
+  const lastWeeklyGoalsResetDate = new Date(result.weeklyGoals.lastReset || 0);
+  if (lastWeeklyGoalsResetDate.getTime() < startOfCurrentWeek.getTime()) {
+      result.weeklyGoals.leones.completed = false;
+      result.weeklyGoals.forjas.completed = false;
+      result.weeklyGoals.puerto.completed = false;
+      result.weeklyGoals.lastReset = Date.now();
+  }
+  
   const lastTrainsResetDate = new Date(result.lastTrainsReset);
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -516,6 +533,7 @@ function App() {
   const [showProjectPromptModal, setShowProjectPromptModal] = useState(false);
 
   const [user, setUser] = useState<User | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const lastSnapshotData = useRef<string>('');
   const isFirstRender = useRef(true);
@@ -634,37 +652,38 @@ function App() {
     }
   }, [data, loaded, user, isInitializing]);
 
-  if (!loaded || !authReady) return <div className="min-h-screen flex items-center justify-center bg-stone-950 text-stone-400">Cargando...</div>;
+  if (!loaded || !authReady) return (
+    <div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative">
+      <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900 flex items-center justify-center">
+        <div className="text-stone-400">Cargando...</div>
+      </div>
+    </div>
+  );
 
-  if (!user) {
+  if (!user && !isGuest) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-950 text-stone-200 p-6">
-        <h1 className="text-4xl font-black text-stone-100 tracking-tighter mb-8">EL REINO</h1>
-        <p className="text-stone-400 mb-8 text-center max-w-sm">
-          Inicia sesión para sincronizar tus hábitos entre dispositivos.
-        </p>
-        <button 
-          onClick={loginWithGoogle}
-          className="bg-stone-100 text-stone-900 font-bold py-3 px-6 rounded-xl hover:bg-white transition-colors"
-        >
-          Iniciar sesión con Google
-        </button>
+      <div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative">
+        <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900 flex flex-col items-center justify-center p-6">
+          <h1 className="text-4xl font-black text-stone-100 tracking-tighter mb-8">EL REINO</h1>
+          <p className="text-stone-400 mb-8 text-center max-w-sm">
+            Inicia sesión para sincronizar tus hábitos entre dispositivos.
+          </p>
+          <button 
+            onClick={loginWithGoogle}
+            className="bg-stone-100 text-stone-900 font-bold py-3 px-6 rounded-xl hover:bg-white transition-colors mb-4"
+          >
+            Iniciar sesión con Google
+          </button>
+          <button 
+            onClick={() => setIsGuest(true)}
+            className="text-stone-500 font-medium py-2 px-4 rounded-xl hover:text-stone-300 transition-colors"
+          >
+            Continuar como invitado
+          </button>
+        </div>
       </div>
     );
   }
-
-  const exportData = () => {
-    const dataStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `el_reino_backup_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
   const handleHunosUpdate = (newTasks: Task[], incrementPleno: boolean = false) => {
     const gymTaskNew = newTasks.find(t => t.text.includes('Gim'));
@@ -717,6 +736,27 @@ function App() {
             hunoPlenos: incrementPleno ? prev.stats.hunoPlenos + 1 : prev.stats.hunoPlenos
         }
     }));
+  };
+
+  const updateWeeklyGoal = (type: 'leones' | 'forjas' | 'puerto', field: 'text' | 'completed', value: string | boolean) => {
+    setData(prev => {
+      const currentGoals = prev.weeklyGoals || {
+        leones: { text: "", completed: false },
+        forjas: { text: "", completed: false },
+        puerto: { text: "", completed: false },
+        lastReset: Date.now()
+      };
+      return {
+        ...prev,
+        weeklyGoals: {
+          ...currentGoals,
+          [type]: {
+            ...currentGoals[type],
+            [field]: value
+          }
+        }
+      };
+    });
   };
 
   const toggleProject = (index: number) => {
@@ -891,10 +931,9 @@ function App() {
             <header className="mb-6 mt-4 flex justify-between items-start">
               <h1 className="text-4xl font-black text-stone-100 tracking-tighter">EL REINO</h1>
               <div className="flex gap-2">
-                <button onClick={exportData} title="Exportar Datos" className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><Download className="w-6 h-6 text-stone-500" /></button>
                 <button onClick={() => setShowHistory(true)} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><CalendarClock className="w-6 h-6 text-stone-500" /></button>
                 <button onClick={() => setView('stats')} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><BarChart3 className="w-6 h-6 text-stone-500" /></button>
-                <button onClick={logout} title="Cerrar Sesión" className="p-2 bg-stone-900 rounded-xl hover:bg-red-900/50 transition-colors border border-stone-800"><LogOut className="w-6 h-6 text-stone-500 hover:text-red-400" /></button>
+                <button onClick={() => { if (isGuest) setIsGuest(false); else logout(); }} title="Cerrar Sesión" className="p-2 bg-stone-900 rounded-xl hover:bg-red-900/50 transition-colors border border-stone-800"><LogOut className="w-6 h-6 text-stone-500 hover:text-red-400" /></button>
               </div>
             </header>
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -954,13 +993,80 @@ function App() {
                 <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Flame className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
             </div>
             <button onClick={() => setView('exercise')} className="w-full bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl p-4 flex items-center gap-4 group transition-colors mb-3"><div className="p-2 bg-emerald-900/40 rounded-xl flex-shrink-0"><Dumbbell className="w-6 h-6 text-emerald-500" /></div><div className="flex-1 flex gap-1 h-10">{Array.from({ length: 9 }).map((_, i) => ( <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${ i < data.exercise.seriesCurrent ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30' }`} /> ))}</div></button>
+            
+            <div className="bg-stone-900 rounded-2xl shadow-sm p-4 w-full mb-3 border border-stone-800">
+              <div className="space-y-3">
+                {/* Leones */}
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🦁</span>
+                  <input 
+                    type="text" 
+                    value={data.weeklyGoals?.leones.text || ''} 
+                    onChange={(e) => updateWeeklyGoal('leones', 'text', e.target.value)}
+                    className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-amber-500 transition-colors"
+                    placeholder="Objetivo Leones..."
+                  />
+                  <button 
+                    onClick={() => updateWeeklyGoal('leones', 'completed', !(data.weeklyGoals?.leones.completed || false))}
+                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors ${data.weeklyGoals?.leones.completed ? 'bg-amber-600 border-amber-600' : 'border-stone-700 hover:border-amber-500'}`}
+                  >
+                    {data.weeklyGoals?.leones.completed && <Check className="w-5 h-5 text-white" />}
+                  </button>
+                </div>
+                
+                {/* Forjas */}
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🔥</span>
+                  <input 
+                    type="text" 
+                    value={data.weeklyGoals?.forjas.text || ''} 
+                    onChange={(e) => updateWeeklyGoal('forjas', 'text', e.target.value)}
+                    className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-orange-500 transition-colors"
+                    placeholder="Objetivo Forjas..."
+                  />
+                  <button 
+                    onClick={() => updateWeeklyGoal('forjas', 'completed', !(data.weeklyGoals?.forjas.completed || false))}
+                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors ${data.weeklyGoals?.forjas.completed ? 'bg-orange-600 border-orange-600' : 'border-stone-700 hover:border-orange-500'}`}
+                  >
+                    {data.weeklyGoals?.forjas.completed && <Check className="w-5 h-5 text-white" />}
+                  </button>
+                </div>
+                
+                {/* Puerto */}
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">⛵</span>
+                  <input 
+                    type="text" 
+                    value={data.weeklyGoals?.puerto.text || ''} 
+                    onChange={(e) => updateWeeklyGoal('puerto', 'text', e.target.value)}
+                    className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 transition-colors"
+                    placeholder="Objetivo Puerto..."
+                  />
+                  <button 
+                    onClick={() => updateWeeklyGoal('puerto', 'completed', !(data.weeklyGoals?.puerto.completed || false))}
+                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors ${data.weeklyGoals?.puerto.completed ? 'bg-blue-600 border-blue-600' : 'border-stone-700 hover:border-blue-500'}`}
+                  >
+                    {data.weeklyGoals?.puerto.completed && <Check className="w-5 h-5 text-white" />}
+                  </button>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="w-full h-1.5 bg-stone-950 rounded-full overflow-hidden mt-4">
+                  <div 
+                    className="h-full bg-stone-500 transition-all duration-300" 
+                    style={{ width: `${((new Date().getDay() + 1) / 7) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
             <DailyHunos tasks={data.hunos} onUpdate={handleHunosUpdate} />
             <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300"><div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><GearIcon className="w-6 h-6 text-stone-400" /><h2 className="text-xl font-bold text-stone-200">Proyectos</h2></div><button onClick={() => setIsEditingProjects(!isEditingProjects)} className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}>{isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}</button></div>{isEditingProjects ? ( <div className="space-y-3 animate-in fade-in duration-300">{data.projects.map(proj => ( <div key={proj.id} className="flex gap-2"><input type="text" value={proj.text} onChange={(e) => handleProjectTextChange(proj.id, e.target.value)} className="flex-1 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" /><button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button></div> ))}<button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button></div> ) : ( <><div className="grid grid-cols-4 gap-3">{data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin proyectos activos.</p>}{data.projects.map((proj, idx) => ( <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${ proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100' }`}><span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span></button> ))}</div><button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all"><Music className="w-5 h-5" /><span className="font-bold">Profundizar en Piano</span></button></> )}</div>
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
             {showHistory && <HistoryEditorModal data={data} onUpdateData={setData} onClose={() => setShowHistory(false)} />}
             
             {showProjectPromptModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-12 h-12 bg-stone-800 rounded-full flex items-center justify-center">
@@ -991,7 +1097,7 @@ function App() {
             )}
 
             {showProjectConfirm && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
                     <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
                         <div className="p-8 flex flex-col items-center text-center">
                             <div className="w-20 h-20 bg-yellow-600/20 rounded-full flex items-center justify-center mb-6 border border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]">
@@ -1022,7 +1128,7 @@ function App() {
             )}
 
             {isAddingProject && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                         <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                              <h3 className="font-bold text-stone-200 text-lg">Nuevo Proyecto</h3>
@@ -1064,7 +1170,7 @@ function App() {
             )}
 
             {projectToDelete && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                         <div className="p-6 text-center">
                             <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-900/50">

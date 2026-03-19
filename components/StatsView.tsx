@@ -101,7 +101,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
   const foodMax = 50; // Max score is 50
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
       <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800 shrink-0">
         <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6 text-stone-400" />

@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getDocFromServer, doc } from 'firebase/firestore';
-import firebaseConfig from './firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const firebaseConfig = {
@@ -13,10 +12,11 @@ const firebaseConfig = {
   appId: "1:504444808693:web:97ca0afbbf428d0cc344bc"
 };
 const app = initializeApp(firebaseConfig);
+
 // Initialize Firestore with offline persistence
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-}, firebaseConfig.firestoreDatabaseId);
+});
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();

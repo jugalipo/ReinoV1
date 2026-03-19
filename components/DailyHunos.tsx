@@ -280,7 +280,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
 
       {/* Pleno Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-6 flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-orange-900/30 rounded-full flex items-center justify-center mb-4 border border-orange-600/50">
@@ -312,7 +312,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
 
       {/* Add Task Modal */}
       {isAdding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                      <h3 className="font-bold text-stone-200 text-lg">Nuevo Huno</h3>
@@ -356,7 +356,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
 
       {/* Delete Confirmation Modal */}
       {taskToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-6 flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-600/50">

@@ -176,7 +176,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
       <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800 shrink-0">
         <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
           <ArrowLeft className="w-6 h-6 text-emerald-500" />
@@ -336,7 +336,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
       {/* Add Time Modal */}
       {showTimeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                      <h3 className="font-bold text-indigo-200 text-lg">Añadir Tiempo</h3>
@@ -382,7 +382,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
       {/* Timer Settings Modal */}
       {showTimerSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                      <h3 className="font-bold text-stone-200 text-lg">Ajustes del Cronómetro</h3>

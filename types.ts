@@ -139,6 +139,18 @@ export interface PianoState {
   hanonExercise?: number;
 }
 
+export interface WeeklyGoal {
+  text: string;
+  completed: boolean;
+}
+
+export interface WeeklyGoalsState {
+  leones: WeeklyGoal;
+  forjas: WeeklyGoal;
+  puerto: WeeklyGoal;
+  lastReset: number;
+}
+
 export interface AppData {
   lastDate?: string; // YYYY-MM-DD to track daily resets
   lastSetsReset: number; // timestamp of last weekly reset
@@ -163,4 +175,5 @@ export interface AppData {
   leonesCount?: number; // Count of completed sets of 20 lions
   reminders?: ReminderEvent[]; // Important dates to remember
   piano?: PianoState;
+  weeklyGoals?: WeeklyGoalsState;
 }

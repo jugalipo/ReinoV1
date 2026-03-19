@@ -157,7 +157,7 @@ export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdate }) => 
 
       {/* Modal View for Editing */}
       {selectedBook && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
                 <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-950">
                     <h3 className="font-bold text-stone-200 truncate pr-4">{selectedBook.title}</h3>
