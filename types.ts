@@ -127,6 +127,14 @@ export interface PianoState {
   currentScaleIndex?: number;
   sesionesDesafio?: number;
   sesionesConsolidacion?: number;
+  sesionesCompletadas?: number;
+  timerState?: {
+    isOpen: boolean;
+    totalTimeInput: string;
+    currentSectionIndex: number;
+    timeLeftInSection: number;
+    sections: {key: string; label: string; duration: number}[];
+  };
   scaleExercises?: {
     octava: boolean;
     decima: boolean;

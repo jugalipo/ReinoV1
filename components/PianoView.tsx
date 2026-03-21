@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PianoState } from '../types';
-import { ArrowLeft, Music, CheckCircle2, Circle, RotateCcw, Check, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Music, CheckCircle2, Circle, RotateCcw, Check, Plus, Minus, Clock, Play, Pause, Square } from 'lucide-react';
 
 interface PianoViewProps {
   pianoState?: PianoState;
@@ -24,6 +24,7 @@ const defaultPianoState: PianoState = {
   currentScaleIndex: 0,
   sesionesDesafio: 0,
   sesionesConsolidacion: 0,
+  sesionesCompletadas: 0,
   hanonExercise: 1,
   scaleExercises: {
     octava: false,
@@ -45,27 +46,240 @@ const getScale = (index: number) => {
   return `${note} ${mode}`;
 };
 
+const DEFAULT_TIMES = {
+  recuperacionActiva: 4,
+  lecturaPrimeraVista: 6,
+  tecnicaPrecision: 5,
+  construccionIntercalada: 10,
+  consolidacion: 7,
+  audicionCritica: 5,
+};
+const DEFAULT_TOTAL_TIME = Object.values(DEFAULT_TIMES).reduce((a, b) => a + b, 0);
+
 export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBack }) => {
   const state = pianoState || defaultPianoState;
+  const stateRef = useRef(state);
+  
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const updateState = (updates: Partial<PianoState>) => {
+    const newState = { ...stateRef.current, ...updates };
+    stateRef.current = newState;
+    onUpdate(newState);
+  };
+
   const currentIndex = state.currentScaleIndex || 0;
   const currentScale = getScale(currentIndex);
 
+  const [isTimerOpen, setIsTimerOpen] = useState(state.timerState?.isOpen || false);
+  const [totalTimeInput, setTotalTimeInput] = useState(state.timerState?.totalTimeInput || DEFAULT_TOTAL_TIME.toString());
+  const [timerActive, setTimerActive] = useState(false); // Always start paused
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(state.timerState?.currentSectionIndex || 0);
+  const [timeLeftInSection, setTimeLeftInSection] = useState(state.timerState?.timeLeftInSection || 0);
+  const [timerSections, setTimerSections] = useState<{key: string, label: string, duration: number}[]>(state.timerState?.sections || []);
+  
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Create audio element for notification
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audioRef.current = audio;
+  }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (timerActive && timeLeftInSection > 0) {
+      interval = setInterval(() => {
+        setTimeLeftInSection((prev) => prev - 1);
+      }, 1000);
+    } else if (timerActive && timeLeftInSection === 0) {
+      // Play sound
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+      }
+      
+      // Move to next section
+      if (currentSectionIndex < timerSections.length - 1) {
+        const nextIndex = currentSectionIndex + 1;
+        const nextDuration = timerSections[nextIndex].duration;
+        setCurrentSectionIndex(nextIndex);
+        setTimeLeftInSection(nextDuration);
+        
+        updateState({
+          timerState: {
+            isOpen: isTimerOpen,
+            totalTimeInput,
+            currentSectionIndex: nextIndex,
+            timeLeftInSection: nextDuration,
+            sections: timerSections
+          }
+        });
+
+        // Auto-check the previous section
+        const prevSectionKey = timerSections[currentSectionIndex].key as keyof PianoState['checklist'];
+        if (!stateRef.current.checklist[prevSectionKey]) {
+          toggleChecklist(prevSectionKey, true);
+        }
+      } else {
+        // Timer finished
+        setTimerActive(false);
+        setCurrentSectionIndex(0);
+        setTimeLeftInSection(0);
+        setTimerSections([]);
+
+        updateState({
+          timerState: {
+            isOpen: isTimerOpen,
+            totalTimeInput,
+            currentSectionIndex: 0,
+            timeLeftInSection: 0,
+            sections: []
+          }
+        });
+
+        const lastSectionKey = timerSections[currentSectionIndex].key as keyof PianoState['checklist'];
+        if (!stateRef.current.checklist[lastSectionKey]) {
+          toggleChecklist(lastSectionKey, true);
+        }
+      }
+    }
+    return () => clearInterval(interval);
+  }, [timerActive, timeLeftInSection, currentSectionIndex, timerSections, isTimerOpen, totalTimeInput]);
+
+  const handleToggleTimerOpen = () => {
+    const newVal = !isTimerOpen;
+    setIsTimerOpen(newVal);
+    updateState({
+      timerState: {
+        isOpen: newVal,
+        totalTimeInput,
+        currentSectionIndex,
+        timeLeftInSection,
+        sections: timerSections
+      }
+    });
+  };
+
+  const handleTotalTimeChange = (val: string) => {
+    setTotalTimeInput(val);
+    updateState({
+      timerState: {
+        isOpen: isTimerOpen,
+        totalTimeInput: val,
+        currentSectionIndex,
+        timeLeftInSection,
+        sections: timerSections
+      }
+    });
+  };
+
+  const handleToggleTimerActive = () => {
+    const newActive = !timerActive;
+    setTimerActive(newActive);
+    if (!newActive) {
+      // Pausing, save current time
+      updateState({
+        timerState: {
+          isOpen: isTimerOpen,
+          totalTimeInput,
+          currentSectionIndex,
+          timeLeftInSection,
+          sections: timerSections
+        }
+      });
+    }
+  };
+
+  const startTimer = () => {
+    const totalMinutes = parseInt(totalTimeInput) || DEFAULT_TOTAL_TIME;
+    const ratio = totalMinutes / DEFAULT_TOTAL_TIME;
+    
+    const sections = [
+      { key: 'recuperacionActiva', label: 'Recuperación activa', duration: Math.round(DEFAULT_TIMES.recuperacionActiva * ratio * 60) },
+      { key: 'lecturaPrimeraVista', label: 'Lectura a primera vista', duration: Math.round(DEFAULT_TIMES.lecturaPrimeraVista * ratio * 60) },
+      { key: 'tecnicaPrecision', label: 'Técnica de precisión quirúrgica', duration: Math.round(DEFAULT_TIMES.tecnicaPrecision * ratio * 60) },
+      { key: 'construccionIntercalada', label: 'Construcción intercalada', duration: Math.round(DEFAULT_TIMES.construccionIntercalada * ratio * 60) },
+      { key: 'consolidacion', label: 'Consolidación', duration: Math.round(DEFAULT_TIMES.consolidacion * ratio * 60) },
+      { key: 'audicionCritica', label: 'Audición crítica o improvisación', duration: Math.round(DEFAULT_TIMES.audicionCritica * ratio * 60) },
+    ];
+    
+    setTimerSections(sections);
+    setCurrentSectionIndex(0);
+    setTimeLeftInSection(sections[0].duration);
+    setTimerActive(true);
+
+    updateState({
+      timerState: {
+        isOpen: isTimerOpen,
+        totalTimeInput,
+        currentSectionIndex: 0,
+        timeLeftInSection: sections[0].duration,
+        sections
+      }
+    });
+  };
+
+  const stopTimer = () => {
+    setTimerActive(false);
+    setCurrentSectionIndex(0);
+    setTimeLeftInSection(0);
+    setTimerSections([]);
+
+    updateState({
+      timerState: {
+        isOpen: isTimerOpen,
+        totalTimeInput,
+        currentSectionIndex: 0,
+        timeLeftInSection: 0,
+        sections: []
+      }
+    });
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const handleTextChange = (field: keyof Pick<PianoState, 'piezaDesafio' | 'piezaConsolidacion' | 'piezaLectura'>, value: string) => {
-    onUpdate({ ...state, [field]: value });
+    updateState({ [field]: value });
   };
 
   const handleHenleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ ...state, henleLevel: parseInt(e.target.value, 10) });
+    updateState({ henleLevel: parseInt(e.target.value, 10) });
   };
 
-  const toggleChecklist = (field: keyof PianoState['checklist']) => {
-    onUpdate({
-      ...state,
-      checklist: {
-        ...state.checklist,
-        [field]: !state.checklist[field]
-      }
-    });
+  const toggleChecklist = (field: keyof PianoState['checklist'], forceValue?: boolean) => {
+    const currentState = stateRef.current;
+    const newValue = forceValue !== undefined ? forceValue : !currentState.checklist[field];
+    
+    const newChecklist = {
+      ...currentState.checklist,
+      [field]: newValue
+    };
+
+    const allChecked = Object.values(newChecklist).every(Boolean);
+
+    if (allChecked) {
+      updateState({
+        checklist: {
+          recuperacionActiva: false,
+          lecturaPrimeraVista: false,
+          tecnicaPrecision: false,
+          construccionIntercalada: false,
+          consolidacion: false,
+          audicionCritica: false,
+        },
+        sesionesCompletadas: (currentState.sesionesCompletadas || 0) + 1
+      });
+    } else {
+      updateState({
+        checklist: newChecklist
+      });
+    }
   };
 
   const resetScaleExercises = {
@@ -81,48 +295,48 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
   const currentScaleExercises = state.scaleExercises || defaultPianoState.scaleExercises!;
 
   const toggleScaleExercise = (field: keyof NonNullable<PianoState['scaleExercises']>) => {
-    onUpdate({
-      ...state,
+    const currentExercises = stateRef.current.scaleExercises || defaultPianoState.scaleExercises!;
+    updateState({
       scaleExercises: {
-        ...currentScaleExercises,
-        [field]: !currentScaleExercises[field]
+        ...currentExercises,
+        [field]: !currentExercises[field]
       }
     });
   };
 
   const handleNextScale = () => {
-    onUpdate({ ...state, currentScaleIndex: currentIndex + 1, scaleExercises: resetScaleExercises });
+    updateState({ currentScaleIndex: currentIndex + 1, scaleExercises: resetScaleExercises });
   };
 
   const handlePrevScale = () => {
-    onUpdate({ ...state, currentScaleIndex: Math.max(0, currentIndex - 1), scaleExercises: resetScaleExercises });
+    updateState({ currentScaleIndex: Math.max(0, currentIndex - 1), scaleExercises: resetScaleExercises });
   };
 
   const handleIncrementSession = (field: 'sesionesDesafio' | 'sesionesConsolidacion', max: number) => {
-    const currentValue = state[field] || 0;
+    const currentValue = stateRef.current[field] || 0;
     if (currentValue < max) {
-      onUpdate({ ...state, [field]: currentValue + 1 });
+      updateState({ [field]: currentValue + 1 });
     }
   };
 
   const handleDecrementSession = (field: 'sesionesDesafio' | 'sesionesConsolidacion') => {
-    const currentValue = state[field] || 0;
+    const currentValue = stateRef.current[field] || 0;
     if (currentValue > 0) {
-      onUpdate({ ...state, [field]: currentValue - 1 });
+      updateState({ [field]: currentValue - 1 });
     }
   };
 
   const handleNextHanon = () => {
-    const currentHanon = state.hanonExercise || 1;
+    const currentHanon = stateRef.current.hanonExercise || 1;
     if (currentHanon < 60) {
-      onUpdate({ ...state, hanonExercise: currentHanon + 1 });
+      updateState({ hanonExercise: currentHanon + 1 });
     }
   };
 
   const handlePrevHanon = () => {
-    const currentHanon = state.hanonExercise || 1;
+    const currentHanon = stateRef.current.hanonExercise || 1;
     if (currentHanon > 1) {
-      onUpdate({ ...state, hanonExercise: currentHanon - 1 });
+      updateState({ hanonExercise: currentHanon - 1 });
     }
   };
 
@@ -148,6 +362,215 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
       </div>
 
       <div className="space-y-6">
+        {/* Checklist Sesión Section */}
+        <div className="bg-stone-900 rounded-2xl p-5 border border-stone-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-stone-300">Sesión de Estudio</h2>
+              {(state.sesionesCompletadas || 0) > 0 && (
+                <span className="bg-indigo-900/50 text-indigo-300 text-xs font-bold px-2 py-1 rounded-full">
+                  {state.sesionesCompletadas}
+                </span>
+              )}
+            </div>
+            <button 
+              onClick={handleToggleTimerOpen}
+              className={`p-2 rounded-full transition-colors ${isTimerOpen || timerActive ? 'bg-indigo-900/50 text-indigo-300' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}
+            >
+              <Clock className="w-5 h-5" />
+            </button>
+          </div>
+
+          {isTimerOpen && (
+            <div className="mb-4 p-4 bg-stone-950 rounded-xl border border-stone-800">
+              {!timerActive && timerSections.length === 0 ? (
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="number" 
+                    value={totalTimeInput}
+                    onChange={(e) => handleTotalTimeChange(e.target.value)}
+                    className="w-20 bg-stone-900 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-indigo-500"
+                    placeholder="Min"
+                  />
+                  <span className="text-stone-400 text-sm">minutos totales</span>
+                  <button 
+                    onClick={startTimer}
+                    className="ml-auto bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-lg transition-colors"
+                  >
+                    <Play className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-indigo-400 font-medium text-sm">
+                      {timerSections[currentSectionIndex]?.label}
+                    </div>
+                    <div className="text-2xl font-mono font-bold text-stone-200">
+                      {formatTime(timeLeftInSection)}
+                    </div>
+                  </div>
+                  
+                  <div className="w-full bg-stone-800 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-indigo-500 h-full transition-all duration-1000 ease-linear"
+                      style={{ 
+                        width: `${timerSections[currentSectionIndex] ? (timeLeftInSection / timerSections[currentSectionIndex].duration) * 100 : 0}%` 
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button 
+                      onClick={handleToggleTimerActive}
+                      className="p-2 bg-stone-800 hover:bg-stone-700 rounded-lg text-stone-300 transition-colors"
+                    >
+                      {timerActive ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                    </button>
+                    <button 
+                      onClick={stopTimer}
+                      className="p-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg transition-colors"
+                    >
+                      <Square className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {checklistItems.map((item) => {
+              const isChecked = state.checklist[item.key];
+              
+              let displayTime = item.time;
+              if (timerSections.length > 0) {
+                const section = timerSections.find(s => s.key === item.key);
+                if (section) {
+                  displayTime = `${Math.round(section.duration / 60)} min`;
+                }
+              }
+
+              return (
+                <button 
+                  key={item.key}
+                  onClick={() => toggleChecklist(item.key)}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                    isChecked 
+                      ? 'bg-indigo-950/30 border-indigo-900/50 text-indigo-200' 
+                      : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700'
+                  } ${timerActive && timerSections[currentSectionIndex]?.key === item.key ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    {isChecked ? (
+                      <CheckCircle2 className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-stone-600 flex-shrink-0" />
+                    )}
+                    <span className={`text-sm font-medium text-left ${isChecked ? 'line-through opacity-70' : ''}`}>
+                      {item.label}
+                    </span>
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-md ${
+                    isChecked ? 'bg-indigo-900/50 text-indigo-300' : 'bg-stone-800 text-stone-500'
+                  }`}>
+                    {displayTime}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Tonalidad Section */}
+        <div className="bg-stone-900 rounded-2xl p-5 border border-stone-800">
+          <h2 className="text-lg font-bold mb-4 text-stone-300 text-center">Tonalidad Actual</h2>
+          
+          <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 flex items-center justify-center mb-6 shadow-inner">
+            <span className="text-4xl font-black text-indigo-400 tracking-wider">
+              {currentScale}
+            </span>
+          </div>
+
+          <div className="flex gap-3 mb-6">
+            <button 
+              onClick={handlePrevScale}
+              disabled={currentIndex === 0}
+              className="p-4 bg-stone-800 rounded-xl hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+            >
+              <RotateCcw className="w-6 h-6 text-stone-300" />
+            </button>
+            <button 
+              onClick={handleNextScale}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-900/20"
+            >
+              <Check className="w-6 h-6" />
+              HECHO
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { key: 'octava', label: '8ª' },
+              { key: 'decima', label: '10ª' },
+              { key: 'sexta', label: '6ª' },
+              { key: 'tercera', label: '3ª' },
+              { key: 'arpegiosEnlazados', label: 'Arpegios Enlazados' },
+              { key: 'arpegiosExtendidos', label: 'Arpegios Extendidos' },
+              { key: 'acordes', label: 'Acordes' },
+            ].map((item) => {
+              const isChecked = currentScaleExercises[item.key as keyof typeof currentScaleExercises];
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => toggleScaleExercise(item.key as any)}
+                  className={`p-2 rounded-xl border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                    item.key === 'arpegiosEnlazados' || item.key === 'arpegiosExtendidos' || item.key === 'acordes' 
+                      ? 'col-span-2 sm:col-span-4' 
+                      : ''
+                  } ${
+                    isChecked
+                      ? 'bg-indigo-950/50 border-indigo-900 text-indigo-300'
+                      : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700'
+                  }`}
+                >
+                  {isChecked && <Check className="w-3.5 h-3.5" />}
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Hanon Section */}
+        <div className="bg-stone-900 rounded-2xl p-5 border border-stone-800">
+          <h2 className="text-lg font-bold mb-4 text-stone-300 text-center">Hanon</h2>
+          
+          <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 flex items-center justify-center mb-6 shadow-inner">
+            <span className="text-4xl font-black text-indigo-400 tracking-wider">
+              Nº {state.hanonExercise || 1}
+            </span>
+          </div>
+
+          <div className="flex gap-3">
+            <button 
+              onClick={handlePrevHanon}
+              disabled={(state.hanonExercise || 1) <= 1}
+              className="p-4 bg-stone-800 rounded-xl hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+            >
+              <RotateCcw className="w-6 h-6 text-stone-300" />
+            </button>
+            <button 
+              onClick={handleNextHanon}
+              disabled={(state.hanonExercise || 1) >= 60}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Check className="w-6 h-6" />
+              SIGUIENTE
+            </button>
+          </div>
+        </div>
+
         {/* Piezas Section */}
         <div className="bg-stone-900 rounded-2xl p-5 border border-stone-800">
           <h2 className="text-lg font-bold mb-4 text-stone-300">Repertorio Actual</h2>
@@ -247,132 +670,6 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
             <span>Fácil (1-3)</span>
             <span>Medio (4-6)</span>
             <span>Difícil (7-9)</span>
-          </div>
-        </div>
-
-        {/* Checklist Sesión Section */}
-        <div className="bg-stone-900 rounded-2xl p-5 border border-stone-800">
-          <h2 className="text-lg font-bold mb-4 text-stone-300">Sesión de Estudio</h2>
-          <div className="space-y-2">
-            {checklistItems.map((item) => {
-              const isChecked = state.checklist[item.key];
-              return (
-                <button 
-                  key={item.key}
-                  onClick={() => toggleChecklist(item.key)}
-                  className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                    isChecked 
-                      ? 'bg-indigo-950/30 border-indigo-900/50 text-indigo-200' 
-                      : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {isChecked ? (
-                      <CheckCircle2 className="w-5 h-5 text-indigo-500 flex-shrink-0" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-stone-600 flex-shrink-0" />
-                    )}
-                    <span className={`text-sm font-medium text-left ${isChecked ? 'line-through opacity-70' : ''}`}>
-                      {item.label}
-                    </span>
-                  </div>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-md ${
-                    isChecked ? 'bg-indigo-900/50 text-indigo-300' : 'bg-stone-800 text-stone-500'
-                  }`}>
-                    {item.time}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tonalidad Section */}
-        <div className="bg-stone-900 rounded-2xl p-5 border border-stone-800">
-          <h2 className="text-lg font-bold mb-4 text-stone-300 text-center">Tonalidad Actual</h2>
-          
-          <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 flex items-center justify-center mb-6 shadow-inner">
-            <span className="text-4xl font-black text-indigo-400 tracking-wider">
-              {currentScale}
-            </span>
-          </div>
-
-          <div className="flex gap-3 mb-6">
-            <button 
-              onClick={handlePrevScale}
-              disabled={currentIndex === 0}
-              className="p-4 bg-stone-800 rounded-xl hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            >
-              <RotateCcw className="w-6 h-6 text-stone-300" />
-            </button>
-            <button 
-              onClick={handleNextScale}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-900/20"
-            >
-              <Check className="w-6 h-6" />
-              HECHO
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {[
-              { key: 'octava', label: '8ª' },
-              { key: 'decima', label: '10ª' },
-              { key: 'sexta', label: '6ª' },
-              { key: 'tercera', label: '3ª' },
-              { key: 'arpegiosEnlazados', label: 'Arpegios Enlazados' },
-              { key: 'arpegiosExtendidos', label: 'Arpegios Extendidos' },
-              { key: 'acordes', label: 'Acordes' },
-            ].map((item) => {
-              const isChecked = currentScaleExercises[item.key as keyof typeof currentScaleExercises];
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => toggleScaleExercise(item.key as any)}
-                  className={`p-2 rounded-xl border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
-                    item.key === 'arpegiosEnlazados' || item.key === 'arpegiosExtendidos' || item.key === 'acordes' 
-                      ? 'col-span-2 sm:col-span-4' 
-                      : ''
-                  } ${
-                    isChecked
-                      ? 'bg-indigo-950/50 border-indigo-900 text-indigo-300'
-                      : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700'
-                  }`}
-                >
-                  {isChecked && <Check className="w-3.5 h-3.5" />}
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Hanon Section */}
-        <div className="bg-stone-900 rounded-2xl p-5 border border-stone-800">
-          <h2 className="text-lg font-bold mb-4 text-stone-300 text-center">Hanon</h2>
-          
-          <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 flex items-center justify-center mb-6 shadow-inner">
-            <span className="text-4xl font-black text-indigo-400 tracking-wider">
-              Nº {state.hanonExercise || 1}
-            </span>
-          </div>
-
-          <div className="flex gap-3">
-            <button 
-              onClick={handlePrevHanon}
-              disabled={(state.hanonExercise || 1) <= 1}
-              className="p-4 bg-stone-800 rounded-xl hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            >
-              <RotateCcw className="w-6 h-6 text-stone-300" />
-            </button>
-            <button 
-              onClick={handleNextHanon}
-              disabled={(state.hanonExercise || 1) >= 60}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Check className="w-6 h-6" />
-              SIGUIENTE
-            </button>
           </div>
         </div>
 

@@ -31,6 +31,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
   const [isEditingFriend, setIsEditingFriend] = useState(false);
   const [editFriendName, setEditFriendName] = useState('');
   const [editInteractions, setEditInteractions] = useState<FriendInteractions>({ person: 0, call: 0, gift: 0, photo: 0, message: 0 });
+  const [sortBy, setSortBy] = useState<'interactions' | 'days'>('interactions');
 
   // Reset delete confirmation when selecting a different friend
   useEffect(() => {
@@ -38,11 +39,33 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
       setIsEditingFriend(false);
   }, [selectedFriendId]);
 
-  // Sort friends by total interactions (descending)
+  const getDaysSince = (timestamp: number) => {
+    if (timestamp === 0) return 999;
+    
+    const now = new Date();
+    const last = new Date(timestamp);
+
+    // Normalize dates to start of day (00:00:00) to calculate calendar day difference
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const interactionDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
+
+    const diffTime = today.getTime() - interactionDay.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
+  };
+
+  // Sort friends by selected criteria
   const sortedFriends = [...friends].sort((a, b) => {
-      const totalA = (Object.values(a.interactions) as number[]).reduce((acc, v) => acc + v, 0);
-      const totalB = (Object.values(b.interactions) as number[]).reduce((acc, v) => acc + v, 0);
-      return totalB - totalA;
+      if (sortBy === 'interactions') {
+          const totalA = (Object.values(a.interactions) as number[]).reduce((acc, v) => acc + v, 0);
+          const totalB = (Object.values(b.interactions) as number[]).reduce((acc, v) => acc + v, 0);
+          return totalB - totalA;
+      } else {
+          const daysA = getDaysSince(a.lastInteraction);
+          const daysB = getDaysSince(b.lastInteraction);
+          return daysB - daysA;
+      }
   });
 
   const addFriend = () => {
@@ -133,22 +156,6 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
       onUpdate(updated);
   }
 
-  const getDaysSince = (timestamp: number) => {
-    if (timestamp === 0) return 999;
-    
-    const now = new Date();
-    const last = new Date(timestamp);
-
-    // Normalize dates to start of day (00:00:00) to calculate calendar day difference
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const interactionDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
-
-    const diffTime = today.getTime() - interactionDay.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays;
-  };
-
   const getLeafColor = (days: number) => {
     if (days < 30) return '#22c55e'; // Green
     if (days < 60) return '#eab308'; // Yellow
@@ -237,7 +244,16 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
 
         {/* Ranked List View */}
         <div className="space-y-3 pb-8">
-            <h3 className="font-bold text-stone-500 text-sm px-1">Ránking de Interacciones</h3>
+            <div className="flex items-center justify-between px-1 mb-2">
+                <select 
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'interactions' | 'days')}
+                    className="bg-stone-900 text-stone-300 text-sm font-bold border border-stone-800 rounded-lg px-3 py-1.5 focus:outline-none focus:border-pink-900 w-full"
+                >
+                    <option value="interactions">Ordenar por nº de brotes</option>
+                    <option value="days">Ordenar por días sin hablar</option>
+                </select>
+            </div>
              {sortedFriends.map(f => {
                  const total = (Object.values(f.interactions) as number[]).reduce((a, b) => a + b, 0);
                  const days = getDaysSince(f.lastInteraction);

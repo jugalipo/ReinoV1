@@ -17,7 +17,6 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
   });
   const [importData, setImportData] = useState<AppData | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [viewingHistoryForTask, setViewingHistoryForTask] = useState<string | null>(null);
 
   // Helper to get formatted key for storage (YYYY-MM-DD) which matches toDateString format used in App.tsx
   const getFormattedDateKey = (date: Date) => {
@@ -100,8 +99,6 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
 
   const getDayLabel = () => {
       const today = new Date();
-      const diffTime = Math.abs(today.getTime() - currentDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
       if (currentDate.toDateString() === today.toDateString()) return 'Hoy';
       
@@ -109,7 +106,15 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
       yesterday.setDate(yesterday.getDate() - 1);
       if (currentDate.toDateString() === yesterday.toDateString()) return 'Ayer';
 
-      return currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+      const formatted = currentDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit' });
+      return formatted.replace(/,/g, '').replace(/\./g, '');
+  };
+
+  const getLocalYYYYMMDD = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
   };
 
   const exportJSON = () => {
@@ -364,55 +369,6 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
   const dateKey = getFormattedDateKey(currentDate);
   const completedIds = (data.hunosHistory || {})[dateKey] || [];
 
-  const renderTaskHistoryModal = () => {
-      if (!viewingHistoryForTask) return null;
-      
-      const task = data.hunos.find(t => t.id === viewingHistoryForTask);
-      if (!task) return null;
-
-      const today = new Date();
-      const historyDays = [];
-      let completedCount = 0;
-
-      for (let i = 59; i >= 0; i--) {
-          const d = new Date(today);
-          d.setDate(d.getDate() - i);
-          const dKey = getFormattedDateKey(d);
-          const dCompletedIds = (data.hunosHistory || {})[dKey] || [];
-          const isCompleted = dCompletedIds.includes(task.id);
-          if (isCompleted) completedCount++;
-          historyDays.push({ date: d, isCompleted });
-      }
-
-      return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative">
-                  <button 
-                      onClick={() => setViewingHistoryForTask(null)}
-                      className="absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-full transition-colors"
-                  >
-                      <X className="w-5 h-5" />
-                  </button>
-                  
-                  <h3 className="text-xl font-bold text-stone-200 mb-2 pr-8">{task.text}</h3>
-                  <p className="text-stone-400 text-sm mb-6">
-                      Cumplido <strong className="text-purple-400">{completedCount}</strong> veces en los últimos 60 días
-                  </p>
-                  
-                  <div className="flex flex-wrap gap-1.5 justify-center">
-                      {historyDays.map((day, idx) => (
-                          <div 
-                              key={idx}
-                              title={day.date.toLocaleDateString()}
-                              className={`w-3 h-3 rounded-full ${day.isCompleted ? 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)]' : 'bg-stone-800'}`}
-                          />
-                      ))}
-                  </div>
-              </div>
-          </div>
-      );
-  };
-
   return (
     <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200">
        <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800">
@@ -436,11 +392,26 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                     <ChevronLeft className="w-6 h-6 text-stone-400" />
                 </button>
                 
-                <div className="text-center">
+                <div className="text-center relative">
                     <div className="text-sm font-bold text-purple-400 uppercase tracking-wider mb-1">
                         Editando
                     </div>
-                    <div className="text-xl font-bold text-stone-100 flex items-center justify-center gap-2">
+                    <div className="text-xl font-bold text-stone-100 flex items-center justify-center gap-2 relative">
+                        <input 
+                            type="date" 
+                            value={getLocalYYYYMMDD(currentDate)}
+                            max={getLocalYYYYMMDD(new Date())}
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    const [year, month, day] = e.target.value.split('-').map(Number);
+                                    const newDate = new Date(year, month - 1, day);
+                                    if (newDate <= new Date()) {
+                                        setCurrentDate(newDate);
+                                    }
+                                }
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                        />
                         <Calendar className="w-5 h-5 text-stone-500" />
                         {getDayLabel()}
                     </div>
@@ -474,12 +445,6 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                                 }`}
                             >
                                 <div className="flex items-center gap-3 flex-1">
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); setViewingHistoryForTask(task.id); }}
-                                        className="w-8 h-8 rounded-lg bg-stone-800 hover:bg-stone-700 flex items-center justify-center border border-stone-700 transition-colors flex-shrink-0"
-                                    >
-                                        <Activity className="w-4 h-4 text-stone-400" />
-                                    </button>
                                     <div 
                                         onClick={() => toggleTaskHistory(task.id)}
                                         className="flex-1 cursor-pointer py-1"
@@ -605,7 +570,6 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
            </div>
 
        </div>
-       {renderTaskHistoryModal()}
     </div>
   );
 };
