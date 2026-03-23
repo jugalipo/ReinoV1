@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppData, Friend } from '../types';
-import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X } from 'lucide-react';
+import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X, ChevronDown } from 'lucide-react';
 
 interface StatsViewProps {
   data: AppData;
@@ -398,7 +398,22 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onBack }) => {
                       <X className="w-5 h-5" />
                   </button>
                   
-                  <h3 className="text-xl font-bold text-stone-200 mb-2 pr-8">{task.text}</h3>
+                  <div className="relative mb-2 pr-10">
+                      <select 
+                          value={task.id}
+                          onChange={(e) => setViewingHistoryForTask(e.target.value)}
+                          className="text-xl font-bold text-stone-200 bg-transparent appearance-none cursor-pointer focus:outline-none w-full truncate pr-6"
+                      >
+                          {data.hunos.map(huno => (
+                              <option key={huno.id} value={huno.id} className="text-base bg-stone-900 text-stone-200">
+                                  {huno.text}
+                              </option>
+                          ))}
+                      </select>
+                      <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
+                          <ChevronDown className="w-5 h-5" />
+                      </div>
+                  </div>
                   
                   <div className="flex flex-col gap-2 mb-4">
                     <div className="flex bg-stone-950 rounded-lg p-1">

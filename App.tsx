@@ -154,8 +154,6 @@ const HUNOS_TASKS = [
   "P ⚙️ 44'", 
   "Masajercicio ✋ 20'",
   
-  "GAP", // Hueco para saltar a la 5ª fila
-
   // Fila 5 (Últimas)
   "8 ⏰", 
   "10.000 🦶 60'", 
@@ -198,6 +196,7 @@ const INITIAL_DATA: AppData = {
     text,
     completed: false,
     failedYesterday: false,
+    missedDays: 0,
     plenoCompleted: false
   })),
   hunosHistory: {},
@@ -345,7 +344,7 @@ const deserializeAppData = (docs: any[]): AppData => {
 };
 
 const processResets = (parsed: AppData): AppData => {
-  const result = { ...parsed };
+  const result = JSON.parse(JSON.stringify(parsed)) as AppData;
   
   if (!result.stats) { result.stats = { perfectSetsWeeks: 0, hunoPlenos: 0, perfectTrainMonths: 0, projectPlenos: 0, setsHistory: [], trainsHistory: [], interactionsHistory: [], lastTotalInteractions: 0 }; }
   if (typeof result.stats.projectPlenos === 'undefined') { result.stats.projectPlenos = 0; }
@@ -358,6 +357,7 @@ const processResets = (parsed: AppData): AppData => {
   if (!result.lastSetsReset) { result.lastSetsReset = Date.now(); }
   if (!result.lastTrainsReset) { result.lastTrainsReset = Date.now(); }
   if (!result.food.dishes) { result.food.dishes = {}; }
+  if (!result.food.lastMonthlyDishesReset) { result.food.lastMonthlyDishesReset = Date.now(); }
 
   const calculateTotalInteractions = (friendsList: Friend[]) => {
       return friendsList.reduce((acc, friend) => {
@@ -425,6 +425,9 @@ const processResets = (parsed: AppData): AppData => {
   if (!result.billetesState) { result.billetesState = Array(20).fill(false); }
   if (typeof result.huchaCount === 'undefined') { result.huchaCount = 0; }
 
+  // Cleanup old GAP task
+  result.hunos = result.hunos.filter(t => t.text !== 'GAP');
+
   const now = new Date();
   const today = now.toDateString();
   if (result.lastDate !== today) {
@@ -434,8 +437,27 @@ const processResets = (parsed: AppData): AppData => {
           if (!result.hunosHistory) result.hunosHistory = {};
           result.hunosHistory[yesterdayKey] = completedIds;
       }
-      result.hunos = result.hunos.map(task => ({ ...task, failedYesterday: !task.completed, completed: false }));
-      result.food.dishes = {};
+      
+      const yesterdayDate = new Date(result.lastDate || today);
+      const todayDate = new Date(today);
+      const diffTime = Math.abs(todayDate.getTime() - yesterdayDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      result.hunos = result.hunos.map(task => {
+          let newMissedDays = task.missedDays || 0;
+          if (!task.completed) {
+              newMissedDays += diffDays;
+          } else {
+              newMissedDays = Math.max(0, diffDays - 1);
+          }
+          return { 
+              ...task, 
+              failedYesterday: newMissedDays > 0, 
+              missedDays: newMissedDays,
+              completed: false 
+          };
+      });
+      
       result.lastDate = today;
   }
   
@@ -453,7 +475,7 @@ const processResets = (parsed: AppData): AppData => {
       if (!result.stats.setsHistory) result.stats.setsHistory = [];
       result.stats.setsHistory.push(completedCount);
       if (result.stats.setsHistory.length > 52) result.stats.setsHistory.shift();
-      result.sets = result.sets.map(t => ({ ...t, completed: false }));
+      result.sets = result.sets.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.map(s => ({ ...s, completed: false })) }));
       result.setsPlenoClaimed = false;
       result.lastSetsReset = Date.now();
   }
@@ -513,6 +535,14 @@ const processResets = (parsed: AppData): AppData => {
        result.lastTrainsReset = Date.now();
   }
   
+  const lastFoodDishesResetDate = new Date(result.food.lastMonthlyDishesReset || 0);
+  const resetFoodMonth = lastFoodDishesResetDate.getMonth();
+  const resetFoodYear = lastFoodDishesResetDate.getFullYear();
+  if (currentYear > resetFoodYear || (currentYear === resetFoodYear && currentMonth > resetFoodMonth)) {
+      result.food.dishes = {};
+      result.food.lastMonthlyDishesReset = Date.now();
+  }
+
   return result;
 };
 
@@ -572,6 +602,16 @@ function App() {
           const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
           const newData = deserializeAppData(docs);
           const processedData = processResets(newData);
+          
+          if (JSON.stringify(newData) !== JSON.stringify(processedData)) {
+            const batch = writeBatch(db);
+            const serializedDocs = serializeAppData(processedData);
+            serializedDocs.forEach(d => {
+              batch.set(doc(habitsRef, d.id), d.data);
+            });
+            await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+          }
+          
           lastSnapshotData.current = JSON.stringify(processedData);
           setData(processedData);
         } else {
@@ -614,6 +654,16 @@ function App() {
             const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
             const newData = deserializeAppData(docs);
             const processedData = processResets(newData);
+            
+            if (JSON.stringify(newData) !== JSON.stringify(processedData)) {
+              const batch = writeBatch(db);
+              const serializedDocs = serializeAppData(processedData);
+              serializedDocs.forEach(d => {
+                batch.set(doc(habitsRef, d.id), d.data);
+              });
+              batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+            }
+            
             lastSnapshotData.current = JSON.stringify(processedData);
             setData(processedData);
           }
@@ -998,7 +1048,7 @@ function App() {
               <div className="space-y-3">
                 {/* Leones */}
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🦁</span>
+                  <span className="text-2xl flex-shrink-0">🦁</span>
                   <input 
                     type="text" 
                     value={data.weeklyGoals?.leones.text || ''} 
@@ -1008,7 +1058,7 @@ function App() {
                   />
                   <button 
                     onClick={() => updateWeeklyGoal('leones', 'completed', !(data.weeklyGoals?.leones.completed || false))}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors ${data.weeklyGoals?.leones.completed ? 'bg-amber-600 border-amber-600' : 'border-stone-700 hover:border-amber-500'}`}
+                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.leones.completed ? 'bg-amber-600 border-amber-600' : 'border-stone-700 hover:border-amber-500'}`}
                   >
                     {data.weeklyGoals?.leones.completed && <Check className="w-5 h-5 text-white" />}
                   </button>
@@ -1016,7 +1066,7 @@ function App() {
                 
                 {/* Forjas */}
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🔥</span>
+                  <span className="text-2xl flex-shrink-0">🔥</span>
                   <input 
                     type="text" 
                     value={data.weeklyGoals?.forjas.text || ''} 
@@ -1026,7 +1076,7 @@ function App() {
                   />
                   <button 
                     onClick={() => updateWeeklyGoal('forjas', 'completed', !(data.weeklyGoals?.forjas.completed || false))}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors ${data.weeklyGoals?.forjas.completed ? 'bg-orange-600 border-orange-600' : 'border-stone-700 hover:border-orange-500'}`}
+                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.forjas.completed ? 'bg-orange-600 border-orange-600' : 'border-stone-700 hover:border-orange-500'}`}
                   >
                     {data.weeklyGoals?.forjas.completed && <Check className="w-5 h-5 text-white" />}
                   </button>
@@ -1034,7 +1084,7 @@ function App() {
                 
                 {/* Puerto */}
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">⛵</span>
+                  <span className="text-2xl flex-shrink-0">⛵</span>
                   <input 
                     type="text" 
                     value={data.weeklyGoals?.puerto.text || ''} 
@@ -1044,7 +1094,7 @@ function App() {
                   />
                   <button 
                     onClick={() => updateWeeklyGoal('puerto', 'completed', !(data.weeklyGoals?.puerto.completed || false))}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors ${data.weeklyGoals?.puerto.completed ? 'bg-blue-600 border-blue-600' : 'border-stone-700 hover:border-blue-500'}`}
+                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.puerto.completed ? 'bg-blue-600 border-blue-600' : 'border-stone-700 hover:border-blue-500'}`}
                   >
                     {data.weeklyGoals?.puerto.completed && <Check className="w-5 h-5 text-white" />}
                   </button>

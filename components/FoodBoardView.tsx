@@ -370,32 +370,32 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                             key={`${meal.name}-${index}`}
                             className={`
                                 w-full flex items-center justify-between p-3 border-b border-stone-800/50 last:border-0 transition-all
-                                ${isFull ? 'bg-lime-900/20' : hasAny ? 'bg-yellow-900/20' : ''}
+                                ${isFull ? 'bg-emerald-600' : hasAny ? 'bg-yellow-900/20' : ''}
                             `}
                         >
                             <button 
                                 onClick={() => decrementDish(meal.name, meal.max)}
                                 disabled={count === 0}
-                                className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-stone-800 disabled:opacity-30 disabled:hover:bg-transparent text-stone-300 transition-colors bg-stone-950 border border-stone-800"
+                                className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-colors border ${isFull ? 'bg-emerald-700 border-emerald-500 text-emerald-950 hover:bg-emerald-800' : 'bg-stone-950 border-stone-800 text-stone-300 hover:bg-stone-800'}`}
                             >
                                 -
                             </button>
                             
                             <div className="flex-1 flex items-center gap-3 px-4">
                                 <span className="text-2xl">{meal.icon}</span>
-                                <span className={`text-sm font-bold tracking-tight transition-colors ${isFull ? 'text-lime-400' : hasAny ? 'text-yellow-400' : 'text-stone-300'}`}>
+                                <span className={`text-sm font-bold tracking-tight transition-colors ${isFull ? 'text-stone-950' : hasAny ? 'text-yellow-400' : 'text-stone-300'}`}>
                                     {meal.name}
                                 </span>
                             </div>
 
                             <div className="flex items-center gap-3">
-                                <span className={`text-xs font-bold ${isFull ? 'text-lime-500' : hasAny ? 'text-yellow-500' : 'text-stone-500'}`}>
+                                <span className={`text-xs font-bold ${isFull ? 'text-emerald-950' : hasAny ? 'text-yellow-500' : 'text-stone-500'}`}>
                                     {count} de {meal.max}
                                 </span>
                                 <button 
                                     onClick={() => incrementDish(meal.name, meal.max)}
                                     disabled={isFull}
-                                    className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-stone-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors bg-stone-950 border border-stone-800 ${isFull ? 'text-lime-500' : hasAny ? 'text-yellow-500' : 'text-lime-500'}`}
+                                    className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-colors border ${isFull ? 'bg-emerald-700 border-emerald-500 text-emerald-950 hover:bg-emerald-800' : 'bg-stone-950 border-stone-800 text-lime-500 hover:bg-stone-800'}`}
                                 >
                                     +
                                 </button>

@@ -6,6 +6,7 @@ export interface Task {
   completed: boolean;
   subtasks?: Task[];
   failedYesterday?: boolean;
+  missedDays?: number;
   plenoCompleted?: boolean; // true if completed at least once in the current "pleno" cycle
 }
 
@@ -69,11 +70,12 @@ export interface FoodBonuses {
 export interface FoodState {
   score: number; // 0 to 50
   lastWeeklyReset: number; // timestamp
+  lastMonthlyDishesReset?: number; // timestamp
   fridgeCount: number; // 0 to 20
   ritualCount: number; // 0 to 10
   wheel: FoodWheel;
   weeklyBonuses: FoodBonuses;
-  dishes?: Record<string, boolean>; // Daily meal checklist
+  dishes?: Record<string, boolean>; // Monthly meal checklist
   history: {
     action: string;
     timestamp: number;

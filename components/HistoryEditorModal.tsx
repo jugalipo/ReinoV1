@@ -61,15 +61,11 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
       };
 
       // If we are editing "Today" (based on data.lastDate), we must sync the visual main view
-      // If we are editing "Yesterday", we must sync the failedYesterday flag
+      // For all days, we recalculate missedDays and failedYesterday
       
       let updatedHunos = data.hunos;
       const todayString = new Date().toDateString(); // Matches App.tsx logic
       
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayString = yesterday.toDateString();
-
       if (dateKey === todayString) {
           updatedHunos = data.hunos.map(t => {
               if (t.id === taskId) {
@@ -77,18 +73,52 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
               }
               return t;
           });
-      } else if (dateKey === yesterdayString) {
-           updatedHunos = data.hunos.map(t => {
-              // Update status for ALL tasks relative to history
-              // If it is now completed in history (includes id), it didn't fail yesterday (failed: false)
-              // If it is NOT completed in history (not includes id), it DID fail yesterday (failed: true)
-              const isCompletedInHistory = newCompletedToday.includes(t.id);
-              return { 
-                  ...t, 
-                  failedYesterday: !isCompletedInHistory 
-              };
-          });
       }
+
+      // Recalculate missedDays and failedYesterday for all tasks based on newHistory
+      const historyDates = Object.keys(newHistory).map(d => new Date(d).getTime());
+      const oldestHistoryDate = historyDates.length > 0 ? Math.min(...historyDates) : new Date().getTime();
+
+      updatedHunos = updatedHunos.map(t => {
+          let missedCount = 0;
+          let checkDate = new Date();
+          checkDate.setDate(checkDate.getDate() - 1); // Start from yesterday
+          checkDate.setHours(0, 0, 0, 0); // Normalize time
+          
+          while (checkDate.getTime() >= oldestHistoryDate) {
+              const checkString = checkDate.toDateString();
+              const completedOnCheckDate = (newHistory[checkString] || []).includes(t.id);
+              
+              if (completedOnCheckDate) {
+                  break; // Found a day it was completed, stop counting
+              } else {
+                  missedCount++;
+                  checkDate.setDate(checkDate.getDate() - 1);
+                  checkDate.setHours(0, 0, 0, 0);
+                  if (missedCount >= 30) break; // Cap at 30 days for performance
+              }
+          }
+          
+          let newPlenoCompleted = t.plenoCompleted;
+          if (t.id === taskId) {
+              const isNowCompleted = newCompletedToday.includes(taskId);
+              if (isNowCompleted) {
+                  newPlenoCompleted = true;
+              } else {
+                  // If unmarked, we set it to false, unless it's completed today
+                  if (!t.completed) {
+                      newPlenoCompleted = false;
+                  }
+              }
+          }
+
+          return {
+              ...t,
+              failedYesterday: missedCount > 0,
+              missedDays: missedCount,
+              plenoCompleted: newPlenoCompleted
+          };
+      });
 
       onUpdateData({
           ...data,
