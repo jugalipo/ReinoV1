@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
-import { Sword, CheckCircle2, Edit2, Save } from 'lucide-react';
+import { Sword, CheckCircle2, Edit2, Save, X } from 'lucide-react';
+import { HunosMonthViewModal } from './HunosMonthViewModal';
 
 interface DailyHunosProps {
   tasks: Task[];
+  hunosHistory: Record<string, string[]>;
   onUpdate: (tasks: Task[], isPleno?: boolean) => void;
 }
 
-export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
+export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onUpdate }) => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showMonthView, setShowMonthView] = useState(false);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
 
   // Edit Mode States
@@ -180,7 +183,12 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
             <Sword className="w-6 h-6 text-stone-400" />
-            <h2 className="text-xl font-bold text-stone-200">Hunos</h2>
+            <button 
+              onClick={() => setShowMonthView(true)}
+              className="text-xl font-bold text-stone-200 hover:text-orange-400 transition-colors"
+            >
+              Hunos
+            </button>
             
             {/* Core Hunos Pie Chart */}
             {!isEditing && (
@@ -381,6 +389,15 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, onUpdate }) => {
                 </div>
             </div>
         </div>
+      )}
+
+      {/* Hunos Month View Modal */}
+      {showMonthView && (
+        <HunosMonthViewModal 
+          tasks={tasks} 
+          hunosHistory={hunosHistory} 
+          onClose={() => setShowMonthView(false)} 
+        />
       )}
 
     </div>
