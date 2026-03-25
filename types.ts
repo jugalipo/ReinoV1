@@ -53,18 +53,30 @@ export interface Friend {
 }
 
 export interface FoodWheel {
-  lemon: boolean;
-  nuts: boolean;
-  dairy: boolean;
-  coffee: boolean;
-  spices: boolean;
-  supplements: boolean;
+  [key: string]: boolean;
 }
 
 export interface FoodBonuses {
-  organs: boolean;
-  legumes: boolean;
-  fast24: boolean;
+  [key: string]: boolean;
+}
+
+export interface FoodConfig {
+  wheel: { id: string; icon: string }[];
+  broccoli: { id: string; icon: string }[];
+  bonuses: { id: string; icon: string; label: string; points: number }[];
+  meals: { name: string; icon: string; max: number }[];
+}
+
+export interface DailyFoodScore {
+  lunch: boolean;
+  lunchMeal?: string;
+  dinner: boolean;
+  dinnerMeal?: string;
+  fasting: boolean;
+  deliveryLunch: boolean;
+  deliveryDinner: boolean;
+  fahCount: number;
+  fridgeCount: number;
 }
 
 export interface FoodState {
@@ -76,6 +88,9 @@ export interface FoodState {
   wheel: FoodWheel;
   weeklyBonuses: FoodBonuses;
   dishes?: Record<string, boolean>; // Monthly meal checklist
+  dailyScores?: Record<string, DailyFoodScore>; // YYYY-MM-DD -> DailyFoodScore
+  broccoliStep?: number; // 0 to 10
+  config?: FoodConfig;
   history: {
     action: string;
     timestamp: number;

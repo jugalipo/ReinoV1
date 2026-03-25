@@ -86,27 +86,42 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
   const emojiSize = Math.max(8, Math.min(firstColW * 0.6, cellH * 0.6));
   const markerSize = Math.max(4, Math.min(dayColW * 0.5, cellH * 0.4));
 
+  const totalFailures = useMemo(() => {
+    let count = 0;
+    tasks.forEach(task => {
+      let prevFailed = false;
+      for (let day = 1; day < todayDate; day++) {
+        const d = new Date(currentYear, monthIndex, day);
+        const dateStr = d.toDateString();
+        const completedIds = hunosHistory[dateStr] || [];
+        const isCompleted = completedIds.includes(task.id);
+        const isFailed = !isCompleted;
+        
+        if (isFailed && prevFailed) {
+          count++;
+        }
+        prevFailed = isFailed;
+      }
+    });
+    return count;
+  }, [tasks, hunosHistory, currentYear, monthIndex, todayDate]);
+
   const renderTaskCells = (task: Task, isMiddleGroup: boolean = false) => {
     const emoji = getEmoji(task.text);
     
     const dayStatuses = daysArray.map(day => {
-      const d = new Date(currentYear, monthIndex, day);
-      const isFuture = day > todayDate;
+      const isFuture = day >= todayDate;
       if (isFuture) return 'future';
       
+      const d = new Date(currentYear, monthIndex, day);
       const dateStr = d.toDateString();
       const completedIds = hunosHistory[dateStr] || [];
       const isCompleted = completedIds.includes(task.id);
       
-      let completed = isCompleted;
-      if (day === todayDate) {
-         completed = completed || task.completed;
-      }
-
-      return completed ? 'completed' : 'failed';
+      return isCompleted ? 'completed' : 'failed';
     });
 
-    const baseBg = isMiddleGroup ? 'bg-transparent' : 'bg-[#484440]';
+    const baseBg = isMiddleGroup ? 'bg-transparent' : 'bg-stone-800';
 
     return (
       <React.Fragment key={task.id}>
@@ -118,7 +133,7 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
           
           let content = null;
           if (status === 'completed') {
-            content = <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-500 font-bold leading-none" style={{ fontSize: `${emojiSize}px` }}>x</span>;
+            content = <div className="absolute inset-0 bg-emerald-500/40" />;
           } else if (status === 'failed') {
             const prevFailed = index > 0 && dayStatuses[index - 1] === 'failed';
             const nextFailed = index < dayStatuses.length - 1 && dayStatuses[index + 1] === 'failed';
@@ -130,14 +145,14 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
                        style={{
                          left: prevFailed && !nextFailed ? '0' : (prevFailed && nextFailed ? '0' : '50%'),
                          width: (prevFailed && nextFailed) ? '100%' : '50%',
-                         height: `${Math.max(1, markerSize / 3)}px`
+                         height: `${Math.max(2, (markerSize / 3) * 2)}px`
                        }}
                   />
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500 z-10" style={{ width: `${markerSize}px`, height: `${markerSize}px` }} />
                 </>
               );
             } else {
-              content = <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-500" style={{ width: `${markerSize}px`, height: `${markerSize}px` }} />;
+              content = <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500/30" style={{ width: `${markerSize}px`, height: `${markerSize}px` }} />;
             }
           }
 
@@ -155,8 +170,13 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
     <div className="fixed inset-0 z-[99999] bg-stone-950 flex flex-col overflow-hidden">
       {/* Header - Fixed at physical top, NEVER rotated */}
       <div className="flex items-center justify-between px-4 h-12 border-b border-stone-800 bg-stone-900 shrink-0 w-full">
-        <h2 className="text-sm font-bold text-stone-200">
-          {currentMonthName} {currentYear}
+        <h2 className="text-sm font-bold text-stone-200 flex items-center gap-3">
+          <span>{currentMonthName} {currentYear}</span>
+          {totalFailures > 0 && (
+            <span className="text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full text-xs font-medium">
+              {totalFailures} fallos
+            </span>
+          )}
         </h2>
         <button 
           onClick={onClose}

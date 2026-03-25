@@ -1,6 +1,349 @@
 import React, { useState } from 'react';
-import { FoodState, FoodWheel, FoodBonuses } from '../types';
-import { ArrowLeft, UtensilsCrossed, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check } from 'lucide-react';
+import { FoodState, FoodWheel, FoodBonuses, DailyFoodScore, FoodConfig } from '../types';
+import { ArrowLeft, UtensilsCrossed, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check, X, Plus, Minus, Settings } from 'lucide-react';
+import { FoodConfigEditor } from './FoodConfigEditor';
+
+const DEFAULT_WHEEL = [
+  { id: 'lemon', icon: '🍋' },
+  { id: 'nuts', icon: '🥜' },
+  { id: 'dairy', icon: '🧀' },
+  { id: 'coffee', icon: '☕' },
+  { id: 'spices', icon: '🌶️' },
+  { id: 'supplements', icon: '💊' }
+];
+
+const DEFAULT_BROCCOLI = [
+  { id: '0', icon: '🎵' },
+  { id: '1', icon: '🧹' },
+  { id: '2', icon: '🔲' },
+  { id: '3', icon: '💪' },
+  { id: '4', icon: '🍽️⏱️' },
+  { id: '5', icon: '🍳' },
+  { id: '6', icon: '🕺' },
+  { id: '7', icon: '🍽️✨' },
+  { id: '8', icon: '🧹' },
+  { id: '9', icon: '🔲' },
+];
+
+const DEFAULT_BONUSES = [
+  { id: 'organs', icon: '🥩', label: 'ÓRGANOS', points: 3 },
+  { id: 'legumes', icon: '🫘', label: 'LEGUMBRES', points: 3 },
+  { id: 'fast24', icon: '🌑', label: 'AYUNO 24H', points: 4 }
+];
+
+const DEFAULT_MEALS = [
+  { name: "Huevos cocidos", icon: "🥚", max: 3 },
+  { name: "Huevos fritos", icon: "🥚", max: 2 },
+  { name: "Tortilla", icon: "🥚", max: 3 },
+  { name: "Huevos revueltos", icon: "🥚", max: 2 },
+  { name: "Merluza", icon: "🐟", max: 2 },
+  { name: "Salmón", icon: "🐟", max: 1 },
+  { name: "Bacalao", icon: "🐟", max: 1 },
+  { name: "Atún", icon: "🐟", max: 1 },
+  { name: "Pescado", icon: "🐟", max: 3 },
+  { name: "Marisco", icon: "🐟", max: 2 },
+  { name: "Trucha", icon: "🐟", max: 2 },
+  { name: "Ternera", icon: "🥩", max: 1 },
+  { name: "Cerdo", icon: "🥩", max: 2 },
+  { name: "Pollo", icon: "🥩", max: 2 },
+  { name: "Pavo", icon: "🥩", max: 2 },
+  { name: "Carnes", icon: "🥩", max: 4 },
+  { name: "Órganos", icon: "🥩", max: 2 },
+  { name: "Conejo", icon: "🥩", max: 1 },
+  { name: "Pasta", icon: "🍲", max: 1 },
+  { name: "Arroz", icon: "🍲", max: 1 },
+  { name: "Lentejas", icon: "🍲", max: 2 },
+  { name: "Garbanzos", icon: "🍲", max: 3 },
+  { name: "Alubias", icon: "🍲", max: 2 }
+];
+
+const defaultDailyScore: DailyFoodScore = {
+  lunch: false,
+  dinner: false,
+  fasting: false,
+  deliveryLunch: false,
+  deliveryDinner: false,
+  fahCount: 0,
+  fridgeCount: 0
+};
+
+export const getDailyFridgePenalty = (dateStr: string, allScores: Record<string, DailyFoodScore>) => {
+  const sortedDates = Object.keys(allScores).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  let cumulative = 0;
+  for (const d of sortedDates) {
+    const prevCumulative = cumulative;
+    cumulative += allScores[d].fridgeCount || 0;
+    if (d === dateStr) {
+      return Math.floor(cumulative / 20) - Math.floor(prevCumulative / 20);
+    }
+  }
+  return 0;
+};
+
+export const calculateDailyScore = (score: DailyFoodScore, dateStr: string, allScores: Record<string, DailyFoodScore>) => {
+  let total = 0;
+  if (score.lunch) total += 1;
+  if (score.dinner) total += 1;
+  if (score.fasting) total += 2;
+  if (score.deliveryLunch) total -= 2;
+  if (score.deliveryDinner) total -= 2;
+  if (score.fahCount > 1) total -= (score.fahCount - 1);
+  
+  const allScoresWithCurrent = { ...allScores, [dateStr]: score };
+  total -= getDailyFridgePenalty(dateStr, allScoresWithCurrent);
+  
+  return total;
+};
+
+export const calculateAllDaysTotal = (allScores: Record<string, DailyFoodScore>) => {
+  let total = 0;
+  let totalFridge = 0;
+  for (const score of Object.values(allScores)) {
+    if (score.lunch) total += 1;
+    if (score.dinner) total += 1;
+    if (score.fasting) total += 2;
+    if (score.deliveryLunch) total -= 2;
+    if (score.deliveryDinner) total -= 2;
+    if (score.fahCount > 1) total -= (score.fahCount - 1);
+    totalFridge += (score.fridgeCount || 0);
+  }
+  total -= Math.floor(totalFridge / 20);
+  return total;
+};
+
+const DailyFoodScoreModal = ({ 
+  date, 
+  initialScore, 
+  allScores,
+  meals,
+  dishes,
+  onSave, 
+  onClose 
+}: { 
+  date: Date, 
+  initialScore: DailyFoodScore, 
+  allScores: Record<string, DailyFoodScore>,
+  meals: { name: string; icon: string; max: number }[],
+  dishes: Record<string, boolean>,
+  onSave: (score: DailyFoodScore) => void, 
+  onClose: () => void 
+}) => {
+  const [score, setScore] = useState<DailyFoodScore>(initialScore);
+  const [selectingMealFor, setSelectingMealFor] = useState<'lunch' | 'dinner' | null>(null);
+
+  const toggle = (field: keyof DailyFoodScore) => {
+    setScore(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const handleLunchClick = () => {
+    if (score.lunch) {
+      setScore(prev => ({ ...prev, lunch: false, lunchMeal: undefined }));
+    } else {
+      setSelectingMealFor('lunch');
+    }
+  };
+
+  const handleDinnerClick = () => {
+    if (score.dinner) {
+      setScore(prev => ({ ...prev, dinner: false, dinnerMeal: undefined }));
+    } else {
+      setSelectingMealFor('dinner');
+    }
+  };
+
+  const getDishCountLocal = (baseName: string, max: number) => {
+      let count = 0;
+      for (let i = 0; i < max; i++) {
+          const key = baseName + ' '.repeat(i);
+          if (dishes[key]) count++;
+      }
+      return count;
+  };
+
+  const canSelectMeal = (mealName: string, max: number) => {
+    let effectiveCount = getDishCountLocal(mealName, max);
+    if (initialScore.lunchMeal === mealName) effectiveCount--;
+    if (initialScore.dinnerMeal === mealName) effectiveCount--;
+    
+    if (selectingMealFor === 'lunch') {
+      if (score.dinnerMeal === mealName) effectiveCount++;
+    } else if (selectingMealFor === 'dinner') {
+      if (score.lunchMeal === mealName) effectiveCount++;
+    }
+    
+    return effectiveCount < max;
+  };
+
+  const handleMealSelect = (mealName: string) => {
+    if (selectingMealFor === 'lunch') {
+      setScore(prev => ({ ...prev, lunch: true, lunchMeal: mealName }));
+    } else if (selectingMealFor === 'dinner') {
+      setScore(prev => ({ ...prev, dinner: true, dinnerMeal: mealName }));
+    }
+    setSelectingMealFor(null);
+  };
+
+  const increment = (field: 'fahCount' | 'fridgeCount') => {
+    setScore(prev => ({ ...prev, [field]: prev[field] + 1 }));
+  };
+
+  const decrement = (field: 'fahCount' | 'fridgeCount') => {
+    setScore(prev => ({ ...prev, [field]: Math.max(0, prev[field] - 1) }));
+  };
+
+  const dateStr = date.toDateString();
+  const total = calculateDailyScore(score, dateStr, allScores);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="p-4 border-b border-stone-800 flex items-center justify-between bg-stone-900/50 shrink-0">
+          <h2 className="text-lg font-bold text-stone-200">
+            {selectingMealFor ? (selectingMealFor === 'lunch' ? 'Elegir Almuerzo' : 'Elegir Cena') : date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </h2>
+          <button onClick={() => selectingMealFor ? setSelectingMealFor(null) : onClose()} className="p-2 rounded-full hover:bg-stone-800 text-stone-400 transition-colors">
+            {selectingMealFor ? <ArrowLeft className="w-5 h-5" /> : <X className="w-5 h-5" />}
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6 overflow-y-auto">
+          {selectingMealFor ? (
+            <div className="grid grid-cols-2 gap-3">
+              {meals.map(meal => {
+                const canSelect = canSelectMeal(meal.name, meal.max);
+                return (
+                  <button
+                    key={meal.name}
+                    disabled={!canSelect}
+                    onClick={() => handleMealSelect(meal.name)}
+                    className={`p-3 rounded-xl border flex items-center gap-3 transition-all text-left
+                      ${canSelect 
+                        ? 'bg-stone-950 border-stone-800 hover:bg-stone-800 text-stone-300' 
+                        : 'bg-stone-950/50 border-stone-900 text-stone-600 opacity-50 cursor-not-allowed'}`}
+                  >
+                    <span className="text-2xl">{meal.icon}</span>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold">{meal.name}</span>
+                      <span className="text-[10px] text-stone-500">
+                        {canSelect ? 'Disponible' : 'Agotado'}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <>
+              {/* 5 Action Buttons Row */}
+              <div className="grid grid-cols-5 gap-2">
+                <button onClick={handleLunchClick} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.lunch ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
+                  {score.lunchMeal ? (
+                    <span className="text-xl leading-none">{meals.find(m => m.name === score.lunchMeal)?.icon || '🍽️'}</span>
+                  ) : (
+                    <UtensilsCrossed className="w-5 h-5" />
+                  )}
+                  <span className="text-[10px] font-black">+1</span>
+                </button>
+                <button onClick={handleDinnerClick} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.dinner ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
+                  {score.dinnerMeal ? (
+                    <span className="text-xl leading-none">{meals.find(m => m.name === score.dinnerMeal)?.icon || '🍽️'}</span>
+                  ) : (
+                    <UtensilsCrossed className="w-5 h-5" />
+                  )}
+                  <span className="text-[10px] font-black">+1</span>
+                </button>
+                <button onClick={() => toggle('fasting')} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.fasting ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
+                  <Timer className="w-5 h-5" />
+                  <span className="text-[10px] font-black">+2</span>
+                </button>
+                <button onClick={() => toggle('deliveryLunch')} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.deliveryLunch ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
+                  <Bike className="w-5 h-5" />
+                  <span className="text-[10px] font-black">-2</span>
+                </button>
+                <button onClick={() => toggle('deliveryDinner')} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.deliveryDinner ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
+                  <Bike className="w-5 h-5" />
+                  <span className="text-[10px] font-black">-2</span>
+                </button>
+              </div>
+
+              {/* Selected Meals Info */}
+              {(score.lunchMeal || score.dinnerMeal) && (
+                <div className="space-y-2 bg-stone-950 border border-stone-800 rounded-xl p-3">
+                  {score.lunchMeal && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-stone-500 font-bold">Almuerzo:</span>
+                      <span className="text-emerald-400 font-bold">{score.lunchMeal}</span>
+                    </div>
+                  )}
+                  {score.dinnerMeal && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-stone-500 font-bold">Cena:</span>
+                      <span className="text-emerald-400 font-bold">{score.dinnerMeal}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Counters */}
+              <div className="space-y-2">
+            <div className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CakeSliceOff className="w-5 h-5 text-orange-500" />
+                <span className="text-[10px] font-black text-orange-600/80">-1</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => decrement('fahCount')} className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-300 hover:bg-stone-700">
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className={`text-lg font-black w-6 text-center ${score.fahCount >= 2 ? 'text-red-500' : 'text-orange-400'}`}>
+                  {score.fahCount}
+                </span>
+                <button onClick={() => increment('fahCount')} className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-300 hover:bg-stone-700">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Snowflake className="w-5 h-5 text-cyan-500" />
+                <span className="text-[10px] font-black text-cyan-600/80">-1/20</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => decrement('fridgeCount')} className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-300 hover:bg-stone-700">
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className="text-lg font-black text-cyan-400 w-6 text-center">{score.fridgeCount}</span>
+                <button onClick={() => increment('fridgeCount')} className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-300 hover:bg-stone-700">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+          </>
+        )}
+        </div>
+
+        {!selectingMealFor && (
+          <div className="p-4 border-t border-stone-800 bg-stone-900/50 flex items-center justify-between shrink-0">
+            <div className="flex flex-col">
+              <span className="text-xs text-stone-500 font-bold uppercase">Total del día</span>
+              <span className={`text-2xl font-black ${total > 0 ? 'text-lime-500' : total < 0 ? 'text-red-500' : 'text-stone-400'}`}>
+                {total > 0 ? `+${total}` : total}
+              </span>
+            </div>
+            <button 
+              onClick={() => onSave(score)}
+              className="bg-lime-500 hover:bg-lime-400 text-stone-950 px-6 py-3 rounded-xl font-bold transition-colors"
+            >
+              Guardar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const CakeSliceOff = ({ className }: { className?: string }) => (
   <svg
@@ -30,9 +373,138 @@ interface FoodBoardViewProps {
 }
 
 export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdate, onBack }) => {
-  const { score, history, wheel, weeklyBonuses, dishes = {} } = foodState;
+  const { score, history, wheel, weeklyBonuses, dishes = {}, dailyScores = {}, broccoliStep = 0, config } = foodState;
   const [showWheelConfirm, setShowWheelConfirm] = useState(false);
+  const [showBroccoliConfirm, setShowBroccoliConfirm] = useState(false);
+  const [showConfigEditor, setShowConfigEditor] = useState(false);
   const [lastToggledItem, setLastToggledItem] = useState<keyof FoodWheel | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const activeConfig = {
+    wheel: config?.wheel || DEFAULT_WHEEL,
+    broccoli: config?.broccoli || DEFAULT_BROCCOLI,
+    bonuses: config?.bonuses || DEFAULT_BONUSES,
+    meals: config?.meals || DEFAULT_MEALS,
+  };
+
+  const handleBroccoliClick = (index: number) => {
+    if (index === broccoliStep) {
+      const nextStep = broccoliStep + 1;
+      if (nextStep === 10) {
+        onUpdate({ ...foodState, broccoliStep: 10 });
+        setShowBroccoliConfirm(true);
+      } else {
+        onUpdate({ ...foodState, broccoliStep: nextStep });
+      }
+    } else if (index === broccoliStep - 1) {
+      onUpdate({ ...foodState, broccoliStep: index });
+    }
+  };
+
+  const confirmBroccoliPleno = () => {
+    onUpdate({
+      ...foodState,
+      score: updateScore(1),
+      broccoliStep: 0,
+      history: addHistory('Rutina Brócoli', 1)
+    });
+    setShowBroccoliConfirm(false);
+  };
+
+  const cancelBroccoliPleno = () => {
+    onUpdate({ ...foodState, broccoliStep: 9 });
+    setShowBroccoliConfirm(false);
+  };
+
+  const handleSaveConfig = (newConfig: FoodConfig) => {
+    onUpdate({ ...foodState, config: newConfig });
+    setShowConfigEditor(false);
+  };
+
+  const getDaysOfWeek = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday);
+    
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  };
+
+  const daysOfWeek = getDaysOfWeek();
+
+  const handleSaveDailyScore = (date: Date, newDailyScore: DailyFoodScore) => {
+    const dateStr = date.toDateString();
+    const oldDailyScore = dailyScores[dateStr] || defaultDailyScore;
+    const newScores = { ...dailyScores, [dateStr]: newDailyScore };
+    
+    const oldTotal = calculateAllDaysTotal(dailyScores);
+    const newTotal = calculateAllDaysTotal(newScores);
+    const diff = newTotal - oldTotal;
+
+    let newDishes = { ...dishes };
+
+    const getDishCountLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+        let count = 0;
+        for (let i = 0; i < max; i++) {
+            const key = baseName + ' '.repeat(i);
+            if (currentDishes[key]) count++;
+        }
+        return count;
+    };
+
+    const decrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+        let count = getDishCountLocal(baseName, max, currentDishes);
+        if (count > 0) {
+            const key = baseName + ' '.repeat(count - 1);
+            currentDishes[key] = false;
+        }
+    };
+
+    const incrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+        let count = getDishCountLocal(baseName, max, currentDishes);
+        if (count < max) {
+            const key = baseName + ' '.repeat(count);
+            currentDishes[key] = true;
+        }
+    };
+
+    // Handle lunch meal changes
+    if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
+        const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.lunchMeal);
+        if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+    if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
+        const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.lunchMeal);
+        if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+
+    // Handle dinner meal changes
+    if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
+        const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.dinnerMeal);
+        if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+    if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
+        const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.dinnerMeal);
+        if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+
+    onUpdate({
+      ...foodState,
+      score: updateScore(diff),
+      dailyScores: newScores,
+      dishes: newDishes,
+      history: diff !== 0 ? addHistory(`Día: ${date.getDate()}`, diff) : history
+    });
+    setSelectedDate(null);
+  };
 
   const addHistory = (action: string, delta: number) => {
       return [
@@ -42,25 +514,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const updateScore = (delta: number) => {
-      return Math.max(0, Math.min(50, score + delta));
-  };
-
-  const handleAction = (type: 'cook' | 'fast' | 'delivery' | 'fah' | 'fridge' | 'ritual') => {
-    let delta = 0;
-    let label = '';
-    
-    if (type === 'cook') { delta = 1; label = 'Comida'; }
-    else if (type === 'fast') { delta = 2; label = 'Ayuno'; }
-    else if (type === 'delivery') { delta = -2; label = 'Domicilio'; }
-    else if (type === 'fah') { delta = -1; label = 'FAH'; }
-    else if (type === 'fridge') { delta = -1; label = 'Nevera'; }
-    else if (type === 'ritual') { delta = 1; label = 'Ritual'; }
-
-    onUpdate({
-      ...foodState,
-      score: updateScore(delta),
-      history: addHistory(label, delta)
-    });
+      return score + delta;
   };
 
   const handleBonus = (type: keyof FoodBonuses, delta: number) => {
@@ -160,11 +614,12 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   }
 
   const getScoreColor = () => {
-      if (score === 50) return 'text-yellow-400 drop-shadow-[0_0_12px_rgba(234,179,8,0.9)] animate-pulse font-black';
+      if (score >= 50) return 'text-yellow-400 drop-shadow-[0_0_12px_rgba(234,179,8,0.9)] animate-pulse font-black';
       if ([25, 35, 42, 45].includes(score)) return 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] font-black';
       if (score >= 25) return 'text-yellow-500/80 font-bold';
       if (score > 10) return 'text-lime-500 font-bold';
-      return 'text-red-500 font-bold';
+      if (score < 0) return 'text-red-500 font-bold';
+      return 'text-lime-500 font-bold';
   };
 
   const milestones = [
@@ -173,32 +628,6 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       { val: 42, label: 'Tronco', icon: Star },
       { val: 45, label: 'Copa', icon: Trophy },
       { val: 50, label: 'Fruto', icon: Gem }
-  ];
-
-  const mealChecklist = [
-    { name: "Huevos cocidos", icon: "🥚", max: 3 },
-    { name: "Huevos fritos", icon: "🥚", max: 2 },
-    { name: "Tortilla", icon: "🥚", max: 3 },
-    { name: "Huevos revueltos", icon: "🥚", max: 2 },
-    { name: "Merluza", icon: "🐟", max: 2 },
-    { name: "Salmón", icon: "🐟", max: 1 },
-    { name: "Bacalao", icon: "🐟", max: 1 },
-    { name: "Atún", icon: "🐟", max: 1 },
-    { name: "Pescado", icon: "🐟", max: 3 },
-    { name: "Marisco", icon: "🐟", max: 2 },
-    { name: "Trucha", icon: "🐟", max: 2 },
-    { name: "Ternera", icon: "🥩", max: 1 },
-    { name: "Cerdo", icon: "🥩", max: 2 },
-    { name: "Pollo", icon: "🥩", max: 2 },
-    { name: "Pavo", icon: "🥩", max: 2 },
-    { name: "Carnes", icon: "🥩", max: 4 },
-    { name: "Órganos", icon: "🥩", max: 2 },
-    { name: "Conejo", icon: "🥩", max: 1 },
-    { name: "Pasta", icon: "🍲", max: 1 },
-    { name: "Arroz", icon: "🍲", max: 1 },
-    { name: "Lentejas", icon: "🍲", max: 2 },
-    { name: "Garbanzos", icon: "🍲", max: 3 },
-    { name: "Alubias", icon: "🍲", max: 2 }
   ];
 
   return (
@@ -210,9 +639,14 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             </button>
             <h1 className="text-xl font-bold text-lime-200 uppercase tracking-tighter">Jumangiare</h1>
         </div>
-        <button onClick={resetGame} className="text-xs text-lime-400/50 hover:text-lime-300 flex items-center gap-1 transition-colors">
-            <RotateCcw className="w-3 h-3" />
-        </button>
+        <div className="flex items-center gap-2">
+            <button onClick={() => setShowConfigEditor(true)} className="p-2 text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-full transition-colors">
+                <Settings className="w-5 h-5" />
+            </button>
+            <button onClick={resetGame} className="text-xs text-lime-400/50 hover:text-lime-300 flex items-center gap-1 transition-colors p-2">
+                <RotateCcw className="w-4 h-4" />
+            </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-20 no-scrollbar">
@@ -249,51 +683,74 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             </div>
         </div>
 
-        {/* Action Buttons Grid - Single row (6 columns) */}
-        <div className="grid grid-cols-6 gap-2">
-            <button onClick={() => handleAction('cook')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <UtensilsCrossed className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-emerald-600/80">+1</span>
-            </button>
-            <button onClick={() => handleAction('fast')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <Timer className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-blue-600/80">+2</span>
-            </button>
-            <button onClick={() => handleAction('ritual')} className="bg-stone-900 aspect-square rounded-full border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <Flame className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-orange-600/80">+1</span>
-            </button>
-            <button onClick={() => handleAction('fridge')} className="bg-stone-900 aspect-square rounded-full border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <Snowflake className="w-5 h-5 text-cyan-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-cyan-600/80">-1</span>
-            </button>
-            <button onClick={() => handleAction('fah')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <CakeSliceOff className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-orange-600/80">-1</span>
-            </button>
-            <button onClick={() => handleAction('delivery')} className="bg-stone-900 py-4 px-2 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all group">
-                <Bike className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black text-red-600/80">-2</span>
-            </button>
+        {/* Days of Week Row */}
+        <div className="flex justify-between items-center bg-stone-900/40 rounded-2xl p-4 border border-stone-800/50">
+          {daysOfWeek.map((date, index) => {
+            const dateStr = date.toDateString();
+            const dayScore = dailyScores[dateStr] || defaultDailyScore;
+            const total = calculateDailyScore(dayScore, dateStr, dailyScores);
+            const isToday = date.toDateString() === new Date().toDateString();
+            const isFuture = date > new Date() && !isToday;
+            const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+            const percentage = Math.min(100, (Math.abs(total) / 4) * 100);
+            let conicGradient = '';
+            if (total > 0) {
+                conicGradient = `conic-gradient(#84cc16 ${percentage}%, transparent 0)`;
+            } else if (total < 0) {
+                conicGradient = `conic-gradient(transparent ${100 - percentage}%, #ef4444 0)`;
+            }
+
+            return (
+              <button
+                key={dateStr}
+                disabled={isFuture}
+                onClick={() => setSelectedDate(date)}
+                className={`flex flex-col items-center gap-2 transition-all ${isFuture ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
+              >
+                <span className={`text-[10px] font-black ${isToday ? 'text-lime-500' : 'text-stone-500'}`}>
+                  {dayNames[index]}
+                </span>
+                <div className="relative w-10 h-10 rounded-full flex items-center justify-center">
+                  {/* Background */}
+                  <div className={`absolute inset-0 rounded-full transition-colors
+                    ${total > 0 ? 'bg-lime-500/20' : total < 0 ? 'bg-red-500/20' : isToday ? 'bg-stone-800' : 'bg-stone-900'}
+                  `} />
+                  
+                  {/* Circular Progress Ring */}
+                  {conicGradient && (
+                    <div 
+                      className="absolute inset-0 rounded-full" 
+                      style={{ 
+                        background: conicGradient,
+                        WebkitMaskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)',
+                        maskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)'
+                      }} 
+                    />
+                  )}
+                  
+                  {/* Text */}
+                  <span className={`relative z-10 text-xs font-bold
+                    ${total > 0 ? 'text-lime-400' : total < 0 ? 'text-red-400' : isToday ? 'text-lime-500' : 'text-stone-300'}
+                  `}>
+                    {total > 0 ? `+${total}` : total}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Rueda Section */}
         <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800">
             <div className="grid grid-cols-6 gap-2">
-                {[
-                    { key: 'lemon', icon: '🍋' },
-                    { key: 'nuts', icon: '🥜' },
-                    { key: 'dairy', icon: '🧀' },
-                    { key: 'coffee', icon: '☕' },
-                    { key: 'spices', icon: '🌶️' },
-                    { key: 'supplements', icon: '💊' }
-                ].map((item) => (
+                {activeConfig.wheel.map((item) => (
                     <button 
-                        key={item.key}
-                        onClick={() => toggleWheelItem(item.key as keyof FoodWheel)}
+                        key={item.id}
+                        onClick={() => toggleWheelItem(item.id as keyof FoodWheel)}
                         className={`
                             aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300
-                            ${wheel[item.key as keyof FoodWheel] 
+                            ${wheel[item.id as keyof FoodWheel] 
                                 ? 'bg-lime-600/20 border border-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.2)] grayscale-0 scale-105' 
                                 : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
                         `}
@@ -304,42 +761,52 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             </div>
         </div>
 
+        {/* Broccoli Section */}
+        <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800">
+            <div className="grid grid-cols-5 gap-3">
+                {activeConfig.broccoli.map((step, index) => {
+                    const isCompleted = index < broccoliStep;
+                    const isNext = index === broccoliStep;
+                    const isLocked = index > broccoliStep;
+
+                    return (
+                        <button 
+                            key={step.id}
+                            onClick={() => handleBroccoliClick(index)}
+                            disabled={isLocked}
+                            className={`
+                                aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300
+                                ${isCompleted 
+                                    ? 'bg-emerald-600/20 border border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] grayscale-0 scale-105' 
+                                    : isNext
+                                    ? 'bg-stone-800 border border-stone-600 grayscale-0 animate-pulse'
+                                    : 'bg-stone-950 border border-stone-800 grayscale opacity-30 cursor-not-allowed'}
+                            `}
+                        >
+                            {step.icon}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+
         {/* Weekly Bonuses Section */}
         <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
-                <button 
-                    onClick={() => handleBonus('organs', 3)}
-                    className={`p-4 rounded-2xl border text-sm font-bold flex flex-col items-center gap-1 transition-all ${
-                        weeklyBonuses.organs 
-                            ? 'bg-emerald-600 border-emerald-500 text-stone-950 shadow-lg' 
-                            : 'bg-stone-900 border-stone-800 text-stone-400 opacity-60'
-                    }`}
-                >
-                    <span className="text-xl">🥩</span>
-                    <span className="text-[10px] font-black">ÓRGANOS</span>
-                </button>
-                <button 
-                    onClick={() => handleBonus('legumes', 3)}
-                    className={`p-4 rounded-2xl border text-sm font-bold flex flex-col items-center gap-1 transition-all ${
-                        weeklyBonuses.legumes 
-                            ? 'bg-emerald-600 border-emerald-500 text-stone-950 shadow-lg' 
-                            : 'bg-stone-900 border-stone-800 text-stone-400 opacity-60'
-                    }`}
-                >
-                    <span className="text-xl">🫘</span>
-                    <span className="text-[10px] font-black">LEGUMBRES</span>
-                </button>
-                <button 
-                    onClick={() => handleBonus('fast24', 4)}
-                    className={`p-4 rounded-2xl border text-sm font-bold flex flex-col items-center gap-1 transition-all ${
-                        weeklyBonuses.fast24 
-                            ? 'bg-emerald-600 border-emerald-500 text-stone-950 shadow-lg' 
-                            : 'bg-stone-900 border-stone-800 text-stone-400 opacity-60'
-                    }`}
-                >
-                    <span className="text-xl">🌑</span>
-                    <span className="text-[10px] font-black">AYUNO 24h</span>
-                </button>
+                {activeConfig.bonuses.map((bonus) => (
+                    <button 
+                        key={bonus.id}
+                        onClick={() => handleBonus(bonus.id, bonus.points)}
+                        className={`p-4 rounded-2xl border text-sm font-bold flex flex-col items-center gap-1 transition-all ${
+                            weeklyBonuses[bonus.id] 
+                                ? 'bg-emerald-600 border-emerald-500 text-stone-950 shadow-lg' 
+                                : 'bg-stone-900 border-stone-800 text-stone-400 opacity-60'
+                        }`}
+                    >
+                        <span className="text-xl">{bonus.icon}</span>
+                        <span className="text-[10px] font-black">{bonus.label}</span>
+                    </button>
+                ))}
             </div>
         </div>
 
@@ -347,7 +814,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         <div className="space-y-4 pt-4 border-t border-stone-800">
             <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-widest px-1">Menú del Superviviente</h3>
             <div className="bg-stone-900/60 rounded-3xl overflow-hidden border border-stone-800">
-                {[...mealChecklist].sort((a, b) => {
+                {[...activeConfig.meals].sort((a, b) => {
                     const aCount = getDishCount(a.name, a.max);
                     const bCount = getDishCount(b.name, b.max);
                     
@@ -438,6 +905,58 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                 </div>
             </div>
         </div>
+      )}
+
+      {/* Broccoli Confirmation Modal */}
+      {showBroccoliConfirm && (
+        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
+                <div className="p-8 flex flex-col items-center text-center">
+                    <div className="w-20 h-20 bg-emerald-600/20 rounded-full flex items-center justify-center mb-6 border border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                        <Check className="w-10 h-10 text-emerald-500" />
+                    </div>
+                    <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Rutina Completada!</h2>
+                    <p className="text-stone-400 mb-8 text-sm leading-relaxed">
+                        Has completado todos los pasos. <br/>¿Reclamas tu **+1 punto**?
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-4 w-full">
+                        <button 
+                            onClick={cancelBroccoliPleno}
+                            className="py-4 rounded-2xl border border-stone-800 text-stone-500 hover:bg-stone-800 font-bold transition-all text-sm uppercase"
+                        >
+                            Error
+                        </button>
+                        <button 
+                            onClick={confirmBroccoliPleno}
+                            className="py-4 rounded-2xl bg-emerald-600 text-stone-950 font-black hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/20 text-sm uppercase"
+                        >
+                            ¡Reclamar!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {selectedDate && (
+        <DailyFoodScoreModal
+          date={selectedDate}
+          initialScore={dailyScores[selectedDate.toDateString()] || defaultDailyScore}
+          allScores={dailyScores}
+          meals={activeConfig.meals}
+          dishes={dishes}
+          onSave={(score) => handleSaveDailyScore(selectedDate, score)}
+          onClose={() => setSelectedDate(null)}
+        />
+      )}
+
+      {showConfigEditor && (
+        <FoodConfigEditor
+          initialConfig={activeConfig}
+          onSave={handleSaveConfig}
+          onClose={() => setShowConfigEditor(false)}
+        />
       )}
 
     </div>
