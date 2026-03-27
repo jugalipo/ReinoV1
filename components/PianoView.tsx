@@ -81,6 +81,39 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
   const [timerSections, setTimerSections] = useState<{key: string, label: string, duration: number}[]>(state.timerState?.sections || []);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const targetEndTimeRef = useRef<number | null>(null);
+
+  const toggleChecklist = (field: keyof PianoState['checklist'], forceValue?: boolean) => {
+    const currentState = stateRef.current;
+    const newValue = forceValue !== undefined ? forceValue : !currentState.checklist[field];
+    
+    const newChecklist = {
+      ...currentState.checklist,
+      [field]: newValue
+    };
+
+    const allChecked = Object.values(newChecklist).every(Boolean);
+
+    if (allChecked) {
+      updateState({
+        checklist: {
+          recuperacionActiva: false,
+          lecturaPrimeraVista: false,
+          tecnicaPrecision: false,
+          construccionIntercalada: false,
+          consolidacion: false,
+          audicionCritica: false,
+        },
+        sesionesCompletadas: (currentState.sesionesCompletadas || 0) + 1,
+        sesionesDesafio: (currentState.sesionesDesafio || 0) + 1,
+        sesionesConsolidacion: (currentState.sesionesConsolidacion || 0) + 1
+      });
+    } else {
+      updateState({
+        checklist: newChecklist
+      });
+    }
+  };
 
   useEffect(() => {
     // Create audio element for notification
@@ -90,63 +123,135 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (timerActive && timeLeftInSection > 0) {
-      interval = setInterval(() => {
-        setTimeLeftInSection((prev) => prev - 1);
-      }, 1000);
-    } else if (timerActive && timeLeftInSection === 0) {
-      // Play sound
-      if (audioRef.current) {
-        audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+    if (timerActive) {
+      if (targetEndTimeRef.current === null && timeLeftInSection > 0) {
+        targetEndTimeRef.current = Date.now() + timeLeftInSection * 1000;
       }
-      
-      // Move to next section
-      if (currentSectionIndex < timerSections.length - 1) {
-        const nextIndex = currentSectionIndex + 1;
-        const nextDuration = timerSections[nextIndex].duration;
-        setCurrentSectionIndex(nextIndex);
-        setTimeLeftInSection(nextDuration);
-        
-        updateState({
-          timerState: {
-            isOpen: isTimerOpen,
-            totalTimeInput,
-            currentSectionIndex: nextIndex,
-            timeLeftInSection: nextDuration,
-            sections: timerSections
-          }
-        });
 
-        // Auto-check the previous section
-        const prevSectionKey = timerSections[currentSectionIndex].key as keyof PianoState['checklist'];
-        if (!stateRef.current.checklist[prevSectionKey]) {
-          toggleChecklist(prevSectionKey, true);
+      interval = setInterval(() => {
+        if (targetEndTimeRef.current !== null) {
+          const now = Date.now();
+          const remaining = Math.max(0, Math.round((targetEndTimeRef.current - now) / 1000));
+          
+          setTimeLeftInSection(prev => {
+            if (prev !== remaining) return remaining;
+            return prev;
+          });
+
+          if (remaining === 0) {
+            targetEndTimeRef.current = null;
+            
+            if (audioRef.current) {
+              audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+            }
+            
+            const currentSectionKey = timerSections[currentSectionIndex].key as keyof PianoState['checklist'];
+            
+            // Create a copy of the current checklist state to determine the next step
+            const currentChecklist = { ...stateRef.current.checklist };
+            
+            if (!currentChecklist[currentSectionKey]) {
+              currentChecklist[currentSectionKey] = true;
+              toggleChecklist(currentSectionKey, true);
+            }
+
+            let nextIndex = currentSectionIndex + 1;
+            while (nextIndex < timerSections.length) {
+              const nextKey = timerSections[nextIndex].key as keyof PianoState['checklist'];
+              if (!currentChecklist[nextKey]) {
+                break;
+              }
+              nextIndex++;
+            }
+
+            if (nextIndex < timerSections.length) {
+              const nextDuration = timerSections[nextIndex].duration;
+              setCurrentSectionIndex(nextIndex);
+              setTimeLeftInSection(nextDuration);
+              targetEndTimeRef.current = Date.now() + nextDuration * 1000;
+              
+              updateState({
+                timerState: {
+                  isOpen: isTimerOpen,
+                  totalTimeInput,
+                  currentSectionIndex: nextIndex,
+                  timeLeftInSection: nextDuration,
+                  sections: timerSections
+                }
+              });
+            } else {
+              setTimerActive(false);
+              setCurrentSectionIndex(0);
+              setTimeLeftInSection(0);
+              setTimerSections([]);
+
+              updateState({
+                timerState: {
+                  isOpen: isTimerOpen,
+                  totalTimeInput,
+                  currentSectionIndex: 0,
+                  timeLeftInSection: 0,
+                  sections: []
+                }
+              });
+            }
+          }
         }
-      } else {
-        // Timer finished
-        setTimerActive(false);
-        setCurrentSectionIndex(0);
-        setTimeLeftInSection(0);
-        setTimerSections([]);
+      }, 200);
+    } else {
+      targetEndTimeRef.current = null;
+    }
+    return () => clearInterval(interval);
+  }, [timerActive, currentSectionIndex, timerSections, isTimerOpen, totalTimeInput]);
 
-        updateState({
-          timerState: {
-            isOpen: isTimerOpen,
-            totalTimeInput,
-            currentSectionIndex: 0,
-            timeLeftInSection: 0,
-            sections: []
+  useEffect(() => {
+    if (timerActive && timerSections.length > 0) {
+      const currentSectionKey = timerSections[currentSectionIndex]?.key as keyof PianoState['checklist'];
+      if (currentSectionKey && state.checklist[currentSectionKey]) {
+        let nextIndex = currentSectionIndex + 1;
+        while (nextIndex < timerSections.length) {
+          const nextKey = timerSections[nextIndex].key as keyof PianoState['checklist'];
+          if (!state.checklist[nextKey]) {
+            break;
           }
-        });
+          nextIndex++;
+        }
 
-        const lastSectionKey = timerSections[currentSectionIndex].key as keyof PianoState['checklist'];
-        if (!stateRef.current.checklist[lastSectionKey]) {
-          toggleChecklist(lastSectionKey, true);
+        if (nextIndex < timerSections.length) {
+          const nextDuration = timerSections[nextIndex].duration;
+          setCurrentSectionIndex(nextIndex);
+          setTimeLeftInSection(nextDuration);
+          targetEndTimeRef.current = Date.now() + nextDuration * 1000;
+          
+          updateState({
+            timerState: {
+              isOpen: isTimerOpen,
+              totalTimeInput,
+              currentSectionIndex: nextIndex,
+              timeLeftInSection: nextDuration,
+              sections: timerSections
+            }
+          });
+        } else {
+          setTimerActive(false);
+          setCurrentSectionIndex(0);
+          setTimeLeftInSection(0);
+          setTimerSections([]);
+          targetEndTimeRef.current = null;
+
+          updateState({
+            timerState: {
+              isOpen: isTimerOpen,
+              totalTimeInput,
+              currentSectionIndex: 0,
+              timeLeftInSection: 0,
+              sections: []
+            }
+          });
         }
       }
     }
-    return () => clearInterval(interval);
-  }, [timerActive, timeLeftInSection, currentSectionIndex, timerSections, isTimerOpen, totalTimeInput]);
+  }, [state.checklist, timerActive, currentSectionIndex, timerSections, isTimerOpen, totalTimeInput]);
 
   const handleToggleTimerOpen = () => {
     const newVal = !isTimerOpen;
@@ -180,6 +285,7 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
     setTimerActive(newActive);
     if (!newActive) {
       // Pausing, save current time
+      targetEndTimeRef.current = null;
       updateState({
         timerState: {
           isOpen: isTimerOpen,
@@ -189,6 +295,14 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
           sections: timerSections
         }
       });
+    } else {
+      // Resuming
+      targetEndTimeRef.current = Date.now() + timeLeftInSection * 1000;
+      if (audioRef.current) {
+        audioRef.current.play().catch(() => {});
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     }
   };
 
@@ -205,17 +319,37 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
       { key: 'audicionCritica', label: 'Audición crítica o improvisación', duration: Math.round(DEFAULT_TIMES.audicionCritica * ratio * 60) },
     ];
     
+    let startIndex = 0;
+    while (startIndex < sections.length) {
+      const key = sections[startIndex].key as keyof PianoState['checklist'];
+      if (!stateRef.current.checklist[key]) {
+        break;
+      }
+      startIndex++;
+    }
+
+    if (startIndex >= sections.length) {
+      startIndex = 0;
+    }
+    
     setTimerSections(sections);
-    setCurrentSectionIndex(0);
-    setTimeLeftInSection(sections[0].duration);
+    setCurrentSectionIndex(startIndex);
+    setTimeLeftInSection(sections[startIndex].duration);
     setTimerActive(true);
+    targetEndTimeRef.current = Date.now() + sections[startIndex].duration * 1000;
+
+    if (audioRef.current) {
+      audioRef.current.play().catch(() => {});
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
 
     updateState({
       timerState: {
         isOpen: isTimerOpen,
         totalTimeInput,
-        currentSectionIndex: 0,
-        timeLeftInSection: sections[0].duration,
+        currentSectionIndex: startIndex,
+        timeLeftInSection: sections[startIndex].duration,
         sections
       }
     });
@@ -250,36 +384,6 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
 
   const handleHenleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateState({ henleLevel: parseInt(e.target.value, 10) });
-  };
-
-  const toggleChecklist = (field: keyof PianoState['checklist'], forceValue?: boolean) => {
-    const currentState = stateRef.current;
-    const newValue = forceValue !== undefined ? forceValue : !currentState.checklist[field];
-    
-    const newChecklist = {
-      ...currentState.checklist,
-      [field]: newValue
-    };
-
-    const allChecked = Object.values(newChecklist).every(Boolean);
-
-    if (allChecked) {
-      updateState({
-        checklist: {
-          recuperacionActiva: false,
-          lecturaPrimeraVista: false,
-          tecnicaPrecision: false,
-          construccionIntercalada: false,
-          consolidacion: false,
-          audicionCritica: false,
-        },
-        sesionesCompletadas: (currentState.sesionesCompletadas || 0) + 1
-      });
-    } else {
-      updateState({
-        checklist: newChecklist
-      });
-    }
   };
 
   const resetScaleExercises = {

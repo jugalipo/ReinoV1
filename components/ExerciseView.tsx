@@ -26,10 +26,11 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const targetEndTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     // Create audio element for beep
-    audioRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -45,40 +46,87 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
     }
   };
 
+  const playDoubleBeep = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+        }
+      }, 800);
+    }
+  };
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (timerIsRunning && timerTimeLeft > 0) {
-      interval = setInterval(() => {
-        setTimerTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timerIsRunning && timerTimeLeft === 0) {
-      playBeep();
-      if (timerPhase === 'work') {
-        if (timerCurrentRound >= timerRounds) {
-          // Finished all rounds
-          setTimerIsRunning(false);
-          setTimerPhase('work');
-          setTimerCurrentRound(1);
-          setTimerTimeLeft(timerWorkTime);
-        } else {
-          // Start rest
-          setTimerPhase('rest');
-          setTimerTimeLeft(timerRestTime);
-        }
-      } else {
-        // Start next work round
-        setTimerPhase('work');
-        setTimerCurrentRound((prev) => prev + 1);
-        setTimerTimeLeft(timerWorkTime);
+    if (timerIsRunning) {
+      if (targetEndTimeRef.current === null && timerTimeLeft > 0) {
+        targetEndTimeRef.current = Date.now() + timerTimeLeft * 1000;
       }
+
+      interval = setInterval(() => {
+        if (targetEndTimeRef.current !== null) {
+          const now = Date.now();
+          const remaining = Math.max(0, Math.round((targetEndTimeRef.current - now) / 1000));
+          
+          setTimerTimeLeft(prev => {
+            if (prev !== remaining) return remaining;
+            return prev;
+          });
+
+          if (remaining === 0) {
+            targetEndTimeRef.current = null;
+            
+            if (timerPhase === 'work') {
+              if (timerCurrentRound >= timerRounds) {
+                // Finished all rounds
+                playDoubleBeep();
+                setTimerIsRunning(false);
+                setTimerPhase('work');
+                setTimerCurrentRound(1);
+                setTimerTimeLeft(timerWorkTime);
+              } else {
+                // Start rest
+                playBeep();
+                setTimerPhase('rest');
+                setTimerTimeLeft(timerRestTime);
+                targetEndTimeRef.current = Date.now() + timerRestTime * 1000;
+              }
+            } else {
+              // Start next work round
+              playBeep();
+              setTimerPhase('work');
+              setTimerCurrentRound((prev) => prev + 1);
+              setTimerTimeLeft(timerWorkTime);
+              targetEndTimeRef.current = Date.now() + timerWorkTime * 1000;
+            }
+          }
+        }
+      }, 200);
+    } else {
+      targetEndTimeRef.current = null;
     }
 
     return () => clearInterval(interval);
-  }, [timerIsRunning, timerTimeLeft, timerPhase, timerCurrentRound, timerRounds, timerWorkTime, timerRestTime]);
+  }, [timerIsRunning, timerPhase, timerCurrentRound, timerRounds, timerWorkTime, timerRestTime]);
 
   const toggleTimer = () => {
-    setTimerIsRunning(!timerIsRunning);
+    const newRunning = !timerIsRunning;
+    setTimerIsRunning(newRunning);
+    if (newRunning) {
+      targetEndTimeRef.current = Date.now() + timerTimeLeft * 1000;
+      if (audioRef.current) {
+        audioRef.current.play().then(() => {
+          audioRef.current?.pause();
+          if (audioRef.current) audioRef.current.currentTime = 0;
+        }).catch(() => {});
+      }
+    } else {
+      targetEndTimeRef.current = null;
+    }
   };
 
   const resetTimer = () => {
@@ -86,6 +134,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
     setTimerPhase('work');
     setTimerCurrentRound(1);
     setTimerTimeLeft(timerWorkTime);
+    targetEndTimeRef.current = null;
   };
 
   const applyTimerSettings = () => {

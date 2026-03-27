@@ -250,8 +250,8 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                     onChange={(e) => setSortBy(e.target.value as 'interactions' | 'days')}
                     className="bg-stone-900 text-stone-300 text-sm font-bold border border-stone-800 rounded-lg px-3 py-1.5 focus:outline-none focus:border-pink-900 w-full"
                 >
-                    <option value="interactions">Ordenar por nº de brotes</option>
-                    <option value="days">Ordenar por días sin hablar</option>
+                    <option value="interactions">Orden por brotes</option>
+                    <option value="days">Orden por días</option>
                 </select>
             </div>
              {sortedFriends.map(f => {

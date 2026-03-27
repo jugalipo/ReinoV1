@@ -130,6 +130,10 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
         </div>
         {daysArray.map((day, index) => {
           const status = dayStatuses[index];
+          const isMultipleOf5 = day % 5 === 0;
+          const cellBg = isMultipleOf5 
+            ? (isMiddleGroup ? 'bg-stone-800/80' : 'bg-stone-700/60') 
+            : baseBg;
           
           let content = null;
           if (status === 'completed') {
@@ -157,7 +161,7 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
           }
 
           return (
-            <div key={day} className={`relative flex items-center justify-center border-b border-stone-800/30 overflow-hidden ${baseBg}`}>
+            <div key={day} className={`relative flex items-center justify-center border-b border-stone-800/30 overflow-hidden ${cellBg}`}>
               {content}
             </div>
           );
