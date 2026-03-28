@@ -77,6 +77,7 @@ export interface DailyFoodScore {
   deliveryDinner: boolean;
   fahCount: number;
   fridgeCount: number;
+  calories?: number;
 }
 
 export interface FoodState {

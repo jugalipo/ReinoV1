@@ -201,9 +201,11 @@ const DailyFoodScoreModal = ({
           <h2 className="text-lg font-bold text-stone-200">
             {selectingMealFor ? (selectingMealFor === 'lunch' ? 'Elegir Almuerzo' : 'Elegir Cena') : date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
           </h2>
-          <button onClick={() => selectingMealFor ? setSelectingMealFor(null) : onClose()} className="p-2 rounded-full hover:bg-stone-800 text-stone-400 transition-colors">
-            {selectingMealFor ? <ArrowLeft className="w-5 h-5" /> : <X className="w-5 h-5" />}
-          </button>
+          {selectingMealFor && (
+            <button onClick={() => setSelectingMealFor(null)} className="p-2 rounded-full hover:bg-stone-800 text-stone-400 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto">
@@ -266,23 +268,31 @@ const DailyFoodScoreModal = ({
                 </button>
               </div>
 
-              {/* Selected Meals Info */}
-              {(score.lunchMeal || score.dinnerMeal) && (
-                <div className="space-y-2 bg-stone-950 border border-stone-800 rounded-xl p-3">
+              {/* Selected Meals Info & Calories */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex flex-col justify-center min-h-[3rem]">
                   {score.lunchMeal && (
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-stone-500 font-bold">Almuerzo:</span>
-                      <span className="text-emerald-400 font-bold">{score.lunchMeal}</span>
-                    </div>
+                    <span className="text-emerald-400 font-bold text-sm truncate">{score.lunchMeal}</span>
                   )}
                   {score.dinnerMeal && (
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-stone-500 font-bold">Cena:</span>
-                      <span className="text-emerald-400 font-bold">{score.dinnerMeal}</span>
-                    </div>
+                    <span className="text-emerald-400 font-bold text-sm truncate">{score.dinnerMeal}</span>
+                  )}
+                  {!score.lunchMeal && !score.dinnerMeal && (
+                    <span className="text-stone-700 font-bold text-xs italic">Sin platos</span>
                   )}
                 </div>
-              )}
+                <div className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="50"
+                    placeholder="kcal del día"
+                    value={score.calories || ''}
+                    onChange={(e) => setScore(prev => ({ ...prev, calories: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
+                    className="w-full bg-transparent text-stone-300 font-bold text-right outline-none placeholder:text-stone-700"
+                  />
+                  <span className="text-stone-500 font-bold text-sm">kcal</span>
+                </div>
+              </div>
 
               {/* Counters */}
               <div className="space-y-2">
@@ -332,12 +342,20 @@ const DailyFoodScoreModal = ({
                 {total > 0 ? `+${total}` : total}
               </span>
             </div>
-            <button 
-              onClick={() => onSave(score)}
-              className="bg-lime-500 hover:bg-lime-400 text-stone-950 px-6 py-3 rounded-xl font-bold transition-colors"
-            >
-              Guardar
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={onClose}
+                className="bg-stone-800 hover:bg-stone-700 text-stone-300 p-3 rounded-xl font-bold transition-colors flex items-center justify-center"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => onSave(score)}
+                className="bg-lime-500 hover:bg-lime-400 text-stone-950 px-6 py-3 rounded-xl font-bold transition-colors"
+              >
+                Guardar
+              </button>
+            </div>
           </div>
         )}
       </div>
