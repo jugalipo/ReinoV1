@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
 import { ArrowLeft, Train, Plus, Check, Trash2, ChevronRight, CornerDownRight, X, Edit2, Save } from 'lucide-react';
 
@@ -18,6 +18,25 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   const [isEditing, setIsEditing] = useState(false);
   const [editMonthlyText, setEditMonthlyText] = useState('');
   const [editAnnualText, setEditAnnualText] = useState('');
+
+  // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
+  useEffect(() => {
+    const activeModal = isEditing ? 'editTrains' : 
+                       activeTaskId ? 'trainSubtasks' : null;
+
+    if (activeModal) {
+      window.history.pushState({ modal: activeModal }, '');
+      
+      const handlePopState = () => {
+        setIsEditing(false); // Close without saving (Back = Cancel)
+        setActiveTaskId(null);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [isEditing, activeTaskId]);
+  // ---------------------------------------------
 
   const tasksToText = (taskList: Task[]) => {
       return taskList.map(t => {
@@ -441,8 +460,14 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
       {/* Subtasks Modal - Changed from absolute to fixed */}
       {activeTaskId && activeTask && !isEditing && (
-        <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-             <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden flex flex-col max-h-[80vh]">
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setActiveTaskId(null)}
+        >
+             <div 
+               className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden flex flex-col max-h-[80vh]"
+               onClick={(e) => e.stopPropagation()}
+             >
                  <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                      <div>
                         <h3 className="font-bold text-stone-200 text-lg truncate pr-4">{parseTrainInfo(activeTask.text).name}</h3>

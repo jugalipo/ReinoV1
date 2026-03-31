@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppData } from '../types';
 import { sanitizeForFirestore } from '../App';
-import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft, Activity } from 'lucide-react';
+import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft, Activity, Bell } from 'lucide-react';
 
 interface HistoryEditorModalProps {
   data: AppData;
@@ -32,6 +32,13 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
               ...data.stats,
               [key]: Math.max(0, newVal)
           }
+      });
+  };
+
+  const adjustRootCount = (key: 'leonesCount' | 'huchaCount', delta: number) => {
+      onUpdateData({
+          ...data,
+          [key]: Math.max(0, (data[key] || 0) + delta)
       });
   };
 
@@ -543,8 +550,64 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                            <button onClick={() => adjustStat('projectPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
                        </div>
                    </div>
+
+                   <div className="flex items-center justify-between bg-amber-900/20 p-3 rounded-xl border border-amber-900/50">
+                       <span className="font-bold text-amber-500 text-sm">Leones (20s)</span>
+                       <div className="flex items-center gap-3">
+                           <button onClick={() => adjustRootCount('leonesCount', -1)} className="p-1 bg-amber-950/50 border border-amber-900/50 text-amber-500 rounded hover:bg-amber-900/50"><Minus className="w-4 h-4" /></button>
+                           <span className="font-mono w-8 text-center text-amber-400">{data.leonesCount || 0}</span>
+                           <button onClick={() => adjustRootCount('leonesCount', 1)} className="p-1 bg-amber-950/50 border border-amber-900/50 text-amber-500 rounded hover:bg-amber-900/50"><Plus className="w-4 h-4" /></button>
+                       </div>
+                   </div>
+
+                   <div className="flex items-center justify-between bg-emerald-900/20 p-3 rounded-xl border border-emerald-900/50">
+                       <span className="font-bold text-emerald-500 text-sm">Billetes (20s)</span>
+                       <div className="flex items-center gap-3">
+                           <button onClick={() => adjustRootCount('huchaCount', -1)} className="p-1 bg-emerald-950/50 border border-emerald-900/50 text-emerald-500 rounded hover:bg-emerald-900/50"><Minus className="w-4 h-4" /></button>
+                           <span className="font-mono w-8 text-center text-emerald-400">{data.huchaCount || 0}</span>
+                           <button onClick={() => adjustRootCount('huchaCount', 1)} className="p-1 bg-emerald-950/50 border border-emerald-900/50 text-emerald-500 rounded hover:bg-emerald-900/50"><Plus className="w-4 h-4" /></button>
+                       </div>
+                   </div>
                </div>
            </div>
+
+            <div className="pt-6 border-t border-stone-800">
+                <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider mb-3 px-2">Recordatorio</h3>
+                <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Bell className="w-5 h-5 text-purple-400" />
+                            <span className="font-bold text-stone-200 text-sm">Hora diaria</span>
+                        </div>
+                        <input 
+                            type="time" 
+                            value={data.reminderTime || '07:00'}
+                            onChange={(e) => onUpdateData({ ...data, reminderTime: e.target.value })}
+                            className="bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-purple-500 font-mono"
+                        />
+                    </div>
+                    
+                    <button 
+                        onClick={() => {
+                            if (!('Notification' in window)) {
+                                alert("Tu navegador no soporta notificaciones.");
+                                return;
+                            }
+                            Notification.requestPermission().then(permission => {
+                                if (permission === "granted") {
+                                    new Notification("¡El Reino!", { body: "Notificaciones activadas correctamente." });
+                                }
+                            });
+                        }}
+                        className="w-full py-3 rounded-xl border border-purple-900/30 text-purple-400 hover:bg-purple-950/20 font-bold transition-all text-sm uppercase tracking-wider"
+                    >
+                        Solicitar Permiso de Notificaciones
+                    </button>
+                    <p className="text-[10px] text-stone-500 text-center italic">
+                        Recibirás un aviso cada día a esta hora para no olvidar tus hábitos.
+                    </p>
+                </div>
+            </div>
 
            {/* Export Data Section (Moved from Settings) */}
            <div className="pt-6 border-t border-stone-800">

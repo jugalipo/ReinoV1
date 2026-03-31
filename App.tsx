@@ -43,6 +43,25 @@ interface FirestoreErrorInfo {
   }
 }
 
+const DebouncedInput = ({ value, onChange, ...props }: any) => {
+    const [localValue, setLocalValue] = useState(value);
+    useEffect(() => { setLocalValue(value); }, [value]);
+    return (
+        <input 
+            {...props} 
+            value={localValue} 
+            onChange={(e) => setLocalValue(e.target.value)} 
+            onBlur={() => { if (localValue !== value) onChange(localValue); }} 
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    if (localValue !== value) onChange(localValue);
+                    e.currentTarget.blur();
+                }
+            }}
+        />
+    );
+};
+
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
@@ -247,7 +266,8 @@ const INITIAL_DATA: AppData = {
       daysTrained: 0,
       totalMinutes: 0,
       sprintCount: 0,
-      stretchCount: 0
+      stretchCount: 0,
+      history: {}
   },
   billetesState: Array(20).fill(false),
   huchaCount: 0
@@ -393,7 +413,10 @@ const processResets = (parsed: AppData): AppData => {
       }));
   }
   if (!result.exercise) {
-      result.exercise = { seriesCurrent: 0, daysTrained: 0, totalMinutes: 0, sprintCount: 0, stretchCount: 0 };
+      result.exercise = { seriesCurrent: 0, daysTrained: 0, totalMinutes: 0, sprintCount: 0, stretchCount: 0, history: {} };
+  }
+  if (!result.exercise.history) {
+      result.exercise.history = {};
   }
   if (typeof result.exercise.totalMinutes === 'undefined') {
       result.exercise.totalMinutes = 0;
@@ -411,6 +434,9 @@ const processResets = (parsed: AppData): AppData => {
   if (typeof result.food.fridgeCount === 'undefined') {
       result.food = { ...result.food, fridgeCount: 0, ritualCount: 0, lastWeeklyReset: Date.now(), wheel: { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false }, weeklyBonuses: { organs: false, legumes: false, fast24: false } };
   }
+  if (!result.food.weeklyExtras) {
+      result.food.weeklyExtras = {};
+  }
   if (result.friends) {
       result.friends = result.friends.map((f: any) => ({ ...f, interactions: f.interactions || { person: 0, call: 0, gift: 0, photo: 0, message: 0 }, tasks: f.tasks || [] }));
   }
@@ -427,6 +453,13 @@ const processResets = (parsed: AppData): AppData => {
 
   // Cleanup old GAP task
   result.hunos = result.hunos.filter(t => t.text !== 'GAP');
+
+  if (!result.reminderTime) { result.reminderTime = '07:00'; }
+  if (!result.exercise.timerBlocks) {
+      result.exercise.timerBlocks = [
+          { id: 'default-1', workSecs: 45, restSecs: 15, rounds: 3 }
+      ];
+  }
 
   const now = new Date();
   const today = now.toDateString();
@@ -488,6 +521,14 @@ const processResets = (parsed: AppData): AppData => {
       result.food.score = 0;
       result.food.weeklyBonuses = { organs: false, legumes: false, fast24: false };
       result.food.lastWeeklyReset = Date.now();
+      
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(now.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+      const mondayStr = monday.toISOString().split('T')[0];
+      if (!result.food.weeklyExtras) result.food.weeklyExtras = {};
+      result.food.weeklyExtras[mondayStr] = 0;
   }
   
   if (!result.weeklyGoals) {
@@ -564,6 +605,78 @@ function App() {
 
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+
+  // --- MOBILE BACK BUTTON SUPPORT ---
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.view) {
+        setView(event.state.view);
+      } else {
+        setView('home');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Ensure initial state exists
+    if (!window.history.state) {
+      window.history.replaceState({ view: 'home' }, '');
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    // Push new state if the current history view doesn't match the state view
+    // This handles both forward navigation (clicking a button) and deep updates
+    if (window.history.state?.view !== view) {
+      window.history.pushState({ view }, '');
+    }
+  }, [view]);
+
+  // --- NOTIFICATION REMINDER LOOP ---
+  useEffect(() => {
+    if (!loaded || isInitializing) return;
+
+    const checkNotification = () => {
+      const now = new Date();
+      const currentHHiMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const todayDate = now.toDateString();
+
+      // Check if it's time and we haven't sent it today
+      if (currentHHiMM === (data.reminderTime || '07:00') && data.lastReminderDate !== todayDate) {
+        if (Notification.permission === 'granted') {
+          new Notification("¿El Reino?", {
+            body: "¿Apuntaste todo lo de ayer?",
+            icon: '/pwa-192x192.png',
+            tag: 'daily-reminder' // Avoid duplicates
+          });
+          
+          // Update lastReminderDate to avoid repeat in the same minute or day
+          const updatedData = { ...data, lastReminderDate: todayDate };
+          setData(updatedData);
+          
+          // Persist to Firebase if user is logged in
+          if (user) {
+            const habitsRef = collection(db, 'users', user.uid, 'habits');
+            const serialized = serializeAppData(updatedData);
+            const batch = writeBatch(db);
+            serialized.forEach(d => {
+              batch.set(doc(habitsRef, d.id), d.data);
+            });
+            batch.commit().catch(console.error);
+          }
+        }
+      }
+    };
+
+    const timer = setInterval(checkNotification, 60000); // Check every minute
+    checkNotification(); // Initial check
+
+    return () => clearInterval(timer);
+  }, [data.reminderTime, data.lastReminderDate, loaded, isInitializing, user, data]);
+  // ----------------------------------
+  // ----------------------------------
   const [authReady, setAuthReady] = useState(false);
   const lastSnapshotData = useRef<string>('');
   const isFirstRender = useRef(true);
@@ -738,35 +851,35 @@ function App() {
   const handleHunosUpdate = (newTasks: Task[], incrementPleno: boolean = false) => {
     const gymTaskNew = newTasks.find(t => t.text.includes('Gim'));
     const gymTaskOld = data.hunos.find(t => t.id === gymTaskNew?.id);
-    if (gymTaskNew && gymTaskOld && !gymTaskOld.completed && gymTaskNew.completed) setView('exercise');
+    if (gymTaskNew && gymTaskOld && !gymTaskOld.completed && gymTaskNew.completed) setTimeout(() => setView('exercise'), 1200);
     
     const loveTaskNew = newTasks.find(t => t.text.includes('❤️❤️'));
     const loveTaskOld = data.hunos.find(t => t.id === loveTaskNew?.id);
-    if (loveTaskNew && loveTaskOld && !loveTaskOld.completed && loveTaskNew.completed) setView('love');
+    if (loveTaskNew && loveTaskOld && !loveTaskOld.completed && loveTaskNew.completed) setTimeout(() => setView('love'), 1200);
     
     const forjasTaskNew = newTasks.find(t => t.text.includes('🔥'));
     const forjasTaskOld = data.hunos.find(t => t.id === forjasTaskNew?.id);
-    if (forjasTaskNew && forjasTaskOld && !forjasTaskOld.completed && forjasTaskNew.completed) setView('forjas');
+    if (forjasTaskNew && forjasTaskOld && !forjasTaskOld.completed && forjasTaskNew.completed) setTimeout(() => setView('forjas'), 1200);
     
     const leonesTaskNew = newTasks.find(t => t.text.includes('🦁'));
     const leonesTaskOld = data.hunos.find(t => t.id === leonesTaskNew?.id);
-    if (leonesTaskNew && leonesTaskOld && !leonesTaskOld.completed && leonesTaskNew.completed) setView('leones');
+    if (leonesTaskNew && leonesTaskOld && !leonesTaskOld.completed && leonesTaskNew.completed) setTimeout(() => setView('leones'), 1200);
     
     const ayunoTaskNew = newTasks.find(t => t.text.includes('Ayuno'));
     const ayunoTaskOld = data.hunos.find(t => t.id === ayunoTaskNew?.id);
-    if (ayunoTaskNew && ayunoTaskOld && !ayunoTaskOld.completed && ayunoTaskNew.completed) setView('food');
+    if (ayunoTaskNew && ayunoTaskOld && !ayunoTaskOld.completed && ayunoTaskNew.completed) setTimeout(() => setView('food'), 1200);
     
     const menuTaskNew = newTasks.find(t => t.text.includes('Menú'));
     const menuTaskOld = data.hunos.find(t => t.id === menuTaskNew?.id);
-    if (menuTaskNew && menuTaskOld && !menuTaskOld.completed && menuTaskNew.completed) setView('food');
+    if (menuTaskNew && menuTaskOld && !menuTaskOld.completed && menuTaskNew.completed) setTimeout(() => setView('food'), 1200);
     
     const setasTaskNew = newTasks.find(t => t.text.includes('🍄'));
     const setasTaskOld = data.hunos.find(t => t.id === setasTaskNew?.id);
-    if (setasTaskNew && setasTaskOld && !setasTaskOld.completed && setasTaskNew.completed) setView('sets');
+    if (setasTaskNew && setasTaskOld && !setasTaskOld.completed && setasTaskNew.completed) setTimeout(() => setView('sets'), 1200);
     
     const trenesTaskNew = newTasks.find(t => t.text.includes('🚂'));
     const trenesTaskOld = data.hunos.find(t => t.id === trenesTaskNew?.id);
-    if (trenesTaskNew && trenesTaskOld && !trenesTaskOld.completed && trenesTaskNew.completed) setView('trains');
+    if (trenesTaskNew && trenesTaskOld && !trenesTaskOld.completed && trenesTaskNew.completed) setTimeout(() => setView('trains'), 1200);
     
     const projTaskNew = newTasks.find(t => t.text.includes('⚙️'));
     const projTaskOld = data.hunos.find(t => t.id === projTaskNew?.id);
@@ -892,6 +1005,14 @@ function App() {
     if (data.trains.length === 0) return 0;
     return Math.round((data.trains.filter(t => t.completed).length / data.trains.length) * 100);
   };
+
+  const getLoveProgress = () => {
+    if (data.friends.length === 0) return 0;
+    const now = Date.now();
+    const oneMonth = 30 * 24 * 60 * 60 * 1000;
+    const greenCount = data.friends.filter(f => now - f.lastInteraction < oneMonth).length;
+    return Math.round((greenCount / data.friends.length) * 100);
+  };
   
   const getResourceProgress = (tasks: ResourceTask[], isForjas: boolean = false) => {
       if (tasks.length === 0) return 0;
@@ -970,7 +1091,7 @@ function App() {
       case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({...prev, billetesState: bs, huchaCount: hc}))} leonesState={data.leonesState || Array(20).fill(false)} leonesCount={data.leonesCount || 0} onUpdateLeones={(ls, lc) => setData(prev => ({...prev, leonesState: ls, leonesCount: lc}))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
       case 'exercise': return <ExerciseView exercise={data.exercise} onUpdate={ex => setData(prev => ({ ...prev, exercise: ex }))} onBack={() => setView('home')} />;
       case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;
-      case 'stats': return <StatsView data={data} onBack={() => setView('home')} />;
+      case 'stats': return <StatsView data={data} onUpdate={setData} onBack={() => setView('home')} />;
       default:
         const trainProgress = getTrainProgress();
         const isTrainPleno = trainProgress === 100;
@@ -1023,7 +1144,14 @@ function App() {
               </button>
             </div>
             <div className="grid grid-cols-4 gap-3 mb-6">
-                <button onClick={() => setView('love')} className="aspect-square bg-pink-950/30 rounded-xl flex items-center justify-center hover:bg-pink-900/50 transition-colors border border-pink-900/50 group"><Heart className="w-8 h-8 text-pink-500 group-hover:text-pink-400 transition-colors" /></button>
+                <button onClick={() => setView('love')} className="aspect-square bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-900/50 transition-colors border border-pink-900/50 group relative">
+                    <div className="flex-1 flex items-center justify-center">
+                        <Heart className="w-8 h-8 text-pink-500 group-hover:text-pink-400 transition-colors" />
+                    </div>
+                    <div className="w-full h-1 bg-pink-900/40 rounded-full overflow-hidden">
+                        <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
+                    </div>
+                </button>
                 <button 
                   onClick={() => setView('food')} 
                   className={`aspect-square rounded-xl flex flex-col items-center justify-between p-2 transition-all duration-700 border group relative ${
@@ -1033,10 +1161,18 @@ function App() {
                   }`}
                 >
                     <div className="flex-1 flex items-center justify-center">
-                        <Utensils className={`w-8 h-8 transition-colors ${isFoodPleno ? 'text-lime-200' : 'text-lime-500 group-hover:text-lime-400'}`} />
+                        <Utensils className={`w-8 h-8 transition-colors ${
+                            isFoodPleno ? 'text-lime-200' : 
+                            data.food.score < 0 ? 'text-red-500 animate-blink' : 'text-lime-500 group-hover:text-lime-400'
+                        }`} />
                     </div>
                     <div className="w-full h-1 bg-lime-900/40 rounded-full overflow-hidden">
-                        <div className="h-full bg-lime-500 transition-all duration-300" style={{ width: `${Math.min(100, (data.food.score / 50) * 100)}%` }}></div>
+                        <div 
+                            className={`h-full transition-all duration-500 ${
+                                data.food.score < 0 ? 'bg-red-500 animate-blink' : 'bg-lime-500'
+                            }`} 
+                            style={{ width: `${data.food.score < 0 ? 100 : Math.min(100, (data.food.score / 50) * 100)}%` }}
+                        ></div>
                     </div>
                 </button>
                 <button onClick={() => setView('leones')} className="aspect-square bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-900/50 transition-colors border border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
@@ -1049,10 +1185,10 @@ function App() {
                 {/* Leones */}
                 <div className="flex items-center gap-3">
                   <span className="text-2xl flex-shrink-0">🦁</span>
-                  <input 
+                  <DebouncedInput 
                     type="text" 
                     value={data.weeklyGoals?.leones.text || ''} 
-                    onChange={(e) => updateWeeklyGoal('leones', 'text', e.target.value)}
+                    onChange={(val: string) => updateWeeklyGoal('leones', 'text', val)}
                     className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-amber-500 transition-colors"
                     placeholder="Objetivo Leones..."
                   />
@@ -1067,10 +1203,10 @@ function App() {
                 {/* Forjas */}
                 <div className="flex items-center gap-3">
                   <span className="text-2xl flex-shrink-0">🔥</span>
-                  <input 
+                  <DebouncedInput 
                     type="text" 
                     value={data.weeklyGoals?.forjas.text || ''} 
-                    onChange={(e) => updateWeeklyGoal('forjas', 'text', e.target.value)}
+                    onChange={(val: string) => updateWeeklyGoal('forjas', 'text', val)}
                     className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-orange-500 transition-colors"
                     placeholder="Objetivo Forjas..."
                   />
@@ -1085,10 +1221,10 @@ function App() {
                 {/* Puerto */}
                 <div className="flex items-center gap-3">
                   <span className="text-2xl flex-shrink-0">⛵</span>
-                  <input 
+                  <DebouncedInput 
                     type="text" 
                     value={data.weeklyGoals?.puerto.text || ''} 
-                    onChange={(e) => updateWeeklyGoal('puerto', 'text', e.target.value)}
+                    onChange={(val: string) => updateWeeklyGoal('puerto', 'text', val)}
                     className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 transition-colors"
                     placeholder="Objetivo Puerto..."
                   />
@@ -1104,14 +1240,14 @@ function App() {
                 <div className="w-full h-1.5 bg-stone-950 rounded-full overflow-hidden mt-4">
                   <div 
                     className="h-full bg-stone-500 transition-all duration-300" 
-                    style={{ width: `${((new Date().getDay() + 1) / 7) * 100}%` }}
+                    style={{ width: `${((new Date().getDay() === 0 ? 7 : new Date().getDay()) / 7) * 100}%` }}
                   />
                 </div>
               </div>
             </div>
 
             <DailyHunos tasks={data.hunos} hunosHistory={data.hunosHistory || {}} onUpdate={handleHunosUpdate} />
-            <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300"><div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><GearIcon className="w-6 h-6 text-stone-400" /><h2 className="text-xl font-bold text-stone-200">Proyectos</h2></div><button onClick={() => setIsEditingProjects(!isEditingProjects)} className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}>{isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}</button></div>{isEditingProjects ? ( <div className="space-y-3 animate-in fade-in duration-300">{data.projects.map(proj => ( <div key={proj.id} className="flex gap-2"><input type="text" value={proj.text} onChange={(e) => handleProjectTextChange(proj.id, e.target.value)} className="flex-1 min-w-0 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" /><button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button></div> ))}<button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button></div> ) : ( <><div className="grid grid-cols-4 gap-3">{data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin proyectos activos.</p>}{data.projects.map((proj, idx) => ( <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${ proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100' }`}><span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span></button> ))}</div><button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all"><Music className="w-5 h-5" /><span className="font-bold">Profundizar en Piano</span></button></> )}</div>
+            <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300"><div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><GearIcon className="w-6 h-6 text-stone-400" /><h2 className="text-xl font-bold text-stone-200">Proyectos</h2></div><button onClick={() => setIsEditingProjects(!isEditingProjects)} className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}>{isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}</button></div>{isEditingProjects ? ( <div className="space-y-3 animate-in fade-in duration-300">{data.projects.map(proj => ( <div key={proj.id} className="flex gap-2"><DebouncedInput type="text" value={proj.text} onChange={(val: string) => handleProjectTextChange(proj.id, val)} className="flex-1 min-w-0 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" /><button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button></div> ))}<button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button></div> ) : ( <><div className="grid grid-cols-4 gap-3">{data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin proyectos activos.</p>}{data.projects.map((proj, idx) => ( <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${ proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100' }`}><span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span></button> ))}</div><button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all"><Music className="w-5 h-5" /><span className="font-bold">Profundizar en Piano</span></button></> )}</div>
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
             {showHistory && <HistoryEditorModal data={data} onUpdateData={setData} onClose={() => setShowHistory(false)} />}
             

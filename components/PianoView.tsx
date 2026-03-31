@@ -83,6 +83,21 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const targetEndTimeRef = useRef<number | null>(null);
 
+  // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
+  useEffect(() => {
+    if (isTimerOpen) {
+      window.history.pushState({ modal: 'pianoTimer' }, '');
+      
+      const handlePopState = () => {
+        setIsTimerOpen(false);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [isTimerOpen]);
+  // ---------------------------------------------
+
   const toggleChecklist = (field: keyof PianoState['checklist'], forceValue?: boolean) => {
     const currentState = stateRef.current;
     const newValue = forceValue !== undefined ? forceValue : !currentState.checklist[field];
@@ -547,7 +562,7 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
             {checklistItems.map((item) => {
               const isChecked = state.checklist[item.key];
               
-              let displayTime = item.time;
+              let displayTime: string = item.time;
               if (timerSections.length > 0) {
                 const section = timerSections.find(s => s.key === item.key);
                 if (section) {

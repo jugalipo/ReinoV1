@@ -15,21 +15,43 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [customTime, setCustomTime] = useState('');
 
-  // State for Interval Timer
-  const [timerWorkTime, setTimerWorkTime] = useState(45);
-  const [timerRestTime, setTimerRestTime] = useState(15);
-  const [timerRounds, setTimerRounds] = useState(3);
+  // --- NEW BLOCK-BASED TIMER STATE ---
+  const timerBlocks = exercise.timerBlocks || [{ id: 'default', workSecs: 45, restSecs: 15, rounds: 3 }];
+  const [currentBlockIndex, setCurrentBlockIndex] = useState(0);
   const [timerCurrentRound, setTimerCurrentRound] = useState(1);
-  const [timerTimeLeft, setTimerTimeLeft] = useState(45);
-  const [timerIsRunning, setTimerIsRunning] = useState(false);
   const [timerPhase, setTimerPhase] = useState<'work' | 'rest'>('work');
+  const [timerIsRunning, setTimerIsRunning] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
+  
+  // Real-time progress (0 to 1) for smooth animation
+  const [visualProgress, setVisualProgress] = useState(1);
+  const [timerTimeLeft, setTimerTimeLeft] = useState(timerBlocks[0].workSecs);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const targetEndTimeRef = useRef<number | null>(null);
 
+  const currentBlock = timerBlocks[currentBlockIndex] || timerBlocks[0];
+
+  // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useEffect(() => {
-    // Create audio element for beep
+    const activeModal = showTimeModal ? 'exerciseTime' : 
+                       showTimerSettings ? 'timerSettings' : null;
+
+    if (activeModal) {
+      window.history.pushState({ modal: activeModal }, '');
+      
+      const handlePopState = () => {
+        setShowTimeModal(false);
+        setShowTimerSettings(false);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [showTimeModal, showTimerSettings]);
+  // ---------------------------------------------
+
+  useEffect(() => {
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     return () => {
       if (audioRef.current) {
@@ -59,6 +81,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
     }
   };
 
+  // --- SMOOTH TIMER LOGIC ---
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
@@ -70,48 +93,60 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
       interval = setInterval(() => {
         if (targetEndTimeRef.current !== null) {
           const now = Date.now();
-          const remaining = Math.max(0, Math.round((targetEndTimeRef.current - now) / 1000));
+          const msRemaining = targetEndTimeRef.current - now;
+          const totalDurationMs = (timerPhase === 'work' ? currentBlock.workSecs : currentBlock.restSecs) * 1000;
           
-          setTimerTimeLeft(prev => {
-            if (prev !== remaining) return remaining;
-            return prev;
-          });
+          setTimerTimeLeft(Math.max(0, Math.round(msRemaining / 1000)));
+          setVisualProgress(Math.max(0, msRemaining / totalDurationMs));
 
-          if (remaining === 0) {
+          if (msRemaining <= 0) {
             targetEndTimeRef.current = null;
             
             if (timerPhase === 'work') {
-              if (timerCurrentRound >= timerRounds) {
-                // Finished all rounds
-                playDoubleBeep();
-                setTimerIsRunning(false);
-                setTimerPhase('work');
-                setTimerCurrentRound(1);
-                setTimerTimeLeft(timerWorkTime);
+              if (timerCurrentRound >= currentBlock.rounds) {
+                // Finished block
+                if (currentBlockIndex < timerBlocks.length - 1) {
+                  playBeep();
+                  const nextBlock = timerBlocks[currentBlockIndex + 1];
+                  setCurrentBlockIndex(prev => prev + 1);
+                  setTimerCurrentRound(1);
+                  setTimerPhase('work');
+                  setTimerTimeLeft(nextBlock.workSecs);
+                  targetEndTimeRef.current = Date.now() + nextBlock.workSecs * 1000;
+                } else {
+                  // Finished workout
+                  playDoubleBeep();
+                  setTimerIsRunning(false);
+                  setCurrentBlockIndex(0);
+                  setTimerCurrentRound(1);
+                  setTimerPhase('work');
+                  setTimerTimeLeft(timerBlocks[0].workSecs);
+                  setVisualProgress(1);
+                }
               } else {
-                // Start rest
+                // Rest
                 playBeep();
                 setTimerPhase('rest');
-                setTimerTimeLeft(timerRestTime);
-                targetEndTimeRef.current = Date.now() + timerRestTime * 1000;
+                setTimerTimeLeft(currentBlock.restSecs);
+                targetEndTimeRef.current = Date.now() + currentBlock.restSecs * 1000;
               }
             } else {
-              // Start next work round
+              // Next round
               playBeep();
               setTimerPhase('work');
-              setTimerCurrentRound((prev) => prev + 1);
-              setTimerTimeLeft(timerWorkTime);
-              targetEndTimeRef.current = Date.now() + timerWorkTime * 1000;
+              setTimerCurrentRound(prev => prev + 1);
+              setTimerTimeLeft(currentBlock.workSecs);
+              targetEndTimeRef.current = Date.now() + currentBlock.workSecs * 1000;
             }
           }
         }
-      }, 200);
+      }, 30); // 30ms for smooth 30fps animation
     } else {
       targetEndTimeRef.current = null;
     }
 
     return () => clearInterval(interval);
-  }, [timerIsRunning, timerPhase, timerCurrentRound, timerRounds, timerWorkTime, timerRestTime]);
+  }, [timerIsRunning, timerPhase, timerCurrentRound, currentBlockIndex, timerBlocks, currentBlock]);
 
   const toggleTimer = () => {
     const newRunning = !timerIsRunning;
@@ -131,16 +166,33 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
   const resetTimer = () => {
     setTimerIsRunning(false);
+    setCurrentBlockIndex(0);
     setTimerPhase('work');
     setTimerCurrentRound(1);
-    setTimerTimeLeft(timerWorkTime);
+    setTimerTimeLeft(timerBlocks[0].workSecs);
+    setVisualProgress(1);
     targetEndTimeRef.current = null;
   };
 
-  const applyTimerSettings = () => {
-    resetTimer();
-    setShowTimerSettings(false);
-  };
+  // --- ROUNDED RECT TIMER LOGIC ---
+  const rectW = 240;
+  const rectH = 170;
+  const rectRX = 45;
+  const perimeter = 2 * (rectW - 2 * rectRX) + 2 * (rectH - 2 * rectRX) + (2 * Math.PI * rectRX);
+  const offset = perimeter - visualProgress * perimeter;
+  // Construct path starting from top center
+  const timerPath = `
+    M 128 ${128 - rectH / 2}
+    L ${128 + rectW / 2 - rectRX} ${128 - rectH / 2}
+    A ${rectRX} ${rectRX} 0 0 1 ${128 + rectW / 2} ${128 - rectH / 2 + rectRX}
+    L ${128 + rectW / 2} ${128 + rectH / 2 - rectRX}
+    A ${rectRX} ${rectRX} 0 0 1 ${128 + rectW / 2 - rectRX} ${128 + rectH / 2}
+    L ${128 - rectW / 2 + rectRX} ${128 + rectH / 2}
+    A ${rectRX} ${rectRX} 0 0 1 ${128 - rectW / 2} ${128 + rectH / 2 - rectRX}
+    L ${128 - rectW / 2} ${128 - rectH / 2 + rectRX}
+    A ${rectRX} ${rectRX} 0 0 1 ${128 - rectW / 2 + rectRX} ${128 - rectH / 2}
+    Z
+  `;
 
   const formatTimerDisplay = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -152,10 +204,20 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
     const next = seriesCurrent + 1;
     if (next >= 9) {
       // Complete Cycle
+      const today = new Date().toDateString();
+      const currentStats = (exercise.history || {})[today] || { minutes: 0, workouts: 0 };
+      
       onUpdate({
         ...exercise,
         seriesCurrent: 0,
-        daysTrained: daysTrained + 1
+        daysTrained: (daysTrained || 0) + 1,
+        history: {
+          ...(exercise.history || {}),
+          [today]: {
+            ...currentStats,
+            workouts: currentStats.workouts + 1
+          }
+        }
       });
     } else {
       // Increment
@@ -184,9 +246,19 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
   const addMinutes = (amount: number) => {
       if (amount <= 0) return;
+      const today = new Date().toDateString();
+      const currentStats = (exercise.history || {})[today] || { minutes: 0, workouts: 0 };
+
       onUpdate({
           ...exercise,
-          totalMinutes: (totalMinutes || 0) + amount
+          totalMinutes: (totalMinutes || 0) + amount,
+          history: {
+            ...(exercise.history || {}),
+            [today]: {
+              ...currentStats,
+              minutes: currentStats.minutes + amount
+            }
+          }
       });
       setShowTimeModal(false);
       setCustomTime('');
@@ -322,7 +394,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
         
         {/* INTERVAL TIMER SECTION */}
         <div className="bg-stone-900 rounded-2xl p-6 border border-stone-800 shadow-xl relative overflow-hidden mt-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-6">
                 <h2 className="text-stone-400 font-bold uppercase tracking-widest text-sm flex items-center gap-2">
                     <Timer className="w-4 h-4" /> Cronómetro de Series
                 </h2>
@@ -335,23 +407,80 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
             </div>
 
             <div className="flex flex-col items-center justify-center py-4">
-                <div className="text-sm font-bold uppercase tracking-widest mb-2 text-stone-500">
-                    Ronda {timerCurrentRound} / {timerRounds}
-                </div>
-                
-                <div className={`text-6xl font-black font-mono mb-2 transition-colors ${
-                    timerPhase === 'work' ? 'text-emerald-400' : 'text-cyan-400'
-                }`}>
-                    {formatTimerDisplay(timerTimeLeft)}
-                </div>
-                
-                <div className={`text-sm font-bold uppercase tracking-widest mb-6 ${
-                    timerPhase === 'work' ? 'text-emerald-600' : 'text-cyan-600'
-                }`}>
-                    {timerPhase === 'work' ? '¡A TOPE!' : 'DESCANSO'}
+                {/* CIRCULAR TIMER */}
+                <div className="relative w-64 h-64 mb-8">
+                    {/* SVG Progress Rectangle */}
+                    <svg className="w-full h-full transform" viewBox="0 0 256 256">
+                        {/* Background Rect */}
+                        <path
+                            d={timerPath}
+                            fill="transparent"
+                            stroke="currentColor"
+                            strokeWidth="12"
+                            strokeLinejoin="round"
+                            className="text-stone-800/50"
+                        />
+                        {/* Progress Rect */}
+                        <path
+                            d={timerPath}
+                            fill="transparent"
+                            stroke="currentColor"
+                            strokeWidth="12"
+                            strokeDasharray={perimeter}
+                            strokeDashoffset={offset}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={`transition-all duration-75 ${
+                                timerPhase === 'work' ? 'text-emerald-500' : 'text-cyan-500'
+                            }`}
+                        />
+                    </svg>
+
+                    {/* Inner Content */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <div className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${
+                            timerPhase === 'work' ? 'text-emerald-500/70' : 'text-cyan-500/70'
+                        }`}>
+                            {timerPhase === 'work' ? '¡A TOPE!' : 'DESCANSO'}
+                        </div>
+                        
+                        <div className={`text-6xl font-black font-mono leading-none mb-4 transition-colors ${
+                            timerPhase === 'work' ? 'text-white' : 'text-cyan-400'
+                        }`}>
+                            {formatTimerDisplay(timerTimeLeft)}
+                        </div>
+
+                        {/* Round Dots Indicators (GLOBAL VIEW) */}
+                        <div className="flex flex-wrap gap-2 items-center justify-center mt-2 max-w-[180px]">
+                            {timerBlocks.flatMap((block, bIdx) => 
+                                Array.from({ length: block.rounds }).map((_, rIdx) => {
+                                    const isCompleted = bIdx < currentBlockIndex || (bIdx === currentBlockIndex && rIdx + 1 < timerCurrentRound);
+                                    const isCurrent = bIdx === currentBlockIndex && rIdx + 1 === timerCurrentRound;
+                                    
+                                    return (
+                                        <div 
+                                            key={`${block.id}-${rIdx}`}
+                                            className={`w-2.5 h-2.5 rounded-full border-2 transition-all duration-500 ${
+                                                isCompleted 
+                                                    ? 'bg-yellow-500 border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]' 
+                                                    : isCurrent
+                                                        ? 'bg-stone-700 border-stone-400 animate-pulse scale-110' 
+                                                        : 'bg-stone-900 border-stone-800'
+                                            } ${bIdx !== currentBlockIndex ? 'opacity-40' : 'opacity-100'}`}
+                                        />
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Block Info */}
+                        <div className="mt-4 text-[10px] font-bold text-stone-600 uppercase tracking-widest">
+                            Bloque {currentBlockIndex + 1} de {timerBlocks.length}
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-4 w-full">
+                <div className="flex items-center gap-4 w-full max-w-[280px]">
                     <button 
                         onClick={resetTimer}
                         className="w-14 h-14 rounded-full border border-stone-700 text-stone-400 flex items-center justify-center hover:bg-stone-800 transition-colors"
@@ -385,8 +514,14 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
       {/* Add Time Modal */}
       {showTimeModal && (
-        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowTimeModal(false)}
+        >
+            <div 
+              className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
                 <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                      <h3 className="font-bold text-indigo-200 text-lg">Añadir Tiempo</h3>
                      <button onClick={() => setShowTimeModal(false)} className="p-1 hover:bg-stone-700 rounded-full">
@@ -431,49 +566,114 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
       {/* Timer Settings Modal */}
       {showTimerSettings && (
-        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
-                <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
-                     <h3 className="font-bold text-stone-200 text-lg">Ajustes del Cronómetro</h3>
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowTimerSettings(false)}
+        >
+            <div 
+              className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50 shrink-0">
+                     <h3 className="font-bold text-stone-200 text-lg">Rutina de Intervalos</h3>
                      <button onClick={() => setShowTimerSettings(false)} className="p-1 hover:bg-stone-700 rounded-full">
                          <X className="w-6 h-6 text-stone-400" />
                      </button>
                 </div>
                 
-                <div className="p-6 space-y-6">
-                    <div>
-                        <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Tiempo de Ejercicio (segundos)</label>
-                        <input
-                            type="number"
-                            value={timerWorkTime}
-                            onChange={(e) => setTimerWorkTime(Math.max(1, parseInt(e.target.value) || 1))}
-                            className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-emerald-400 font-bold text-xl outline-none focus:border-emerald-500"
-                        />
-                    </div>
+                <div className="p-4 overflow-y-auto space-y-4 flex-1 bg-stone-950/50">
+                    {timerBlocks.map((block, index) => (
+                        <div key={block.id} className="bg-stone-900 p-4 rounded-2xl border border-stone-800 relative group">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="bg-stone-800 text-[10px] font-black px-2 py-1 rounded text-stone-500 uppercase tracking-widest">
+                                    Bloque {index + 1}
+                                </span>
+                                {timerBlocks.length > 1 && (
+                                    <button 
+                                        onClick={() => {
+                                            const newBlocks = timerBlocks.filter(b => b.id !== block.id);
+                                            onUpdate({ ...exercise, timerBlocks: newBlocks });
+                                        }}
+                                        className="text-stone-600 hover:text-red-500 transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-[8px] font-black text-stone-600 uppercase mb-1">Rondas</label>
+                                    <input
+                                        type="number"
+                                        value={block.rounds || ''}
+                                        placeholder="0"
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const newBlocks = [...timerBlocks];
+                                            newBlocks[index] = { ...block, rounds: val === '' ? 0 : Math.max(0, parseInt(val) || 0) };
+                                            onUpdate({ ...exercise, timerBlocks: newBlocks });
+                                        }}
+                                        className="w-full bg-stone-950 border border-stone-800 rounded-xl px-2 py-2 text-center text-white font-bold text-lg outline-none focus:border-stone-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[8px] font-black text-stone-600 uppercase mb-1">Trabajo (s)</label>
+                                    <input
+                                        type="number"
+                                        value={block.workSecs || ''}
+                                        placeholder="0"
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const newBlocks = [...timerBlocks];
+                                            newBlocks[index] = { ...block, workSecs: val === '' ? 0 : Math.max(0, parseInt(val) || 0) };
+                                            onUpdate({ ...exercise, timerBlocks: newBlocks });
+                                        }}
+                                        className="w-full bg-stone-950 border border-stone-800 rounded-xl px-2 py-2 text-center text-emerald-400 font-bold text-lg outline-none focus:border-emerald-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[8px] font-black text-stone-600 uppercase mb-1">Descanso (s)</label>
+                                    <input
+                                        type="number"
+                                        value={block.restSecs || (block.restSecs === 0 ? '0' : '')}
+                                        placeholder="0"
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const newBlocks = [...timerBlocks];
+                                            newBlocks[index] = { ...block, restSecs: val === '' ? 0 : Math.max(0, parseInt(val) || 0) };
+                                            onUpdate({ ...exercise, timerBlocks: newBlocks });
+                                        }}
+                                        className="w-full bg-stone-950 border border-stone-800 rounded-xl px-2 py-2 text-center text-cyan-400 font-bold text-lg outline-none focus:border-cyan-500"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                     
-                    <div>
-                        <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Tiempo de Descanso (segundos)</label>
-                        <input
-                            type="number"
-                            value={timerRestTime}
-                            onChange={(e) => setTimerRestTime(Math.max(0, parseInt(e.target.value) || 0))}
-                            className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-cyan-400 font-bold text-xl outline-none focus:border-cyan-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Número de Rondas</label>
-                        <input
-                            type="number"
-                            value={timerRounds}
-                            onChange={(e) => setTimerRounds(Math.max(1, parseInt(e.target.value) || 1))}
-                            className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-200 font-bold text-xl outline-none focus:border-stone-500"
-                        />
-                    </div>
-
                     <button 
-                        onClick={applyTimerSettings}
-                        className="w-full py-4 rounded-xl bg-stone-200 text-stone-900 font-black text-lg hover:bg-white transition-colors mt-4"
+                        onClick={() => {
+                            const newBlock = { 
+                                id: Math.random().toString(36).substr(2, 9), 
+                                workSecs: 30, 
+                                restSecs: 15, 
+                                rounds: 2 
+                            };
+                            onUpdate({ ...exercise, timerBlocks: [...timerBlocks, newBlock] });
+                        }}
+                        className="w-full py-4 border-2 border-dashed border-stone-800 rounded-2xl text-stone-600 hover:border-emerald-900/50 hover:text-emerald-500 transition-all font-bold text-sm flex items-center justify-center gap-2"
+                    >
+                        <Plus className="w-4 h-4" /> Añadir Bloque
+                    </button>
+                </div>
+
+                <div className="p-4 bg-stone-900 shrink-0">
+                    <button 
+                        onClick={() => {
+                            resetTimer();
+                            setShowTimerSettings(false);
+                        }}
+                        className="w-full py-4 rounded-xl bg-stone-200 text-stone-900 font-black text-lg hover:bg-white transition-colors"
                     >
                         Aplicar y Reiniciar
                     </button>

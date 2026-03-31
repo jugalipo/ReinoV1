@@ -50,6 +50,7 @@ export interface Friend {
   lastInteraction: number; // timestamp
   interactions: FriendInteractions;
   tasks: FriendTask[];
+  birthday?: string; // YYYY-MM-DD
 }
 
 export interface FoodWheel {
@@ -91,12 +92,27 @@ export interface FoodState {
   dishes?: Record<string, boolean>; // Monthly meal checklist
   dailyScores?: Record<string, DailyFoodScore>; // YYYY-MM-DD -> DailyFoodScore
   broccoliStep?: number; // 0 to 10
+  pastWheels?: Record<string, FoodWheel>;
+  pastBroccoli?: Record<string, number>;
   config?: FoodConfig;
+  weeklyExtras?: Record<string, number>; // YYYY-MM-DD (Monday) -> Total Extra Points for that week
   history: {
     action: string;
     timestamp: number;
     delta: number;
   }[];
+}
+
+export interface ExerciseDayStats {
+  minutes: number;
+  workouts: number;
+}
+
+export interface WorkoutBlock {
+  id: string;
+  workSecs: number;
+  restSecs: number;
+  rounds: number;
 }
 
 export interface ExerciseState {
@@ -105,6 +121,8 @@ export interface ExerciseState {
   totalMinutes: number;  // Total minutes trained
   sprintCount: number;
   stretchCount: number;
+  timerBlocks?: WorkoutBlock[];
+  history?: Record<string, ExerciseDayStats>;
 }
 
 export interface Stats {
@@ -202,4 +220,6 @@ export interface AppData {
   reminders?: ReminderEvent[]; // Important dates to remember
   piano?: PianoState;
   weeklyGoals?: WeeklyGoalsState;
+  reminderTime?: string; // HH:mm
+  lastReminderDate?: string; // YYYY-MM-DD
 }

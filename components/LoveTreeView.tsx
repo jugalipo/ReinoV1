@@ -30,14 +30,36 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
 
   const [isEditingFriend, setIsEditingFriend] = useState(false);
   const [editFriendName, setEditFriendName] = useState('');
+  const [editBirthday, setEditBirthday] = useState('');
   const [editInteractions, setEditInteractions] = useState<FriendInteractions>({ person: 0, call: 0, gift: 0, photo: 0, message: 0 });
   const [sortBy, setSortBy] = useState<'interactions' | 'days'>('interactions');
 
   // Reset delete confirmation when selecting a different friend
   useEffect(() => {
-      setShowDeleteConfirm(false);
-      setIsEditingFriend(false);
+    setShowDeleteConfirm(false);
+    setIsEditingFriend(false);
   }, [selectedFriendId]);
+
+  // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
+  useEffect(() => {
+    const activeModal = isEditingFriend ? 'editFriend' : 
+                       showDeleteConfirm ? 'confirmDeleteFriend' : 
+                       selectedFriendId ? 'friendDetail' : null;
+
+    if (activeModal) {
+      window.history.pushState({ modal: activeModal }, '');
+      
+      const handlePopState = () => {
+        setIsEditingFriend(false); // Close without saving (Back = Cancel)
+        setShowDeleteConfirm(false);
+        setSelectedFriendId(null);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [isEditingFriend, showDeleteConfirm, selectedFriendId]);
+  // ---------------------------------------------
 
   const getDaysSince = (timestamp: number) => {
     if (timestamp === 0) return 999;
@@ -105,6 +127,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
       const selectedFriend = friends.find(f => f.id === selectedFriendId);
       if (selectedFriend) {
           setEditFriendName(selectedFriend.name);
+          setEditBirthday(selectedFriend.birthday || '');
           setEditInteractions({ ...selectedFriend.interactions });
           setIsEditingFriend(true);
       }
@@ -118,6 +141,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                   return {
                       ...f,
                       name: editFriendName,
+                      birthday: editBirthday,
                       interactions: editInteractions
                   };
               }
@@ -126,6 +150,31 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
           onUpdate(updated);
           setIsEditingFriend(false);
       }
+  };
+
+  const isBirthdayWeek = (birthdayStr?: string) => {
+    if (!birthdayStr) return false;
+    const now = new Date();
+    const parts = birthdayStr.split('-');
+    if (parts.length !== 3) return false;
+    
+    // Create comparison date using birthday month/day but CURRENT year
+    const bMonth = parseInt(parts[1]) - 1;
+    const bDay = parseInt(parts[2]);
+    const bDate = new Date(now.getFullYear(), bMonth, bDay);
+    
+    // Get start of week (Monday)
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now.setDate(diff));
+    monday.setHours(0,0,0,0);
+    
+    // Get end of week (Sunday)
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23,59,59,999);
+    
+    return bDate >= monday && bDate <= sunday;
   };
 
   const addTask = (friendId: string) => {
@@ -259,23 +308,33 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                  const days = getDaysSince(f.lastInteraction);
                  const textColorClass = getLeafColorClass(days);
                  const bgStatusColor = getStatusColor(days);
+                 const isBday = isBirthdayWeek(f.birthday);
                  
                  return (
                     <div 
                         key={f.id} 
                         onClick={() => setSelectedFriendId(f.id)} 
-                        className="flex items-center justify-between p-4 bg-stone-900 rounded-3xl border border-stone-800 cursor-pointer active:scale-95 transition-all shadow-sm"
+                        className={`flex items-center justify-between p-4 rounded-3xl border cursor-pointer active:scale-95 transition-all shadow-sm ${
+                            isBday 
+                                ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 border-yellow-300 shadow-[0_0_20px_rgba(234,179,8,0.4)] text-stone-950' 
+                                : 'bg-stone-900 border-stone-800 text-stone-100'
+                        }`}
                     >
                         <div className="flex items-center gap-4">
                             {/* Avatar */}
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-stone-950 font-bold text-xl shadow-lg ${bgStatusColor}`}>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl shadow-lg ${
+                                isBday ? 'bg-stone-950 text-yellow-500' : bgStatusColor + ' text-stone-950'
+                            }`}>
                                 {f.name.charAt(0).toUpperCase()}
                             </div>
                             
                             {/* Text Info */}
                             <div>
-                                <h4 className="font-bold text-lg text-stone-100 leading-tight">{f.name}</h4>
-                                <p className="text-xs font-bold text-stone-500">
+                                <h4 className={`font-bold text-lg leading-tight flex items-center gap-2 ${isBday ? 'text-stone-950' : 'text-stone-100'}`}>
+                                    {f.name}
+                                    {isBday && <span>🎂</span>}
+                                </h4>
+                                <p className={`text-xs font-bold ${isBday ? 'text-stone-800/80' : 'text-stone-500'}`}>
                                     {total} brotes
                                 </p>
                             </div>
@@ -283,13 +342,14 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
 
                         {/* Counter Badge */}
                         <div className={`px-3 py-1.5 rounded-xl border flex flex-col items-center justify-center shadow-inner ${
+                            isBday ? 'bg-stone-950/20 border-yellow-700/30' :
                             days <= 7 ? 'bg-emerald-950/30 border-emerald-900/50' :
                             days <= 14 ? 'bg-yellow-950/30 border-yellow-900/50' :
                             days <= 30 ? 'bg-orange-950/30 border-orange-900/50' :
                             'bg-red-950/30 border-red-900/50'
                         }`}>
-                            <span className={`text-lg font-black leading-none ${textColorClass}`}>{days}</span>
-                            <span className={`text-[9px] font-bold uppercase tracking-wider ${textColorClass} opacity-70`}>días</span>
+                            <span className={`text-lg font-black leading-none ${isBday ? 'text-stone-950' : textColorClass}`}>{days}</span>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${isBday ? 'text-stone-900/60' : textColorClass + ' opacity-70'}`}>días</span>
                         </div>
                     </div>
                  )
@@ -321,22 +381,40 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
 
       {/* Detail Modal - Changed from absolute to fixed */}
       {selectedFriend && (
-        <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-             <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-pink-900/30 overflow-hidden flex flex-col max-h-[90vh]">
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => { setSelectedFriendId(null); setIsEditingFriend(false); setShowDeleteConfirm(false); }}
+        >
+             <div 
+               className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-pink-900/30 overflow-hidden flex flex-col max-h-[90vh]"
+               onClick={(e) => e.stopPropagation()}
+             >
                  <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-900">
                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-stone-950 font-bold text-lg ${getStatusColor(selectedFriendDays)}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-stone-950 font-bold text-lg ${isBirthdayWeek(selectedFriend.birthday) ? "bg-yellow-500" : getStatusColor(selectedFriendDays)}`}>
                             {selectedFriend.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
                             {isEditingFriend ? (
-                                <input 
-                                    value={editFriendName}
-                                    onChange={e => setEditFriendName(e.target.value)}
-                                    className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-pink-200 font-bold w-32 outline-none"
-                                />
+                                <div className="flex flex-col gap-1">
+                                    <input 
+                                        value={editFriendName}
+                                        onChange={e => setEditFriendName(e.target.value)}
+                                        className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-pink-200 font-bold w-full outline-none"
+                                        placeholder="Nombre"
+                                    />
+                                    <input 
+                                        type="date"
+                                        value={editBirthday}
+                                        onChange={e => setEditBirthday(e.target.value)}
+                                        className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-stone-400 text-xs w-full outline-none"
+                                    />
+                                </div>
                             ) : (
-                                <h3 className="font-bold text-pink-200 text-lg truncate pr-4">{selectedFriend.name}</h3>
+                                <h3 className="font-bold text-pink-200 text-lg truncate pr-4">
+                                    {selectedFriend.name}
+                                    {isBirthdayWeek(selectedFriend.birthday) && <span className="ml-2">🎂</span>}
+                                </h3>
                             )}
                             <p className={`text-xs font-bold ${getLeafColorClass(selectedFriendDays)}`}>
                                 {getDaysText(selectedFriendDays)}

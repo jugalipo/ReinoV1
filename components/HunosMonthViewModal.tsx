@@ -106,7 +106,7 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
     return count;
   }, [tasks, hunosHistory, currentYear, monthIndex, todayDate]);
 
-  const renderTaskCells = (task: Task, isMiddleGroup: boolean = false) => {
+  const renderTaskCells = (task: Task, isLastInGroup: boolean = false) => {
     const emoji = getEmoji(task.text);
     
     const dayStatuses = daysArray.map(day => {
@@ -121,19 +121,20 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
       return isCompleted ? 'completed' : 'failed';
     });
 
-    const baseBg = isMiddleGroup ? 'bg-transparent' : 'bg-stone-800';
+    const baseBg = 'bg-stone-800';
 
     return (
       <React.Fragment key={task.id}>
-        <div className={`flex items-center justify-center border-b border-r border-stone-800/50 overflow-hidden whitespace-nowrap ${baseBg}`}>
+        <div 
+          className={`flex items-center justify-center border-r border-stone-800/50 overflow-hidden whitespace-nowrap ${baseBg} ${isLastInGroup ? '' : 'border-b'}`}
+          style={isLastInGroup ? { borderBottom: '5px solid #0c0a09' } : {}}
+        >
           <span className="leading-none" style={{ fontSize: `${emojiSize}px` }} title={task.text}>{emoji}</span>
         </div>
         {daysArray.map((day, index) => {
           const status = dayStatuses[index];
           const isMultipleOf5 = day % 5 === 0;
-          const cellBg = isMultipleOf5 
-            ? (isMiddleGroup ? 'bg-stone-800/80' : 'bg-stone-700/60') 
-            : baseBg;
+          const cellBg = isMultipleOf5 ? 'bg-stone-700/60' : baseBg;
           
           let content = null;
           if (status === 'completed') {
@@ -145,7 +146,7 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
             if (prevFailed || nextFailed) {
               content = (
                 <>
-                  <div className="absolute top-1/2 -translate-y-1/2 bg-red-500/50" 
+                  <div className="absolute top-1/2 -translate-y-1/2 bg-red-500" 
                        style={{
                          left: prevFailed && !nextFailed ? '0' : (prevFailed && nextFailed ? '0' : '50%'),
                          width: (prevFailed && nextFailed) ? '100%' : '50%',
@@ -156,12 +157,16 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
                 </>
               );
             } else {
-              content = <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500/30" style={{ width: `${markerSize}px`, height: `${markerSize}px` }} />;
+              content = <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-900" style={{ width: `${markerSize}px`, height: `${markerSize}px` }} />;
             }
           }
 
           return (
-            <div key={day} className={`relative flex items-center justify-center border-b border-stone-800/30 overflow-hidden ${cellBg}`}>
+            <div 
+              key={day} 
+              className={`relative flex items-center justify-center overflow-hidden ${cellBg} ${isLastInGroup ? '' : 'border-b border-stone-800/30'}`}
+              style={isLastInGroup ? { borderBottom: '5px solid #0c0a09' } : {}}
+            >
               {content}
             </div>
           );
@@ -209,10 +214,10 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
             }}
           >
             {/* Group 1 */}
-            {group1.map(task => renderTaskCells(task, false))}
+            {group1.map((task, idx) => renderTaskCells(task, idx === group1.length - 1))}
 
-            {/* Group 2 (Middle Group with lighter background) */}
-            {group2.map(task => renderTaskCells(task, true))}
+            {/* Group 2 */}
+            {group2.map((task, idx) => renderTaskCells(task, idx === group2.length - 1))}
 
             {/* Group 3 */}
             {group3.map(task => renderTaskCells(task, false))}

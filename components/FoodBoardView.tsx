@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FoodState, FoodWheel, FoodBonuses, DailyFoodScore, FoodConfig } from '../types';
-import { ArrowLeft, UtensilsCrossed, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check, X, Plus, Minus, Settings } from 'lucide-react';
+import { ArrowLeft, ArrowRight, History, UtensilsCrossed, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check, X, Plus, Minus, Settings } from 'lucide-react';
 import { FoodConfigEditor } from './FoodConfigEditor';
 
 const DEFAULT_WHEEL = [
@@ -131,6 +131,25 @@ const DailyFoodScoreModal = ({
   const [score, setScore] = useState<DailyFoodScore>(initialScore);
   const [selectingMealFor, setSelectingMealFor] = useState<'lunch' | 'dinner' | null>(null);
 
+  // --- MOBILE BACK BUTTON SUPPORT ---
+  useEffect(() => {
+    // Push history for the main modal or the nested meal selector
+    const modalKey = selectingMealFor ? `selecting-${selectingMealFor}` : 'dailyFoodScore';
+    window.history.pushState({ modal: modalKey }, '');
+    
+    const handlePopState = () => {
+      if (selectingMealFor) {
+        setSelectingMealFor(null);
+      } else {
+        onClose();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectingMealFor, onClose]);
+  // ----------------------------------
+
   const toggle = (field: keyof DailyFoodScore) => {
     setScore(prev => ({ ...prev, [field]: !prev[field] }));
   };
@@ -195,8 +214,20 @@ const DailyFoodScoreModal = ({
   const total = calculateDailyScore(score, dateStr, allScores);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div 
+      className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+      onClick={() => {
+        if (selectingMealFor) {
+          setSelectingMealFor(null);
+        } else {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-4 border-b border-stone-800 flex items-center justify-between bg-stone-900/50 shrink-0">
           <h2 className="text-lg font-bold text-stone-200">
             {selectingMealFor ? (selectingMealFor === 'lunch' ? 'Elegir Almuerzo' : 'Elegir Cena') : date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -384,6 +415,84 @@ const CakeSliceOff = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const FoodHistoryModal = ({
+    dailyScores,
+    weeklyExtras,
+    onClose
+}: {
+    dailyScores: Record<string, DailyFoodScore>;
+    weeklyExtras?: Record<string, number>;
+    onClose: () => void;
+}) => {
+    // Generate a list of the last 12 weeks
+    const weeks = [];
+    const now = new Date();
+    for (let i = 0; i > -12; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() + (i * 7));
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(d.setDate(diff));
+        monday.setHours(0, 0, 0, 0);
+        
+        let daysSum = 0;
+        for (let j = 0; j < 7; j++) {
+            const currentDay = new Date(monday);
+            currentDay.setDate(monday.getDate() + j);
+            const dateStr = currentDay.toDateString();
+            const score = dailyScores[dateStr] || defaultDailyScore;
+            daysSum += calculateDailyScore(score, dateStr, dailyScores);
+        }
+        
+        const mondayStr = monday.toISOString().split('T')[0];
+        const extras = weeklyExtras?.[mondayStr] || 0;
+        
+        // Skip entirely empty weeks
+        if (daysSum === 0 && extras === 0 && i < 0) continue;
+
+        weeks.push({
+            label: `Sem. ${monday.getDate()} ${monday.toLocaleDateString('es-ES', { month: 'short' })}`,
+            daysSum,
+            extras,
+            total: daysSum + extras
+        });
+    }
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+                <div className="p-4 border-b border-stone-800 flex items-center justify-between bg-stone-900/50 shrink-0">
+                    <h2 className="text-lg font-bold text-stone-200">Histórico Puntos</h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-stone-800 text-stone-400 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="p-6 space-y-4 overflow-y-auto">
+                    {weeks.length === 0 ? (
+                        <p className="text-stone-500 text-center py-4 text-sm">No hay datos pasados</p>
+                    ) : (
+                        weeks.map((week, idx) => (
+                            <div key={idx} className="bg-stone-950 border border-stone-800 rounded-2xl p-4 flex justify-between items-center transition-all hover:bg-stone-900">
+                                <span className="font-bold text-stone-300 text-sm">{week.label}</span>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className={`text-2xl font-black ${week.total > 0 ? "text-lime-500" : week.total < 0 ? "text-red-500" : "text-stone-500"}`}>
+                                        {week.total}
+                                    </span>
+                                    <div className="flex items-center gap-2 text-[10px] text-stone-500 font-bold capitalize">
+                                        <span>Días: <span className={week.daysSum > 0 ? "text-lime-400" : "text-stone-400"}>{week.daysSum > 0 ? `+${week.daysSum}` : week.daysSum}</span></span>
+                                        <span>•</span>
+                                        <span>Extra: <span className={week.extras > 0 ? "text-lime-400" : "text-stone-400"}>{week.extras > 0 ? `+${week.extras}` : week.extras}</span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 interface FoodBoardViewProps {
   foodState: FoodState;
   onUpdate: (state: FoodState) => void;
@@ -398,6 +507,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   const [lastToggledItem, setLastToggledItem] = useState<keyof FoodWheel | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
   const activeConfig = {
     wheel: config?.wheel || DEFAULT_WHEEL,
     broccoli: config?.broccoli || DEFAULT_BROCCOLI,
@@ -406,31 +518,47 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const handleBroccoliClick = (index: number) => {
-    if (index === broccoliStep) {
-      const nextStep = broccoliStep + 1;
+    if (index === currentBroccoli) {
+      const nextStep = currentBroccoli + 1;
       if (nextStep === 10) {
-        onUpdate({ ...foodState, broccoliStep: 10 });
+        if (weekOffset === 0) onUpdate({ ...foodState, broccoliStep: 10 });
+        else onUpdate({ ...foodState, pastBroccoli: { ...foodState.pastBroccoli, [displayedMondayStr]: 10 } });
         setShowBroccoliConfirm(true);
       } else {
-        onUpdate({ ...foodState, broccoliStep: nextStep });
+        if (weekOffset === 0) onUpdate({ ...foodState, broccoliStep: nextStep });
+        else onUpdate({ ...foodState, pastBroccoli: { ...foodState.pastBroccoli, [displayedMondayStr]: nextStep } });
       }
-    } else if (index === broccoliStep - 1) {
-      onUpdate({ ...foodState, broccoliStep: index });
+    } else if (index === currentBroccoli - 1) {
+      if (weekOffset === 0) onUpdate({ ...foodState, broccoliStep: index });
+      else onUpdate({ ...foodState, pastBroccoli: { ...foodState.pastBroccoli, [displayedMondayStr]: index } });
     }
   };
 
+  const currentMondayStr = (() => {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(d.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+      return monday.toISOString().split('T')[0];
+  })();
+
   const confirmBroccoliPleno = () => {
+    const currentExtras = foodState.weeklyExtras || {};
     onUpdate({
       ...foodState,
-      score: updateScore(1),
-      broccoliStep: 0,
-      history: addHistory('Rutina Brócoli', 1)
+      score: weekOffset === 0 ? updateScore(1) : score,
+      weeklyExtras: { ...currentExtras, [displayedMondayStr]: (currentExtras[displayedMondayStr] || 0) + 1 },
+      broccoliStep: weekOffset === 0 ? 0 : broccoliStep,
+      pastBroccoli: weekOffset === 0 ? foodState.pastBroccoli : { ...foodState.pastBroccoli, [displayedMondayStr]: 0 },
+      history: addHistory(weekOffset === 0 ? 'Rutina Brócoli' : 'Retro: Rutina Brócoli', 1)
     });
     setShowBroccoliConfirm(false);
   };
 
   const cancelBroccoliPleno = () => {
-    onUpdate({ ...foodState, broccoliStep: 9 });
+    if (weekOffset === 0) onUpdate({ ...foodState, broccoliStep: 9 });
+    else onUpdate({ ...foodState, pastBroccoli: { ...foodState.pastBroccoli, [displayedMondayStr]: 9 } });
     setShowBroccoliConfirm(false);
   };
 
@@ -439,8 +567,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     setShowConfigEditor(false);
   };
 
-  const getDaysOfWeek = () => {
+  const getDaysOfWeek = (offset: number) => {
     const now = new Date();
+    now.setDate(now.getDate() + (offset * 7));
     const dayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     
@@ -456,7 +585,74 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     return days;
   };
 
-  const daysOfWeek = getDaysOfWeek();
+  const getWeekMondayStr = (offset: number) => {
+    const days = getDaysOfWeek(offset);
+    const monday = days[0];
+    monday.setHours(0, 0, 0, 0);
+    return monday.toISOString().split('T')[0];
+  };
+
+  const calculateDaysSumForWeek = (offset: number) => {
+    const days = getDaysOfWeek(offset);
+    let sum = 0;
+    for (const day of days) {
+      const dateStr = day.toDateString();
+      const dayScore = dailyScores[dateStr] || defaultDailyScore;
+      sum += calculateDailyScore(dayScore, dateStr, dailyScores);
+    }
+    return sum;
+  };
+
+  const daysOfWeek = getDaysOfWeek(weekOffset);
+  const displayedMondayStr = getWeekMondayStr(weekOffset);
+  const displayedWeekDaysSum = calculateDaysSumForWeek(weekOffset);
+  let displayedWeeklyExtras = foodState.weeklyExtras?.[displayedMondayStr] || 0;
+  const currentCalculatedScore = displayedWeekDaysSum + displayedWeeklyExtras;
+
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  let monthlyDeliveryCount = 0;
+  for (const [dateStr, rawScore] of Object.entries(dailyScores)) {
+      const scoreData = rawScore as DailyFoodScore;
+      const d = new Date(dateStr);
+      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+          if (scoreData.deliveryLunch) monthlyDeliveryCount++;
+          if (scoreData.deliveryDinner) monthlyDeliveryCount++;
+      }
+  }
+
+  const currentWheel = weekOffset === 0 ? wheel : (foodState.pastWheels?.[displayedMondayStr] || { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false });
+  const currentBroccoli = weekOffset === 0 ? broccoliStep : (foodState.pastBroccoli?.[displayedMondayStr] || 0);
+  const getBonusKey = (id: string) => weekOffset === 0 ? id : `${displayedMondayStr}_${id}`;
+
+  const getEffectiveDishesForDate = (date: Date) => {
+      const now = new Date();
+      if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) {
+          return dishes;
+      }
+      
+      const targetMonth = date.getMonth();
+      const targetYear = date.getFullYear();
+      const computedDishes: Record<string, boolean> = {};
+      const mealCounts: Record<string, number> = {};
+      
+      for (const [dateStr, score] of Object.entries(dailyScores)) {
+          const s = score as DailyFoodScore;
+          const d = new Date(dateStr);
+          if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
+              if (s.lunchMeal) mealCounts[s.lunchMeal] = (mealCounts[s.lunchMeal] || 0) + 1;
+              if (s.dinnerMeal) mealCounts[s.dinnerMeal] = (mealCounts[s.dinnerMeal] || 0) + 1;
+          }
+      }
+      
+      for (const meal of activeConfig.meals) {
+          const count = Math.min(mealCounts[meal.name] || 0, meal.max);
+          for (let i = 0; i < count; i++) {
+              computedDishes[meal.name + ' '.repeat(i)] = true;
+          }
+      }
+      return computedDishes;
+  };
 
   const handleSaveDailyScore = (date: Date, newDailyScore: DailyFoodScore) => {
     const dateStr = date.toDateString();
@@ -494,32 +690,40 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         }
     };
 
-    // Handle lunch meal changes
-    if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
-        const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.lunchMeal);
-        if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-    if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
-        const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.lunchMeal);
-        if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    // Only update dishes if the edited date belongs to the current calendar month
+    const now = new Date();
+    const isCurrentMonth = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+
+    if (isCurrentMonth) {
+        // Handle lunch meal changes
+        if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
+            const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.lunchMeal);
+            if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+        }
+        if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
+            const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.lunchMeal);
+            if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+        }
+
+        // Handle dinner meal changes
+        if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
+            const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.dinnerMeal);
+            if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+        }
+        if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
+            const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.dinnerMeal);
+            if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+        }
     }
 
-    // Handle dinner meal changes
-    if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
-        const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.dinnerMeal);
-        if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-    if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
-        const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.dinnerMeal);
-        if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
+    const isCurrentWeek = weekOffset === 0;
 
     onUpdate({
       ...foodState,
-      score: updateScore(diff),
+      score: isCurrentWeek ? updateScore(diff) : score,
       dailyScores: newScores,
       dishes: newDishes,
-      history: diff !== 0 ? addHistory(`Día: ${date.getDate()}`, diff) : history
+      history: diff !== 0 ? addHistory(isCurrentWeek ? `Día: ${date.getDate()}` : `Retro-Día: ${date.getDate()}`, diff) : history
     });
     setSelectedDate(null);
   };
@@ -536,14 +740,18 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const handleBonus = (type: keyof FoodBonuses, delta: number) => {
-      const isActive = weeklyBonuses[type];
+      const key = getBonusKey(type as string);
+      const isActive = weeklyBonuses[key];
       const scoreChange = isActive ? -delta : delta;
+      
+      const currentExtras = foodState.weeklyExtras || {};
       
       onUpdate({
           ...foodState,
-          score: updateScore(scoreChange),
-          weeklyBonuses: { ...weeklyBonuses, [type]: !isActive },
-          history: addHistory(isActive ? `Deshacer: ${type}` : `Bonus: ${type}`, scoreChange)
+          score: weekOffset === 0 ? updateScore(scoreChange) : score,
+          weeklyExtras: { ...currentExtras, [displayedMondayStr]: (currentExtras[displayedMondayStr] || 0) + scoreChange },
+          weeklyBonuses: { ...weeklyBonuses, [key]: !isActive },
+          history: addHistory(isActive ? `Deshacer: ${type}` : (weekOffset === 0 ? `Bonus: ${type}` : `Retro-bonus: ${type}`), scoreChange)
       });
   };
 
@@ -585,26 +793,32 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const toggleWheelItem = (item: keyof FoodWheel) => {
-      const isChecking = !wheel[item];
-      const newWheel = { ...wheel, [item]: isChecking };
+      const isChecking = !currentWheel[item];
+      const newWheel = { ...currentWheel, [item]: isChecking };
       const allChecked = Object.values(newWheel).every(val => val === true);
 
       if (allChecked && isChecking) {
           setLastToggledItem(item);
-          onUpdate({ ...foodState, wheel: newWheel });
+          if (weekOffset === 0) onUpdate({ ...foodState, wheel: newWheel });
+          else onUpdate({ ...foodState, pastWheels: { ...foodState.pastWheels, [displayedMondayStr]: newWheel } });
           setShowWheelConfirm(true);
       } else {
-          onUpdate({ ...foodState, wheel: newWheel });
+          if (weekOffset === 0) onUpdate({ ...foodState, wheel: newWheel });
+          else onUpdate({ ...foodState, pastWheels: { ...foodState.pastWheels, [displayedMondayStr]: newWheel } });
           setLastToggledItem(null);
       }
   };
 
   const confirmWheelPleno = () => {
+      const currentExtras = foodState.weeklyExtras || {};
+      const emptyWheel = { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false };
       onUpdate({
           ...foodState,
-          score: updateScore(3),
-          wheel: { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false },
-          history: addHistory('Rueda Completa', 3)
+          score: weekOffset === 0 ? updateScore(3) : score,
+          weeklyExtras: { ...currentExtras, [displayedMondayStr]: (currentExtras[displayedMondayStr] || 0) + 3 },
+          wheel: weekOffset === 0 ? emptyWheel : wheel,
+          pastWheels: weekOffset === 0 ? foodState.pastWheels : { ...foodState.pastWheels, [displayedMondayStr]: emptyWheel },
+          history: addHistory(weekOffset === 0 ? 'Rueda Completa' : 'Retro: Rueda Completa', 3)
       });
       setShowWheelConfirm(false);
       setLastToggledItem(null);
@@ -612,8 +826,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
 
   const cancelWheelPleno = () => {
       if (lastToggledItem) {
-          const revertedWheel = { ...wheel, [lastToggledItem]: false };
-          onUpdate({ ...foodState, wheel: revertedWheel });
+          const revertedWheel = { ...currentWheel, [lastToggledItem]: false };
+          if (weekOffset === 0) onUpdate({ ...foodState, wheel: revertedWheel });
+          else onUpdate({ ...foodState, pastWheels: { ...foodState.pastWheels, [displayedMondayStr]: revertedWheel } });
       }
       setShowWheelConfirm(false);
       setLastToggledItem(null);
@@ -624,6 +839,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
           onUpdate({ 
               ...foodState, 
               score: 0, 
+              weeklyExtras: {},
               weeklyBonuses: { organs: false, legumes: false, fast24: false },
               dishes: {},
               history: [] 
@@ -631,12 +847,12 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       }
   }
 
-  const getScoreColor = () => {
-      if (score >= 50) return 'text-yellow-400 drop-shadow-[0_0_12px_rgba(234,179,8,0.9)] animate-pulse font-black';
-      if ([25, 35, 42, 45].includes(score)) return 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] font-black';
-      if (score >= 25) return 'text-yellow-500/80 font-bold';
-      if (score > 10) return 'text-lime-500 font-bold';
-      if (score < 0) return 'text-red-500 font-bold';
+  const getScoreColor = (val: number) => {
+      if (val >= 50) return 'text-yellow-400 drop-shadow-[0_0_12px_rgba(234,179,8,0.9)] animate-pulse font-black';
+      if ([25, 35, 42, 45].includes(val)) return 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] font-black';
+      if (val >= 25) return 'text-yellow-500/80 font-bold';
+      if (val > 10) return 'text-lime-500 font-bold';
+      if (val < 0) return 'text-red-500 font-bold';
       return 'text-lime-500 font-bold';
   };
 
@@ -671,8 +887,37 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         
         {/* Main Counter */}
         <div className="flex flex-col items-center justify-center py-6">
-            <div className={`text-7xl transition-all duration-300 ${getScoreColor()}`}>
-                {score}
+            {weekOffset < 0 && (
+                <div className="text-stone-500 text-xs font-bold tracking-widest uppercase mb-2">
+                    Semana del {daysOfWeek[0].getDate()} al {daysOfWeek[6].getDate()}
+                </div>
+            )}
+            <div className="flex items-center gap-6">
+                <button 
+                    onClick={() => setWeekOffset(prev => prev - 1)} 
+                    className="p-3 text-stone-600 hover:text-stone-300 hover:bg-stone-800 rounded-full transition-colors active:scale-90"
+                >
+                    <ArrowLeft className="w-8 h-8" />
+                </button>
+                <div className={`text-7xl transition-all duration-300 w-32 tracking-tighter text-center ${getScoreColor(currentCalculatedScore)}`}>
+                    {currentCalculatedScore}
+                </div>
+                <div className="flex items-center gap-1">
+                    <button 
+                        onClick={() => setWeekOffset(prev => prev + 1)} 
+                        disabled={weekOffset >= 0}
+                        className="p-3 text-stone-600 hover:text-stone-300 hover:bg-stone-800 rounded-full transition-colors active:scale-90 disabled:opacity-20 disabled:hover:bg-transparent"
+                    >
+                        <ArrowRight className="w-8 h-8" />
+                    </button>
+                    <button 
+                        onClick={() => setShowHistoryModal(true)} 
+                        className="p-3 text-stone-500 hover:text-lime-500 hover:bg-stone-800 rounded-full transition-colors active:scale-90"
+                        title="Ver histórico de semanas"
+                    >
+                        <History className="w-6 h-6" />
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -680,7 +925,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         <div className="bg-stone-900/40 rounded-3xl p-6 border border-stone-800/50">
             <div className="flex justify-between items-start gap-1">
                 {milestones.map((m) => {
-                    const isAchieved = score >= m.val;
+                    const isAchieved = currentCalculatedScore >= m.val;
                     const Icon = m.icon;
                     return (
                         <div key={m.val} className="flex flex-col items-center gap-2 flex-1">
@@ -768,7 +1013,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                         onClick={() => toggleWheelItem(item.id as keyof FoodWheel)}
                         className={`
                             aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300
-                            ${wheel[item.id as keyof FoodWheel] 
+                            ${currentWheel[item.id as keyof FoodWheel] 
                                 ? 'bg-lime-600/20 border border-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.2)] grayscale-0 scale-105' 
                                 : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
                         `}
@@ -783,9 +1028,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800">
             <div className="grid grid-cols-5 gap-3">
                 {activeConfig.broccoli.map((step, index) => {
-                    const isCompleted = index < broccoliStep;
-                    const isNext = index === broccoliStep;
-                    const isLocked = index > broccoliStep;
+                    const isCompleted = index < currentBroccoli;
+                    const isNext = index === currentBroccoli;
+                    const isLocked = index > currentBroccoli;
 
                     return (
                         <button 
@@ -811,12 +1056,14 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         {/* Weekly Bonuses Section */}
         <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
-                {activeConfig.bonuses.map((bonus) => (
+                {activeConfig.bonuses.map((bonus) => {
+                    const isActive = weeklyBonuses[getBonusKey(bonus.id)];
+                    return (
                     <button 
                         key={bonus.id}
                         onClick={() => handleBonus(bonus.id, bonus.points)}
                         className={`p-4 rounded-2xl border text-sm font-bold flex flex-col items-center gap-1 transition-all ${
-                            weeklyBonuses[bonus.id] 
+                            isActive 
                                 ? 'bg-emerald-600 border-emerald-500 text-stone-950 shadow-lg' 
                                 : 'bg-stone-900 border-stone-800 text-stone-400 opacity-60'
                         }`}
@@ -824,13 +1071,20 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                         <span className="text-xl">{bonus.icon}</span>
                         <span className="text-[10px] font-black">{bonus.label}</span>
                     </button>
-                ))}
+                )})}
             </div>
         </div>
 
         {/* Meal Checklist (Platos Cocinados) - New Section */}
+        {weekOffset === 0 && (
         <div className="space-y-4 pt-4 border-t border-stone-800">
-            <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-widest px-1">Menú del Superviviente</h3>
+            <div className="flex items-center justify-between px-1">
+                <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-widest">Menú del Superviviente</h3>
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-red-500/80">
+                    <Bike className="w-3.5 h-3.5" />
+                    <span>Domicilio: {monthlyDeliveryCount}</span>
+                </div>
+            </div>
             <div className="bg-stone-900/60 rounded-3xl overflow-hidden border border-stone-800">
                 {[...activeConfig.meals].sort((a, b) => {
                     const aCount = getDishCount(a.name, a.max);
@@ -890,6 +1144,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                 })}
             </div>
         </div>
+        )}
 
       </div>
 
@@ -957,13 +1212,21 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         </div>
       )}
 
+      {showHistoryModal && (
+          <FoodHistoryModal
+              dailyScores={dailyScores}
+              weeklyExtras={foodState.weeklyExtras}
+              onClose={() => setShowHistoryModal(false)}
+          />
+      )}
+
       {selectedDate && (
         <DailyFoodScoreModal
           date={selectedDate}
           initialScore={dailyScores[selectedDate.toDateString()] || defaultDailyScore}
           allScores={dailyScores}
           meals={activeConfig.meals}
-          dishes={dishes}
+          dishes={getEffectiveDishesForDate(selectedDate)}
           onSave={(score) => handleSaveDailyScore(selectedDate, score)}
           onClose={() => setSelectedDate(null)}
         />

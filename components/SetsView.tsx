@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WeeklyTask } from '../types';
 import { ArrowLeft, Check, Edit2, Save, Plus, Trash2, X } from 'lucide-react';
 
@@ -12,6 +12,30 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
+
+  // Custom Modal States
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newTaskText, setNewTaskText] = useState('');
+
+  // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
+  useEffect(() => {
+    const activeModal = isEditing ? 'editSets' : 
+                       taskToDelete ? 'confirmDeleteSet' : null;
+
+    if (activeModal) {
+      window.history.pushState({ modal: activeModal }, '');
+      
+      const handlePopState = () => {
+        setIsEditing(false); // Close without saving (Back = Cancel)
+        setTaskToDelete(null);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [isEditing, taskToDelete]);
+  // ---------------------------------------------
 
   const tasksToText = (taskList: WeeklyTask[]) => {
       return taskList.map(t => {
@@ -76,11 +100,6 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
           setIsEditing(true);
       }
   };
-
-  // Custom Modal States
-  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
-  const [newTaskText, setNewTaskText] = useState('');
 
   // Sort for Chart: Completed first (descending boolean)
   const chartTasks = [...tasks].sort((a, b) => Number(b.completed) - Number(a.completed));
@@ -150,19 +169,15 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
     return acc + parseDurationToMinutes(duration);
   }, 0);
 
-  // SVG Helper for Pie Slices
-  const createSlicePath = (index: number, total: number, radius: number, cx: number, cy: number) => {
-    if (total === 1) {
-        // Full circle if only 1 item
-        return `M ${cx} ${cy - radius} A ${radius} ${radius} 0 1 1 ${cx - 0.01} ${cy - radius} Z`;
-    }
-
-    const startAngle = (index * 360) / total;
-    const endAngle = ((index + 1) * 360) / total;
+  // SVG Helper for Mushroom Cap sectors (Top semi-circle)
+  const createCapSlicePath = (index: number, total: number, radius: number, cx: number, cy: number) => {
+    const span = 180;
+    const startAngle = 180 + (index * span) / total;
+    const endAngle = 180 + ((index + 1) * span) / total;
     
-    // Convert to radians, subtract 90deg to start at 12 o'clock
-    const startRad = (startAngle - 90) * (Math.PI / 180);
-    const endRad = (endAngle - 90) * (Math.PI / 180);
+    // Convert to radians
+    const startRad = startAngle * (Math.PI / 180);
+    const endRad = endAngle * (Math.PI / 180);
 
     const x1 = cx + radius * Math.cos(startRad);
     const y1 = cy + radius * Math.sin(startRad);
@@ -172,6 +187,17 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
     // M cx cy L x1 y1 A radius radius 0 0 1 x2 y2 Z
     return `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2} Z`;
   };
+
+  const stemPath = `
+    M 75 100 
+    L 125 100 
+    Q 130 100 130 110
+    L 130 145
+    A 30 20 0 0 1 70 145
+    L 70 110
+    Q 70 100 75 100
+    Z
+  `;
 
   return (
     <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
@@ -205,24 +231,44 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
             )}
         </div>
 
-        {/* Circle Visualization (Hide in edit mode to save space/distraction) */}
+        {/* Mushroom Visualization */}
         {!isEditing && tasks.length > 0 && (
             <div className="flex justify-center mb-8 py-4">
                 <div className="relative w-64 h-64 drop-shadow-md">
                     <svg width="256" height="256" viewBox="0 0 200 200">
+                        {/* Mushroom Cap (Progress) */}
                         {chartTasks.map((task, index) => (
                             <path
                                 key={task.id}
-                                d={createSlicePath(index, tasks.length, 95, 100, 100)}
+                                d={createCapSlicePath(index, tasks.length, 90, 100, 100)}
                                 fill={task.completed ? '#ef4444' : '#450a0a'} // Red-500 vs Red-950
                                 stroke="#1c1917" // stone-900
-                                strokeWidth="2"
+                                strokeWidth="2.5"
                                 className="transition-all duration-300 ease-in-out"
                             />
                         ))}
-                        {/* Inner dark circle for "donut" look */}
-                        <circle cx="100" cy="100" r="30" fill="#1c1917" />
-                        <text x="100" y="110" textAnchor="middle" fontSize="24" fontWeight="bold" fill="#ffffff">
+                        
+                        {/* Flat base of the cap */}
+                        <line x1="10" y1="100" x2="190" y2="100" stroke="#1c1917" strokeWidth="3" />
+
+                        {/* Mushroom Stem */}
+                        <path 
+                            d={stemPath} 
+                            fill="#ffffff" 
+                            stroke="#1c1917" 
+                            strokeWidth="2.5" 
+                        />
+
+                        {/* Current Count inside Stem */}
+                        <text 
+                            x="100" 
+                            y="135" 
+                            textAnchor="middle" 
+                            fontSize="28" 
+                            fontWeight="900" 
+                            fill="#1c1917"
+                            className="font-mono"
+                        >
                             {tasks.filter(t => t.completed).length}
                         </text>
                     </svg>
@@ -323,8 +369,14 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
 
       {/* Delete Confirmation Modal */}
       {taskToDelete && (
-        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setTaskToDelete(null)}
+        >
+            <div 
+              className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
                 <div className="p-6 flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-600/50">
                         <Trash2 className="w-8 h-8 text-red-500" />

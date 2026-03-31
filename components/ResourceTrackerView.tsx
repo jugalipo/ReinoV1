@@ -54,9 +54,31 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   const [showBilletesConfirm, setShowBilletesConfirm] = useState(false);
   const [lastBilletIndex, setLastBilletIndex] = useState<number | null>(null);
 
-  // Leones Logic State
   const [showLeonesConfirm, setShowLeonesConfirm] = useState(false);
   const [lastLeonIndex, setLastLeonIndex] = useState<number | null>(null);
+
+  // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
+  useEffect(() => {
+    const activeModal = isEditingMain ? 'editMainObjective' : 
+                       isEditingQuarterly ? 'editQuarterlyObjectives' : 
+                       showBilletesConfirm ? 'confirmBilletes' : 
+                       showLeonesConfirm ? 'confirmLeones' : null;
+
+    if (activeModal) {
+      window.history.pushState({ modal: activeModal }, '');
+      
+      const handlePopState = () => {
+        setIsEditingMain(false); // Back = Cancel
+        setIsEditingQuarterly(false);
+        setShowBilletesConfirm(false);
+        setShowLeonesConfirm(false);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [isEditingMain, isEditingQuarterly, showBilletesConfirm, showLeonesConfirm]);
+  // ---------------------------------------------
 
   // Sync state if task changes externally (or initializes)
   useEffect(() => {
@@ -583,8 +605,14 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
       {/* Billetes Completion Modal */}
       {showBilletesConfirm && (
-        <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={cancelBilletesPleno}
+        >
+            <div 
+              className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
                 <div className="p-8 flex flex-col items-center text-center">
                     <div className="w-20 h-20 bg-amber-600/20 rounded-full flex items-center justify-center mb-6 border border-amber-500/50 shadow-[0_0_20px_rgba(217,119,6,0.2)]">
                         <PiggyBank className="w-10 h-10 text-amber-500" />
@@ -615,8 +643,14 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
       {/* Leones Completion Modal */}
       {showLeonesConfirm && (
-        <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={cancelLeonesPleno}
+        >
+            <div 
+              className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
                 <div className="p-8 flex flex-col items-center text-center">
                     <div className="w-20 h-20 bg-amber-600/20 rounded-full flex items-center justify-center mb-6 border border-amber-500/50 shadow-[0_0_20px_rgba(217,119,6,0.2)]">
                         <Trophy className="w-10 h-10 text-amber-500" />

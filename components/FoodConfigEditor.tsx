@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Save } from 'lucide-react';
 import { FoodConfig } from '../types';
 
@@ -11,6 +11,15 @@ interface FoodConfigEditorProps {
 export const FoodConfigEditor: React.FC<FoodConfigEditorProps> = ({ initialConfig, onSave, onClose }) => {
   const [config, setConfig] = useState<FoodConfig>(initialConfig);
   const [activeTab, setActiveTab] = useState<'wheel' | 'broccoli' | 'bonuses' | 'meals'>('wheel');
+
+  // --- MOBILE BACK BUTTON SUPPORT ---
+  useEffect(() => {
+    window.history.pushState({ modal: 'foodConfig' }, '');
+    const handlePopState = () => onClose();
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [onClose]);
+  // ----------------------------------
 
   const handleSave = () => {
     onSave(config);

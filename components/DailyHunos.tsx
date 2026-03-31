@@ -56,6 +56,27 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
     return `50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 0, ${50 - Math.tan((360 - degrees) * Math.PI / 180) * 50}% 0`;
   };
 
+  // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
+  useEffect(() => {
+    const activeModal = isEditing ? 'editHunos' : 
+                       showMonthView ? 'hunosMonthView' : 
+                       showConfirmModal ? 'hunoConfirm' : null;
+
+    if (activeModal) {
+      window.history.pushState({ modal: activeModal }, '');
+      
+      const handlePopState = () => {
+        setIsEditing(false); // Close without saving (fulfill user request: Back = Cancel)
+        setShowMonthView(false);
+        setShowConfirmModal(false);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [isEditing, showMonthView, showConfirmModal]);
+  // ---------------------------------------------
+
   // --- VIEW MODE ACTIONS ---
 
   useEffect(() => {
@@ -137,14 +158,36 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
       const lines = allText.split('\n').map(l => l.trim()).filter(l => l);
       
       const availableTasks = [...existingTasks];
-      
-      return lines.map(line => {
-          const existingIndex = availableTasks.findIndex(t => t.text === line);
-          if (existingIndex !== -1) {
-              const existing = availableTasks[existingIndex];
-              availableTasks.splice(existingIndex, 1);
-              return existing;
+      const result: Task[] = Array(lines.length).fill(null);
+      const usedOldIndices = new Set<number>();
+
+      // Step 1: Exact matches (handles reordering)
+      lines.forEach((line, newIdx) => {
+          const oldIdx = availableTasks.findIndex((t, i) => t.text === line && !usedOldIndices.has(i));
+          if (oldIdx !== -1) {
+              result[newIdx] = availableTasks[oldIdx];
+              usedOldIndices.add(oldIdx);
           }
+      });
+
+      // Step 2: Position-based matching (handles renames)
+      lines.forEach((line, newIdx) => {
+          if (result[newIdx]) return; // Already matched in step 1
+
+          // If there's an unused task at the same relative position, assume it's a rename
+          if (newIdx < availableTasks.length && !usedOldIndices.has(newIdx)) {
+              result[newIdx] = {
+                  ...availableTasks[newIdx],
+                  text: line
+              };
+              usedOldIndices.add(newIdx);
+          }
+      });
+
+      // Step 3: New tasks (remaining lines)
+      return lines.map((line, newIdx) => {
+          if (result[newIdx]) return result[newIdx];
+
           return {
               id: Date.now().toString() + Math.random().toString(),
               text: line,
@@ -226,99 +269,130 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
         </div>
       )}
 
-      {/* VIEW MODE: GRID */}
+      {/* VIEW MODE: SECTIONS */}
       {!isEditing && (
-        <div className="grid grid-cols-4 gap-3">
-            {tasks.length === 0 && (
-            <p className="col-span-4 text-stone-600 text-center italic py-4">Sin batallas planeadas.</p>
-            )}
-            {tasks.map((task, index) => {
-            const elements = [];
-
-            if (index === 0) {
-                elements.push(
-                    <div key="sep-0" className="col-span-4 flex items-center gap-4 my-2">
+        <div className="space-y-4">
+            {/* 1. Los 4 Fantásticos - Capsule Row */}
+            {tasks.length > 0 && (
+                <div className="space-y-2">
+                    <div className="flex items-center gap-4 my-2 px-1">
                         <div className="h-px bg-stone-800 flex-1"></div>
                         <span className="text-xs font-medium text-stone-600 uppercase tracking-wider">Los 4 Fantásticos</span>
                         <div className="h-px bg-stone-800 flex-1"></div>
                     </div>
-                );
-            }
-
-            if (index === 4) {
-                elements.push(
-                    <div key="sep-1" className="col-span-4 flex items-center gap-4 my-2">
-                        <div className="h-px bg-stone-800 flex-1"></div>
-                        <span className="text-xs font-medium text-stone-600 uppercase tracking-wider">Los 11 Enanitos</span>
-                        <div className="h-px bg-stone-800 flex-1"></div>
-                    </div>
-                );
-            }
-            if (index === 15) {
-                elements.push(
-                    <div key="sep-2" className="col-span-4 flex items-center gap-4 my-2">
-                        <div className="h-px bg-stone-800 flex-1"></div>
-                        <span className="text-xs font-medium text-stone-600 uppercase tracking-wider">Fondo</span>
-                        <div className="h-px bg-stone-800 flex-1"></div>
-                    </div>
-                );
-            }
-
-            const emoji = getEmoji(task.text);
-            const isFailed = task.failedYesterday && !task.completed;
-            const missedDays = task.missedDays || 0;
-            const isFirstRow = index < 4;
-            const isLastSeven = index >= 15;
-
-            // Calculate fill percentage
-            let fillPercentage = 0;
-            let isBlinkingRed = false;
-            if (isFailed) {
-                if (missedDays === 2) fillPercentage = 25;
-                else if (missedDays === 3) fillPercentage = 50;
-                else if (missedDays === 4) fillPercentage = 75;
-                else if (missedDays >= 5) {
-                    fillPercentage = 100;
-                    isBlinkingRed = true;
-                }
-            }
-
-            elements.push(
-                <button
-                    key={task.id}
-                    onClick={() => toggleTask(task.id)}
-                    title={task.text} // Tooltip showing full text
-                    className={`
-                        aspect-square flex items-center justify-center text-3xl relative transition-all duration-300 overflow-hidden
-                        ${isFirstRow ? 'rounded-full' : 'rounded-2xl'}
-                        ${task.completed
-                            ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
-                            : isFailed
-                                ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${isBlinkingRed ? 'bg-red-600 animate-pulse' : 'bg-red-900/50'}`
-                                : isLastSeven 
-                                    ? 'border-0 bg-transparent border-transparent text-stone-400 hover:text-stone-200 hover:bg-stone-800/30' 
-                                    : 'border-2 bg-stone-800 border-stone-700 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
-                        }
-                    `}
-                >
-                    {/* Background fill for missed days */}
-                    {isFailed && fillPercentage > 0 && !isBlinkingRed && (
+                    
+                    <div className="relative p-1.5 rounded-full bg-stone-950/40 border border-stone-800/50 overflow-hidden shadow-inner group/capsule">
+                        {/* Dynamic Progress Bar Background */}
                         <div 
-                            className="absolute bottom-0 left-0 right-0 bg-red-600/80 transition-all duration-500"
-                            style={{ height: `${fillPercentage}%` }}
+                          className="absolute left-0 top-0 h-full bg-emerald-600/75 transition-all duration-1000 ease-out shadow-[0_0_40px_rgba(16,185,129,0.3)]"
+                          style={{ width: `${(coreScore / coreTotal) * 100}%` }}
                         />
-                    )}
+                        {/* Shimmer effect when full */}
+                        {coreScore >= coreTotal && (
+                            <div className="absolute inset-0 bg-emerald-400 animate-pulse opacity-20" />
+                        )}
+                        
+                        <div className="grid grid-cols-4 gap-3 relative z-10">
+                            {tasks.slice(0, 4).map((task, index) => (
+                                <button
+                                    key={task.id}
+                                    onClick={() => toggleTask(task.id)}
+                                    title={task.text}
+                                    className={`
+                                        aspect-square flex items-center justify-center text-3xl relative transition-all duration-300 overflow-hidden rounded-full
+                                        ${task.completed
+                                            ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
+                                            : task.failedYesterday && !task.completed
+                                                ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${task.missedDays >= 5 ? 'bg-red-600 animate-pulse' : 'bg-red-900/50'}`
+                                                : 'border-2 bg-stone-800/80 border-stone-700/50 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
+                                        }
+                                    `}
+                                >
+                                    <span className="drop-shadow-sm filter relative z-10">{getEmoji(task.text)}</span>
+                                    {!task.plenoCompleted && (
+                                        <div className="absolute w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.8)] animate-pulse z-10 top-2 right-2"></div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                    <span className="drop-shadow-sm filter relative z-10">{emoji}</span>
+            {/* 2. Rest of Hunos - Regular Grid */}
+            <div className="grid grid-cols-4 gap-3">
+                {tasks.slice(4).map((task, relativeIndex) => {
+                    const index = relativeIndex + 4;
+                    const elements = [];
 
-                    {/* Pleno Dot (Orange) - Top Right */}
-                    {!task.plenoCompleted && (
-                        <div className={`absolute w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.8)] animate-pulse z-10 ${isFirstRow ? 'top-2 right-2' : 'top-1.5 right-1.5'}`}></div>
-                    )}
-                </button>
-            );
-            return elements;
-            })}
+                    if (index === 4) {
+                        elements.push(
+                            <div key="sep-1" className="col-span-4 flex items-center gap-4 my-2 px-1">
+                                <div className="h-px bg-stone-800 flex-1"></div>
+                                <span className="text-xs font-medium text-stone-600 uppercase tracking-wider">Los 11 Enanitos</span>
+                                <div className="h-px bg-stone-800 flex-1"></div>
+                            </div>
+                        );
+                    }
+                    if (index === 15) {
+                        elements.push(
+                            <div key="sep-2" className="col-span-4 flex items-center gap-4 my-2 px-1">
+                                <div className="h-px bg-stone-800 flex-1"></div>
+                                <span className="text-xs font-medium text-stone-600 uppercase tracking-wider">Fondo</span>
+                                <div className="h-px bg-stone-800 flex-1"></div>
+                            </div>
+                        );
+                    }
+
+                    const emoji = getEmoji(task.text);
+                    const isFailed = task.failedYesterday && !task.completed;
+                    const missedDays = task.missedDays || 0;
+                    const isLastSeven = index >= 15;
+
+                    let fillPercentage = 0;
+                    let isBlinkingRed = false;
+                    if (isFailed) {
+                        if (missedDays === 2) fillPercentage = 25;
+                        else if (missedDays === 3) fillPercentage = 50;
+                        else if (missedDays === 4) fillPercentage = 75;
+                        else if (missedDays >= 5) {
+                            fillPercentage = 100;
+                            isBlinkingRed = true;
+                        }
+                    }
+
+                    elements.push(
+                        <button
+                            key={task.id}
+                            onClick={() => toggleTask(task.id)}
+                            title={task.text}
+                            className={`
+                                aspect-square flex items-center justify-center text-3xl relative transition-all duration-300 overflow-hidden rounded-2xl
+                                ${task.completed
+                                    ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
+                                    : isFailed
+                                        ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${isBlinkingRed ? 'bg-red-600 animate-pulse' : 'bg-red-900/50'}`
+                                        : isLastSeven 
+                                            ? 'border-0 bg-transparent border-transparent text-stone-400 hover:text-stone-200 hover:bg-stone-800/30' 
+                                            : 'border-2 bg-stone-800 border-stone-700 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
+                                }
+                            `}
+                        >
+                            {isFailed && fillPercentage > 0 && !isBlinkingRed && (
+                                <div 
+                                    className="absolute bottom-0 left-0 right-0 bg-red-600/80 transition-all duration-500"
+                                    style={{ height: `${fillPercentage}%` }}
+                                />
+                            )}
+                            <span className="drop-shadow-sm filter relative z-10">{emoji}</span>
+                            {!task.plenoCompleted && (
+                                <div className="absolute w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.8)] animate-pulse z-10 top-1.5 right-1.5"></div>
+                            )}
+                        </button>
+                    );
+                    return elements;
+                })}
+            </div>
         </div>
       )}
 
@@ -361,8 +435,14 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
 
       {/* Pleno Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-stone-900 w-full max-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={handleCancelPleno}
+        >
+            <div 
+              className="bg-stone-900 w-full max-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
                 <div className="p-6 flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-orange-900/30 rounded-full flex items-center justify-center mb-4 border border-orange-600/50">
                         <CheckCircle2 className="w-10 h-10 text-orange-500" />
