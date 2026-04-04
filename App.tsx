@@ -320,7 +320,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -680,6 +680,8 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
   const lastSnapshotData = useRef<string>('');
   const isFirstRender = useRef(true);
+  const isRemoteUpdate = useRef(false);
+  const pendingWritesTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -764,21 +766,18 @@ function App() {
         
         unsubscribe = onSnapshot(habitsRef, (snapshot) => {
           if (!snapshot.empty) {
+            if (pendingWritesTimer.current) return;
+            
             const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
             const newData = deserializeAppData(docs);
             const processedData = processResets(newData);
             
-            if (JSON.stringify(newData) !== JSON.stringify(processedData)) {
-              const batch = writeBatch(db);
-              const serializedDocs = serializeAppData(processedData);
-              serializedDocs.forEach(d => {
-                batch.set(doc(habitsRef, d.id), d.data);
-              });
-              batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+            const newProcessedStr = JSON.stringify(processedData);
+            if (lastSnapshotData.current !== newProcessedStr) {
+               lastSnapshotData.current = newProcessedStr;
+               isRemoteUpdate.current = true;
+               setData(processedData);
             }
-            
-            lastSnapshotData.current = JSON.stringify(processedData);
-            setData(processedData);
           }
         }, (error) => {
           console.error("Firestore sync error:", error);
@@ -802,17 +801,32 @@ function App() {
       return;
     }
     
-    const currentDataStr = JSON.stringify(data);
-    if (currentDataStr !== lastSnapshotData.current) {
-      lastSnapshotData.current = currentDataStr;
-      const batch = writeBatch(db);
-      const docs = serializeAppData(data);
-      const habitsRef = collection(db, 'users', user.uid, 'habits');
-      docs.forEach(d => {
-        batch.set(doc(habitsRef, d.id), d.data);
-      });
-      batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+    if (isRemoteUpdate.current) {
+      isRemoteUpdate.current = false;
+      return;
     }
+    
+    if (pendingWritesTimer.current) {
+      clearTimeout(pendingWritesTimer.current);
+    }
+    
+    pendingWritesTimer.current = setTimeout(async () => {
+      try {
+        const batch = writeBatch(db);
+        const docs = serializeAppData(data);
+        const habitsRef = collection(db, 'users', user.uid, 'habits');
+        docs.forEach(d => {
+          batch.set(doc(habitsRef, d.id), d.data);
+        });
+        await batch.commit();
+        lastSnapshotData.current = JSON.stringify(data);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`);
+      } finally {
+        pendingWritesTimer.current = null;
+      }
+    }, 500);
+
   }, [data, loaded, user, isInitializing]);
 
   if (!loaded || !authReady) return (
