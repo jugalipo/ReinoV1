@@ -28,7 +28,11 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
 
   const adjustStat = (key: keyof typeof data.stats, delta: number) => {
       // @ts-ignore
-      const newVal = (data.stats[key] || 0) + delta;
+      const currentVal = data.stats[key];
+      // Handle potential missing or non-number values safely
+      const safeVal = typeof currentVal === 'number' ? currentVal : 0;
+      const newVal = safeVal + delta;
+      
       onUpdateData({
           ...data,
           stats: {
@@ -536,23 +540,53 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                        </div>
                    </div>
 
-                   <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                       <span className="font-bold text-stone-200 text-sm">Hunos</span>
-                       <div className="flex items-center gap-3">
-                           <button onClick={() => adjustStat('hunoPlenos', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                           <span className="font-mono w-8 text-center">{data.stats.hunoPlenos}</span>
-                           <button onClick={() => adjustStat('hunoPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                       </div>
-                   </div>
-                   
-                   <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                       <span className="font-bold text-stone-200 text-sm">Proyectos</span>
-                       <div className="flex items-center gap-3">
-                           <button onClick={() => adjustStat('projectPlenos', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                           <span className="font-mono w-8 text-center">{data.stats.projectPlenos}</span>
-                           <button onClick={() => adjustStat('projectPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                       </div>
-                   </div>
+                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
+                        <div className="flex flex-col">
+                            <span className="font-bold text-stone-200 text-sm">Hunos</span>
+                            <span className="text-[10px] text-stone-500 uppercase font-black">Trofeos</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => adjustStat('hunoPlenos', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4 text-stone-400" /></button>
+                            <span className="font-mono w-8 text-center text-stone-100">{data.stats.hunoPlenos || 0}</span>
+                            <button onClick={() => adjustStat('hunoPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4 text-stone-400" /></button>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-stone-900/40 p-3 rounded-xl border border-stone-800/50 ml-4">
+                        <div className="flex flex-col">
+                            <span className="font-bold text-stone-400 text-xs">Progreso Hunos</span>
+                            <span className="text-[9px] text-stone-600 uppercase font-black">Actual / 50</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => adjustStat('hunoPlenoCurrent', -1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Minus className="w-3.5 h-3.5 text-stone-500" /></button>
+                            <span className="font-mono w-8 text-center text-stone-300 text-sm">{data.stats.hunoPlenoCurrent || 0}</span>
+                            <button onClick={() => adjustStat('hunoPlenoCurrent', 1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Plus className="w-3.5 h-3.5 text-stone-500" /></button>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800 mt-1">
+                        <div className="flex flex-col">
+                            <span className="font-bold text-stone-200 text-sm">Proyectos</span>
+                            <span className="text-[10px] text-stone-500 uppercase font-black">Trofeos</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => adjustStat('projectPlenos', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4 text-stone-400" /></button>
+                            <span className="font-mono w-8 text-center text-stone-100">{data.stats.projectPlenos || 0}</span>
+                            <button onClick={() => adjustStat('projectPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4 text-stone-400" /></button>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-stone-900/40 p-3 rounded-xl border border-stone-800/50 ml-4">
+                        <div className="flex flex-col">
+                            <span className="font-bold text-stone-400 text-xs">Progreso Proyectos</span>
+                            <span className="text-[9px] text-stone-600 uppercase font-black">Actual / 20</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => adjustStat('projectPlenoCurrent', -1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Minus className="w-3.5 h-3.5 text-stone-500" /></button>
+                            <span className="font-mono w-8 text-center text-stone-300 text-sm">{data.stats.projectPlenoCurrent || 0}</span>
+                            <button onClick={() => adjustStat('projectPlenoCurrent', 1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Plus className="w-3.5 h-3.5 text-stone-500" /></button>
+                        </div>
+                    </div>
 
                    <div className="flex items-center justify-between bg-amber-900/20 p-3 rounded-xl border border-amber-900/50">
                        <span className="font-bold text-amber-500 text-sm">Leones (20s)</span>

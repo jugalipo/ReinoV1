@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
-import { Sword, CheckCircle2, Edit2, Save, X } from 'lucide-react';
+import { Sword, CheckCircle2, Edit2, Save, X, Trophy } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 import { HunosMonthViewModal } from './HunosMonthViewModal';
 
 interface DailyHunosProps {
   tasks: Task[];
   hunosHistory: Record<string, string[]>;
+  hunoPlenoCurrent: number;
+  hunoPlenos: number;
+  hunoReward: string;
   onUpdate: (tasks: Task[], isPleno?: boolean) => void;
+  onUpdateReward?: (reward: string) => void;
 }
 
-export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onUpdate }) => {
+export const DailyHunos: React.FC<DailyHunosProps> = ({ 
+  tasks, 
+  hunosHistory, 
+  hunoPlenoCurrent, 
+  hunoPlenos, 
+  hunoReward,
+  onUpdate,
+  onUpdateReward 
+}) => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showMonthView, setShowMonthView] = useState(false);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
@@ -219,6 +231,20 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
               Hunos
             </button>
             
+            <div className="flex items-center gap-2 px-2 py-1 bg-stone-950/50 rounded-full border border-stone-800">
+                <div className="flex items-center gap-1.5">
+                    <div className="relative">
+                        <Trophy className="w-5 h-5 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]" />
+                        <div className="absolute -top-2 -right-2 bg-yellow-600 text-stone-950 text-[10px] font-black px-1.5 rounded-full border border-stone-900 min-w-[1.2rem] h-5 flex items-center justify-center">
+                            {hunoPlenos}
+                        </div>
+                    </div>
+                </div>
+                <span className="text-[10px] font-black text-stone-500 uppercase tracking-tighter">
+                    {hunoPlenoCurrent} <span className="text-stone-700">/ 50</span>
+                </span>
+            </div>
+            
             {/* Core Hunos Pie Chart */}
             {!isEditing && (
                 <div className="ml-2 w-6 h-6 rounded-full border border-orange-500/30 overflow-hidden bg-orange-950/50 relative" title={`Principal del día: ${coreScore}/${coreTotal}`}>
@@ -412,6 +438,17 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
                       onChange={(e) => setText3(e.target.value)}
                       className="w-full bg-stone-950 border border-stone-700 rounded-xl p-4 text-stone-200 focus:outline-none focus:border-stone-500 min-h-[150px] resize-y"
                       placeholder="Ej: 🎸 Guitarra&#10;🧘 Meditar..."
+                  />
+              </div>
+
+              <div className="pt-4 border-t border-stone-800">
+                  <label className="block text-xs font-black text-stone-600 uppercase tracking-widest mb-2">Premio Objetivo 50 Plenos</label>
+                  <input 
+                      type="text"
+                      value={hunoReward}
+                      onChange={(e) => onUpdateReward?.(e.target.value)}
+                      className="w-full bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-orange-500 font-bold"
+                      placeholder="Escribe tu premio aquí..."
                   />
               </div>
           </div>

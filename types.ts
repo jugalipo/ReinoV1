@@ -133,6 +133,10 @@ export interface Stats {
   hunoPlenos: number;
   perfectTrainMonths: number;
   projectPlenos: number; // Completed project rounds
+  hunoPlenoCurrent: number; // 0 to 50
+  projectPlenoCurrent: number; // 0 to 20
+  hunoReward: string;
+  projectReward: string;
   setsHistory: number[]; // Array of completed counts for previous weeks
   trainsHistory: number[]; // Array of completed counts for previous months
   interactionsHistory: number[]; // Array of interaction counts for previous months

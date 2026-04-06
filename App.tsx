@@ -205,6 +205,10 @@ const INITIAL_DATA: AppData = {
     hunoPlenos: 0,
     perfectTrainMonths: 0,
     projectPlenos: 0,
+    hunoPlenoCurrent: 0,
+    projectPlenoCurrent: 0,
+    hunoReward: "Premio por definir",
+    projectReward: "Premio por definir",
     setsHistory: [],
     trainsHistory: [],
     interactionsHistory: [],
@@ -370,8 +374,12 @@ const deserializeAppData = (docs: any[]): AppData => {
 const processResets = (parsed: AppData): AppData => {
   const result = JSON.parse(JSON.stringify(parsed)) as AppData;
   
-  if (!result.stats) { result.stats = { perfectSetsWeeks: 0, hunoPlenos: 0, perfectTrainMonths: 0, projectPlenos: 0, setsHistory: [], trainsHistory: [], interactionsHistory: [], lastTotalInteractions: 0 }; }
+  if (!result.stats) { result.stats = { perfectSetsWeeks: 0, hunoPlenos: 0, perfectTrainMonths: 0, projectPlenos: 0, hunoPlenoCurrent: 0, projectPlenoCurrent: 0, hunoReward: "Premio por definir", projectReward: "Premio por definir", setsHistory: [], trainsHistory: [], interactionsHistory: [], lastTotalInteractions: 0 }; }
   if (typeof result.stats.projectPlenos === 'undefined') { result.stats.projectPlenos = 0; }
+  if (typeof result.stats.hunoPlenoCurrent === 'undefined') { result.stats.hunoPlenoCurrent = 0; }
+  if (typeof result.stats.projectPlenoCurrent === 'undefined') { result.stats.projectPlenoCurrent = 0; }
+  if (typeof result.stats.hunoReward === 'undefined') { result.stats.hunoReward = "Premio por definir"; }
+  if (typeof result.stats.projectReward === 'undefined') { result.stats.projectReward = "Premio por definir"; }
   if (typeof result.setsPlenoClaimed === 'undefined') { result.setsPlenoClaimed = false; }
   if (typeof result.trainsPlenoClaimed === 'undefined') { result.trainsPlenoClaimed = false; }
   if (!result.hunosHistory) { result.hunosHistory = {}; }
@@ -612,6 +620,7 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   
   const [showProjectConfirm, setShowProjectConfirm] = useState(false);
+  const [showCongratulations, setShowCongratulations] = useState<{ show: boolean, type: 'hunos' | 'projects', reward: string }>({ show: false, type: 'hunos', reward: '' });
   const [lastProjectToggledIndex, setLastProjectToggledIndex] = useState<number | null>(null);
   
   const [isEditingProjects, setIsEditingProjects] = useState(false);
@@ -921,13 +930,32 @@ function App() {
     const todayKey = new Date().toDateString();
     const completedIds = newTasks.filter(t => t.completed).map(t => t.id);
     const updatedHistory = { ...(data.hunosHistory || {}), [todayKey]: completedIds };
+    
+    // Check for Huno Pleno (daily)
+    let newHunoPlenoCurrent = data.stats.hunoPlenoCurrent || 0;
+    let newHunoTrophies = data.stats.hunoPlenos;
+    const isNowPleno = newTasks.every(t => t.completed);
+    const wasPlenoInHistory = (data.hunosHistory?.[todayKey] || []).length === data.hunos.length;
+    
+    if (isNowPleno && !wasPlenoInHistory) {
+      newHunoPlenoCurrent += 1;
+      if (newHunoPlenoCurrent >= 50) {
+        newHunoPlenoCurrent = 0;
+        newHunoTrophies += 1;
+        setShowCongratulations({ show: true, type: 'hunos', reward: data.stats.hunoReward || 'Tu recompensa' });
+      }
+    } else if (!isNowPleno && wasPlenoInHistory) {
+      newHunoPlenoCurrent = Math.max(0, newHunoPlenoCurrent - 1);
+    }
+
     setData(prev => ({
         ...prev,
         hunos: newTasks,
         hunosHistory: updatedHistory,
         stats: {
             ...prev.stats,
-            hunoPlenos: incrementPleno ? prev.stats.hunoPlenos + 1 : prev.stats.hunoPlenos
+            hunoPlenos: newHunoTrophies,
+            hunoPlenoCurrent: newHunoPlenoCurrent
         }
     }));
   };
@@ -1008,9 +1036,22 @@ function App() {
     setProjectToDelete(null);
   };
   const confirmProjectPleno = () => {
+      let newProjectPlenoCurrent = (data.stats.projectPlenoCurrent || 0) + 1;
+      let newProjectTrophies = data.stats.projectPlenos || 0;
+      
+      if (newProjectPlenoCurrent >= 20) {
+          newProjectPlenoCurrent = 0;
+          newProjectTrophies += 1;
+          setShowCongratulations({ show: true, type: 'projects', reward: data.stats.projectReward || 'Tu recompensa' });
+      }
+
       setData(prev => ({
         ...prev,
-        stats: { ...prev.stats, projectPlenos: (prev.stats.projectPlenos || 0) + 1 },
+        stats: { 
+            ...prev.stats, 
+            projectPlenos: newProjectTrophies,
+            projectPlenoCurrent: newProjectPlenoCurrent
+        },
         projects: prev.projects.map(p => ({ ...p, completed: false }))
       }));
       setShowProjectConfirm(false);
@@ -1179,7 +1220,7 @@ function App() {
                 }`}
               >
                 <div className="flex justify-between items-start w-full">
-                  <MushroomIcon className={`w-8 h-8 transition-colors ${isSetsPleno ? 'text-red-300' : 'text-red-500 group-hover:text-red-400'}`} />
+                  <MushroomIcon className={`w-8 h-8 transition-colors ${isSetsPleno ? 'text-red-300' : 'text-red-400 group-hover:text-red-400'}`} />
                   <div className={`opacity-80 scale-75 origin-top-right ${isSetsPleno ? 'brightness-125 saturate-150' : ''}`}>{renderSetsPreview()}</div>
                 </div>
                 <div className="text-left">
@@ -1280,19 +1321,80 @@ function App() {
                     {data.weeklyGoals?.puerto.completed && <Check className="w-5 h-5 text-white" />}
                   </button>
                 </div>
-                
-                {/* Progress Bar */}
-                <div className="w-full h-1.5 bg-stone-950 rounded-full overflow-hidden mt-4">
-                  <div 
-                    className="h-full bg-stone-500 transition-all duration-300" 
-                    style={{ width: `${((new Date().getDay() === 0 ? 7 : new Date().getDay()) / 7) * 100}%` }}
-                  />
-                </div>
               </div>
             </div>
 
-            <DailyHunos tasks={data.hunos} hunosHistory={data.hunosHistory || {}} onUpdate={handleHunosUpdate} />
-            <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300"><div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><GearIcon className="w-6 h-6 text-stone-400" /><h2 className="text-xl font-bold text-stone-200">Proyectos</h2></div><button onClick={() => setIsEditingProjects(!isEditingProjects)} className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}>{isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}</button></div>{isEditingProjects ? ( <div className="space-y-3 animate-in fade-in duration-300">{data.projects.map(proj => ( <div key={proj.id} className="flex gap-2"><DebouncedInput type="text" value={proj.text} onChange={(val: string) => handleProjectTextChange(proj.id, val)} className="flex-1 min-w-0 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" /><button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button></div> ))}<button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button></div> ) : ( <><div className="grid grid-cols-4 gap-3">{data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin proyectos activos.</p>}{data.projects.map((proj, idx) => ( <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${ proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100' }`}><span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span></button> ))}</div><button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all"><Music className="w-5 h-5" /><span className="font-bold">Profundizar en Piano</span></button></> )}</div>
+            <DailyHunos 
+                tasks={data.hunos} 
+                hunosHistory={data.hunosHistory || {}} 
+                hunoPlenoCurrent={data.stats.hunoPlenoCurrent || 0}
+                hunoPlenos={data.stats.hunoPlenos || 0}
+                hunoReward={data.stats.hunoReward || "Premio por definir"}
+                onUpdate={handleHunosUpdate} 
+                onUpdateReward={(reward) => setData(prev => ({ ...prev, stats: { ...prev.stats, hunoReward: reward } }))}
+            />
+            
+            <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <GearIcon className="w-6 h-6 text-stone-400" />
+                        <h2 className="text-xl font-bold text-stone-200">Proyectos</h2>
+                        
+                        <div className="flex items-center gap-2 px-2 py-1 bg-stone-950/50 rounded-full border border-stone-800 ml-1">
+                            <div className="flex items-center gap-1.5">
+                                <div className="relative">
+                                    <Trophy className="w-5 h-5 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]" />
+                                    <div className="absolute -top-2 -right-2 bg-yellow-600 text-stone-950 text-[10px] font-black px-1.5 rounded-full border border-stone-900 min-w-[1.2rem] h-5 flex items-center justify-center">
+                                        {data.stats.projectPlenos || 0}
+                                    </div>
+                                </div>
+                            </div>
+                            <span className="text-[10px] font-black text-stone-500 uppercase tracking-tighter">
+                                {data.stats.projectPlenoCurrent || 0} <span className="text-stone-700">/ 20</span>
+                            </span>
+                        </div>
+                    </div>
+                    <button onClick={() => setIsEditingProjects(!isEditingProjects)} className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}>{isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}</button>
+                </div>
+                {isEditingProjects ? ( 
+                    <div className="space-y-3 animate-in fade-in duration-300">
+                        {data.projects.map(proj => ( 
+                            <div key={proj.id} className="flex gap-2">
+                                <DebouncedInput type="text" value={proj.text} onChange={(val: string) => handleProjectTextChange(proj.id, val)} className="flex-1 min-w-0 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" />
+                                <button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                            </div> 
+                        ))}
+                        <button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button>
+                        
+                        <div className="pt-4 mt-2 border-t border-stone-800">
+                            <label className="block text-xs font-black text-stone-600 uppercase tracking-widest mb-2">Premio Objetivo 20 Plenos</label>
+                            <input 
+                                type="text"
+                                value={data.stats.projectReward || ''}
+                                onChange={(e) => setData(prev => ({ ...prev, stats: { ...prev.stats, projectReward: e.target.value } }))}
+                                className="w-full bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-yellow-500 font-bold"
+                                placeholder="Escribe tu premio aquí..."
+                            />
+                        </div>
+                    </div> 
+                ) : ( 
+                    <>
+                        <div className="grid grid-cols-4 gap-3">
+                            {data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin proyectos activos.</p>}
+                            {data.projects.map((proj, idx) => ( 
+                                <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${ proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100' }`}>
+                                    <span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span>
+                                </button> 
+                            ))}
+                        </div>
+                        <button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all">
+                            <Music className="w-5 h-5" />
+                            <span className="font-bold">Profundizar en Piano</span>
+                        </button>
+                    </> 
+                )}
+            </div>
+            
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
             {showHistory && <HistoryEditorModal data={data} onUpdateData={setData} onClose={() => setShowHistory(false)} />}
             
@@ -1424,6 +1526,41 @@ function App() {
                                     Eliminar
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showCongratulations.show && (
+                <div className="fixed inset-0 max-w-md mx-auto z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="bg-stone-900 w-full max-w-sm rounded-[3rem] shadow-2xl border border-yellow-500/30 overflow-hidden relative">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent animate-shimmer" />
+                        <div className="p-10 flex flex-col items-center text-center">
+                            <div className="relative mb-8">
+                                <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-2xl animate-pulse" />
+                                <div className="w-24 h-24 bg-yellow-600/30 rounded-full flex items-center justify-center border-2 border-yellow-500 shadow-[0_0_40px_rgba(234,179,8,0.4)] relative z-10">
+                                    <Trophy className="w-12 h-12 text-yellow-400" />
+                                </div>
+                            </div>
+                            
+                            <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter italic">¡ENHORABUENA!</h2>
+                            <p className="text-yellow-500 font-bold mb-6 text-sm tracking-widest uppercase">
+                                Objetivo {showCongratulations.type === 'hunos' ? '50' : '20'} Plenos alcanzado
+                            </p>
+                            
+                            <div className="w-full bg-stone-950/80 rounded-3xl p-6 border border-stone-800 mb-8 shadow-inner">
+                                <p className="text-stone-400 text-xs uppercase font-black tracking-widest mb-3 opacity-50">Tu Recompensa:</p>
+                                <p className="text-2xl font-bold text-white tracking-tight leading-tight">
+                                    {showCongratulations.reward}
+                                </p>
+                            </div>
+                            
+                            <button 
+                                onClick={() => setShowCongratulations({ ...showCongratulations, show: false })}
+                                className="w-full py-5 rounded-2xl bg-white text-stone-950 font-black hover:bg-stone-100 transition-all shadow-xl text-lg uppercase tracking-tight"
+                            >
+                                Recibir con Honor
+                            </button>
                         </div>
                     </div>
                 </div>
