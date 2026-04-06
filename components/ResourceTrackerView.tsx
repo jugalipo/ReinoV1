@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ResourceTask } from '../types';
 import { ArrowLeft, Plus, Minus, Edit2, Save, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple } from 'lucide-react';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 interface ResourceTrackerViewProps {
   title: string;
@@ -58,26 +59,10 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   const [lastLeonIndex, setLastLeonIndex] = useState<number | null>(null);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useEffect(() => {
-    const activeModal = isEditingMain ? 'editMainObjective' : 
-                       isEditingQuarterly ? 'editQuarterlyObjectives' : 
-                       showBilletesConfirm ? 'confirmBilletes' : 
-                       showLeonesConfirm ? 'confirmLeones' : null;
-
-    if (activeModal) {
-      window.history.pushState({ modal: activeModal }, '');
-      
-      const handlePopState = () => {
-        setIsEditingMain(false); // Back = Cancel
-        setIsEditingQuarterly(false);
-        setShowBilletesConfirm(false);
-        setShowLeonesConfirm(false);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, [isEditingMain, isEditingQuarterly, showBilletesConfirm, showLeonesConfirm]);
+  useModalHistory(isEditingMain, () => setIsEditingMain(false), 'editMainObjective');
+  useModalHistory(isEditingQuarterly, () => setIsEditingQuarterly(false), 'editQuarterlyObjectives');
+  useModalHistory(showBilletesConfirm, () => setShowBilletesConfirm(false), 'confirmBilletes');
+  useModalHistory(showLeonesConfirm, () => setShowLeonesConfirm(false), 'confirmLeones');
   // ---------------------------------------------
 
   // Sync state if task changes externally (or initializes)

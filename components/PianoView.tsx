@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PianoState } from '../types';
 import { ArrowLeft, Music, CheckCircle2, Circle, RotateCcw, Check, Plus, Minus, Clock, Play, Pause, Square } from 'lucide-react';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 interface PianoViewProps {
   pianoState?: PianoState;
@@ -84,18 +85,7 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
   const targetEndTimeRef = useRef<number | null>(null);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useEffect(() => {
-    if (isTimerOpen) {
-      window.history.pushState({ modal: 'pianoTimer' }, '');
-      
-      const handlePopState = () => {
-        setIsTimerOpen(false);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, [isTimerOpen]);
+  useModalHistory(isTimerOpen, () => setIsTimerOpen(false));
   // ---------------------------------------------
 
   const toggleChecklist = (field: keyof PianoState['checklist'], forceValue?: boolean) => {

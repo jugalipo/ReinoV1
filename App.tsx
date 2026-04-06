@@ -501,6 +501,12 @@ const processResets = (parsed: AppData): AppData => {
   const lastSetsResetDate = new Date(result.lastSetsReset);
   if (lastSetsResetDate.getTime() < startOfCurrentWeek.getTime()) {
       const completedCount = result.sets.filter(t => t.completed).length;
+      
+      const completedSetIds = result.sets.filter(t => t.completed).map(t => t.id);
+      if (!result.setsHistoryMap) result.setsHistoryMap = {};
+      const resetDateKey = new Date(Date.now()).toDateString(); 
+      if (completedSetIds.length > 0) result.setsHistoryMap[resetDateKey] = completedSetIds;
+
       const allSetsCompleted = completedCount === result.sets.length;
       if (allSetsCompleted && !result.setsPlenoClaimed) {
           result.stats.perfectSetsWeeks += 1;
@@ -558,6 +564,12 @@ const processResets = (parsed: AppData): AppData => {
   }
   if (currentYear > resetYear || (currentYear === resetYear && currentMonth > resetMonth)) {
        const completedCount = result.trains.filter(t => t.completed).length;
+       
+       const completedTrainIds = result.trains.filter(t => t.completed).map(t => t.id);
+       if (!result.trainsHistoryMap) result.trainsHistoryMap = {};
+       const todayStr = new Date(Date.now()).toDateString();
+       if (completedTrainIds.length > 0) result.trainsHistoryMap[todayStr] = completedTrainIds;
+
        const allTrainsCompleted = result.trains.every(t => t.completed);
        if (allTrainsCompleted && !result.trainsPlenoClaimed) {
            result.stats.perfectTrainMonths += 1;
@@ -939,15 +951,29 @@ function App() {
   const toggleProject = (index: number) => {
     if (isEditingProjects) return;
     const project = data.projects[index];
+    const todayStr = new Date(Date.now()).toDateString();
+
     if (project.completed) {
         const newProjects = [...data.projects];
         newProjects[index] = { ...project, completed: false };
-        setData(prev => ({ ...prev, projects: newProjects }));
+        setData(prev => {
+            const hm = { ...(prev.projectsHistoryMap || {}) };
+            if (hm[todayStr]) {
+                hm[todayStr] = hm[todayStr].filter(id => id !== project.id);
+            }
+            return { ...prev, projects: newProjects, projectsHistoryMap: hm };
+        });
         return;
     }
     const newProjects = [...data.projects];
     newProjects[index] = { ...project, completed: true };
-    setData(prev => ({ ...prev, projects: newProjects }));
+    setData(prev => {
+        const hm = { ...(prev.projectsHistoryMap || {}) };
+        const todayP = [...(hm[todayStr] || [])];
+        if (!todayP.includes(project.id)) todayP.push(project.id);
+        hm[todayStr] = todayP;
+        return { ...prev, projects: newProjects, projectsHistoryMap: hm };
+    });
 
     const isLastOne = newProjects.every(p => p.completed);
     if (isLastOne) {

@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Task } from '../types';
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 
 interface HunosMonthViewModalProps {
   tasks: Task[];
@@ -35,10 +35,30 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
     return () => observer.disconnect();
   }, [mounted]);
 
-  const { daysInMonth, currentMonthName, currentYear, todayDate, monthIndex } = useMemo(() => {
+  const monthsList = useMemo(() => {
+    const months = new Set<string>();
+    Object.keys(hunosHistory || {}).forEach(dateStr => {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        months.add(monthStr);
+      }
+    });
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
+    months.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    return Array.from(months).sort().reverse();
+  }, [hunosHistory]);
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+     const now = new Date();
+     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const { daysInMonth, currentMonthName, currentYear, todayDate, monthIndex } = useMemo(() => {
+    const [yStr, mStr] = selectedMonth.split('-');
+    const year = parseInt(yStr, 10);
+    const month = parseInt(mStr, 10) - 1;
+
     const days = new Date(year, month + 1, 0).getDate();
     
     const monthNames = [
@@ -46,14 +66,20 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
     
+    const now = new Date();
+    let currentToday = 32; // if looking at a past month, no "future" days block.
+    if (year === now.getFullYear() && month === now.getMonth()) {
+        currentToday = now.getDate();
+    }
+    
     return {
       daysInMonth: days,
       currentMonthName: monthNames[month],
       currentYear: year,
-      todayDate: now.getDate(),
+      todayDate: currentToday,
       monthIndex: month
     };
-  }, []);
+  }, [selectedMonth]);
 
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
@@ -178,15 +204,32 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
   const modalContent = (
     <div className="fixed inset-0 z-[99999] bg-stone-950 flex flex-col overflow-hidden">
       {/* Header - Fixed at physical top, NEVER rotated */}
-      <div className="flex items-center justify-between px-4 h-12 border-b border-stone-800 bg-stone-900 shrink-0 w-full">
-        <h2 className="text-sm font-bold text-stone-200 flex items-center gap-3">
-          <span>{currentMonthName} {currentYear}</span>
-          {totalFailures > 0 && (
-            <span className="text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full text-xs font-medium">
-              {totalFailures} fallos
-            </span>
-          )}
-        </h2>
+      <div className="flex items-center justify-between px-4 h-12 border-b border-stone-800 bg-stone-900 shrink-0 w-full relative z-10">
+        <div className="flex items-center gap-3">
+            <div className="relative">
+                <select 
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="text-sm font-bold text-stone-200 bg-transparent appearance-none cursor-pointer focus:outline-none w-full pr-6"
+                >
+                    {monthsList.map(m => {
+                        const [y, mm] = m.split('-');
+                        const d = new Date(parseInt(y), parseInt(mm) - 1, 1);
+                        const label = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+                        return <option key={m} value={m} className="text-base bg-stone-900 text-stone-200">{label.charAt(0).toUpperCase() + label.slice(1)}</option>;
+                    })}
+                </select>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-stone-500">
+                    <ChevronDown className="w-4 h-4" />
+                </div>
+            </div>
+            
+            {totalFailures > 0 && (
+                <span className="text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full text-xs font-medium border border-red-500/20">
+                {totalFailures} fallos
+                </span>
+            )}
+        </div>
         <button 
           onClick={onClose}
           className="p-2 rounded-full hover:bg-stone-800 text-stone-400 transition-colors"

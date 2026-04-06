@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
 import { ArrowLeft, Train, Plus, Check, Trash2, ChevronRight, CornerDownRight, X, Edit2, Save } from 'lucide-react';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 interface TrainViewProps {
   tasks: Task[];
@@ -20,22 +21,8 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   const [editAnnualText, setEditAnnualText] = useState('');
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useEffect(() => {
-    const activeModal = isEditing ? 'editTrains' : 
-                       activeTaskId ? 'trainSubtasks' : null;
-
-    if (activeModal) {
-      window.history.pushState({ modal: activeModal }, '');
-      
-      const handlePopState = () => {
-        setIsEditing(false); // Close without saving (Back = Cancel)
-        setActiveTaskId(null);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, [isEditing, activeTaskId]);
+  useModalHistory(isEditing, () => setIsEditing(false));
+  useModalHistory(!!activeTaskId, () => setActiveTaskId(null));
   // ---------------------------------------------
 
   const tasksToText = (taskList: Task[]) => {

@@ -121,6 +121,9 @@ export interface ExerciseState {
   totalMinutes: number;  // Total minutes trained
   sprintCount: number;
   stretchCount: number;
+  pushCount?: number;
+  pullCount?: number;
+  legsCount?: number;
   timerBlocks?: WorkoutBlock[];
   history?: Record<string, ExerciseDayStats>;
 }
@@ -207,11 +210,14 @@ export interface AppData {
   trains: Task[];
   annualTrains: Task[]; // New annual tasks
   sets: WeeklyTask[];
+  setsHistoryMap?: Record<string, string[]>;
   friends: Friend[];
   food: FoodState;
   forjas: ResourceTask[];
   leones: ResourceTask[];
   projects: Task[]; // Independent project list
+  projectsHistoryMap?: Record<string, string[]>;
+  trainsHistoryMap?: Record<string, string[]>;
   exercise: ExerciseState;
   billetesState?: boolean[]; // 20 booleans for the money grid
   huchaCount?: number; // Count of completed sets of 20 billetes

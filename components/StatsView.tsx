@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppData, Friend, ExerciseDayStats } from '../types';
-import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X, ChevronDown, Grid, Activity } from 'lucide-react';
+import { HunosYearInPixelsModal } from './HunosYearInPixelsModal';
+import { HunosMonthLineChartModal } from './HunosMonthLineChartModal';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 interface StatsViewProps {
   data: AppData;
@@ -18,6 +21,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
   const { stats, exercise, food, friends, sets, trains, hunos } = data;
 
   const [showHunosModal, setShowHunosModal] = useState(false);
+  const [showYearPixels, setShowYearPixels] = useState(false);
+  const [showMonthChart, setShowMonthChart] = useState(false);
   const [hunosTimeframe, setHunosTimeframe] = useState<'mes' | 'año' | 'siempre'>('mes');
   const [hunosSelectedPeriod, setHunosSelectedPeriod] = useState<string>('');
   
@@ -64,24 +69,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
   }, [hunosTimeframe, monthsList, yearsList, hunosSelectedPeriod, availableMonths, availableYears]);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useEffect(() => {
-    const activeModal = showHunosModal ? 'hunosDetail' : 
-                       showExerciseModal ? 'exerciseDetail' : 
-                       viewingHistoryForTask ? 'hunoHistory' : null;
-
-    if (activeModal) {
-      window.history.pushState({ modal: activeModal }, '');
-      
-      const handlePopState = () => {
-        if (showHunosModal) setShowHunosModal(false);
-        if (showExerciseModal) setShowExerciseModal(false);
-        if (viewingHistoryForTask) setViewingHistoryForTask(null);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, [showHunosModal, showExerciseModal, viewingHistoryForTask]);
+  useModalHistory(showHunosModal, () => setShowHunosModal(false));
+  useModalHistory(showExerciseModal, () => setShowExerciseModal(false));
+  useModalHistory(!!viewingHistoryForTask, () => setViewingHistoryForTask(null));
   // ---------------------------------------------
 
   const formatMonth = (monthStr: string) => {
@@ -1013,6 +1003,17 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
                     </div>
                   ))}
                 </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-2 text-center">
+                   <button onClick={() => setShowYearPixels(true)} className="flex flex-col items-center justify-center p-3 rounded-xl bg-stone-800/30 hover:bg-stone-800/50 transition-colors gap-2 border border-stone-800/50">
+                      <Grid className="w-5 h-5 text-orange-500" />
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Año en Píxeles</span>
+                   </button>
+                   <button onClick={() => setShowMonthChart(true)} className="flex flex-col items-center justify-center p-3 rounded-xl bg-stone-800/30 hover:bg-stone-800/50 transition-colors gap-2 border border-stone-800/50">
+                      <Activity className="w-5 h-5 text-orange-500" />
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Línea del Mes</span>
+                   </button>
+                </div>
               </div>
 
               {/* Advanced Performance Stats */}
@@ -1109,6 +1110,27 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
         </div>
       )}
       {renderTaskHistoryModal()}
+
+      {/* NEW MODALS */}
+      {showYearPixels && (
+        <HunosYearInPixelsModal 
+          hunos={data.hunos}
+          hunosHistory={data.hunosHistory || {}}
+          availableYears={yearsList}
+          initialYear={yearsList[0] || new Date().getFullYear().toString()}
+          onClose={() => setShowYearPixels(false)}
+        />
+      )}
+      
+      {showMonthChart && (
+        <HunosMonthLineChartModal 
+          hunos={data.hunos}
+          hunosHistory={data.hunosHistory || {}}
+          monthsList={monthsList}
+          initialMonth={monthsList[0] || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`}
+          onClose={() => setShowMonthChart(false)}
+        />
+      )}
     </div>
   );
 };

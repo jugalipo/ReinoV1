@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FoodState, FoodWheel, FoodBonuses, DailyFoodScore, FoodConfig } from '../types';
 import { ArrowLeft, ArrowRight, History, UtensilsCrossed, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check, X, Plus, Minus, Settings } from 'lucide-react';
 import { FoodConfigEditor } from './FoodConfigEditor';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 const DEFAULT_WHEEL = [
   { id: 'lemon', icon: '🍋' },
@@ -132,22 +133,8 @@ const DailyFoodScoreModal = ({
   const [selectingMealFor, setSelectingMealFor] = useState<'lunch' | 'dinner' | null>(null);
 
   // --- MOBILE BACK BUTTON SUPPORT ---
-  useEffect(() => {
-    // Push history for the main modal or the nested meal selector
-    const modalKey = selectingMealFor ? `selecting-${selectingMealFor}` : 'dailyFoodScore';
-    window.history.pushState({ modal: modalKey }, '');
-    
-    const handlePopState = () => {
-      if (selectingMealFor) {
-        setSelectingMealFor(null);
-      } else {
-        onClose();
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectingMealFor, onClose]);
+  useModalHistory(true, onClose, 'dailyFoodScore');
+  useModalHistory(!!selectingMealFor, () => setSelectingMealFor(null), `selecting-${selectingMealFor}`);
   // ----------------------------------
 
   const toggle = (field: keyof DailyFoodScore) => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WeeklyTask } from '../types';
 import { ArrowLeft, Check, Edit2, Save, Plus, Trash2, X } from 'lucide-react';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 interface SetsViewProps {
   tasks: WeeklyTask[];
@@ -19,22 +20,8 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
   const [newTaskText, setNewTaskText] = useState('');
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useEffect(() => {
-    const activeModal = isEditing ? 'editSets' : 
-                       taskToDelete ? 'confirmDeleteSet' : null;
-
-    if (activeModal) {
-      window.history.pushState({ modal: activeModal }, '');
-      
-      const handlePopState = () => {
-        setIsEditing(false); // Close without saving (Back = Cancel)
-        setTaskToDelete(null);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, [isEditing, taskToDelete]);
+  useModalHistory(isEditing, () => setIsEditing(false));
+  useModalHistory(!!taskToDelete, () => setTaskToDelete(null));
   // ---------------------------------------------
 
   const tasksToText = (taskList: WeeklyTask[]) => {

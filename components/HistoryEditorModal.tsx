@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppData } from '../types';
 import { sanitizeForFirestore } from '../App';
 import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft, Activity, Bell } from 'lucide-react';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 interface HistoryEditorModalProps {
   data: AppData;
@@ -10,6 +11,8 @@ interface HistoryEditorModalProps {
 }
 
 export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, onUpdateData, onClose }) => {
+  useModalHistory(true, onClose);
+
   const [currentDate, setCurrentDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);

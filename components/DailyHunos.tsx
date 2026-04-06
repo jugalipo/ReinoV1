@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
 import { Sword, CheckCircle2, Edit2, Save, X } from 'lucide-react';
+import { useModalHistory } from '../hooks/useModalHistory';
 import { HunosMonthViewModal } from './HunosMonthViewModal';
 
 interface DailyHunosProps {
@@ -57,24 +58,9 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
   };
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useEffect(() => {
-    const activeModal = isEditing ? 'editHunos' : 
-                       showMonthView ? 'hunosMonthView' : 
-                       showConfirmModal ? 'hunoConfirm' : null;
-
-    if (activeModal) {
-      window.history.pushState({ modal: activeModal }, '');
-      
-      const handlePopState = () => {
-        setIsEditing(false); // Close without saving (fulfill user request: Back = Cancel)
-        setShowMonthView(false);
-        setShowConfirmModal(false);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, [isEditing, showMonthView, showConfirmModal]);
+  useModalHistory(isEditing, () => setIsEditing(false));
+  useModalHistory(showMonthView, () => setShowMonthView(false));
+  useModalHistory(showConfirmModal, () => setShowConfirmModal(false));
   // ---------------------------------------------
 
   // --- VIEW MODE ACTIONS ---
@@ -303,7 +289,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
                                         ${task.completed
                                             ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
                                             : task.failedYesterday && !task.completed
-                                                ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${task.missedDays >= 5 ? 'bg-red-600 animate-pulse' : 'bg-red-900/50'}`
+                                                ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${task.missedDays >= 5 ? 'bg-red-600 animate-blink' : 'bg-red-900/50'}`
                                                 : 'border-2 bg-stone-800/80 border-stone-700/50 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
                                         }
                                     `}
@@ -371,7 +357,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({ tasks, hunosHistory, onU
                                 ${task.completed
                                     ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
                                     : isFailed
-                                        ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${isBlinkingRed ? 'bg-red-600 animate-pulse' : 'bg-red-900/50'}`
+                                        ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${isBlinkingRed ? 'bg-red-600 animate-blink' : 'bg-red-900/50'}`
                                         : isLastSeven 
                                             ? 'border-0 bg-transparent border-transparent text-stone-400 hover:text-stone-200 hover:bg-stone-800/30' 
                                             : 'border-2 bg-stone-800 border-stone-700 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'

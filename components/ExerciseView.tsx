@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExerciseState } from '../types';
-import { ArrowLeft, Dumbbell, Trophy, Move, Wind, RotateCcw, Timer, Plus, X, BicepsFlexed, Play, Pause, Settings2 } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Trophy, Move, Wind, RotateCcw, Timer, Plus, X, BicepsFlexed, Play, Pause, Settings2, Square, Zap, Flame, Activity } from 'lucide-react';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 interface ExerciseViewProps {
   exercise: ExerciseState;
@@ -23,9 +24,42 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   const [timerIsRunning, setTimerIsRunning] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   
+  // Custom Icons
+  const LegIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M14 2a2 2 0 0 0-2 2v6" />
+      <path d="M12 10c-1.5 1.5-2 3.5-2 6v3c0 1.1.9 2 2 2h3" />
+      <path d="M8 22h7" />
+    </svg>
+  );
+
+  const BackIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 4l3 10 5 8 5-8 3-10" />
+      <path d="M12 4v18" />
+      <path d="M7 14h10" />
+    </svg>
+  );
+
+  const ChestIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 6c0-2 1.5-4 4-4h8c2.5 0 4 2 4 4v5c0 3-4 6-8 6s-8-3-8-6V6Z" />
+      <path d="M12 2v15" />
+      <path d="M4 8h16" />
+    </svg>
+  );
+
   // Real-time progress (0 to 1) for smooth animation
   const [visualProgress, setVisualProgress] = useState(1);
   const [timerTimeLeft, setTimerTimeLeft] = useState(timerBlocks[0].workSecs);
+
+  // --- NEW SESSION TIMER STATE ---
+  const [sessionIsRunning, setSessionIsRunning] = useState(false);
+  const [sessionSeconds, setSessionSeconds] = useState(0);
+  const [showSessionConfirmModal, setShowSessionConfirmModal] = useState(false);
+
+  const sessionStartTimeRef = useRef<number | null>(null);
+  const sessionAccumulatedRef = useRef<number>(0);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const targetEndTimeRef = useRef<number | null>(null);
@@ -33,22 +67,9 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   const currentBlock = timerBlocks[currentBlockIndex] || timerBlocks[0];
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useEffect(() => {
-    const activeModal = showTimeModal ? 'exerciseTime' : 
-                       showTimerSettings ? 'timerSettings' : null;
-
-    if (activeModal) {
-      window.history.pushState({ modal: activeModal }, '');
-      
-      const handlePopState = () => {
-        setShowTimeModal(false);
-        setShowTimerSettings(false);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, [showTimeModal, showTimerSettings]);
+  useModalHistory(showTimeModal, () => setShowTimeModal(false));
+  useModalHistory(showTimerSettings, () => setShowTimerSettings(false));
+  useModalHistory(showSessionConfirmModal, () => setShowSessionConfirmModal(false));
   // ---------------------------------------------
 
   useEffect(() => {
@@ -60,6 +81,40 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
       }
     };
   }, []);
+
+  // --- SESSION TIMER LOGIC (Resistant to phone lock) ---
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (sessionIsRunning) {
+      if (sessionStartTimeRef.current === null) {
+        sessionStartTimeRef.current = Date.now();
+      }
+      
+      interval = setInterval(() => {
+        if (sessionStartTimeRef.current !== null) {
+          const elapsed = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+          setSessionSeconds(sessionAccumulatedRef.current + elapsed);
+        }
+      }, 1000);
+    } else {
+      if (sessionStartTimeRef.current !== null) {
+        const elapsed = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+        sessionAccumulatedRef.current += elapsed;
+        sessionStartTimeRef.current = null;
+      }
+    }
+    
+    return () => clearInterval(interval);
+  }, [sessionIsRunning]);
+
+  const formatSessionTime = (totalSecs: number) => {
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    if (h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const playBeep = () => {
     if (audioRef.current) {
@@ -237,10 +292,10 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
     }
   };
 
-  const incrementStat = (key: 'sprintCount' | 'stretchCount') => {
+  const incrementStat = (key: keyof ExerciseState) => {
     onUpdate({
       ...exercise,
-      [key]: exercise[key] + 1
+      [key]: (exercise[key] as number || 0) + 1
     });
   };
 
@@ -390,6 +445,86 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
                     <div className="text-3xl font-black text-stone-200 leading-none">{stretchCount}</div>
                 </div>
             </button>
+        </div>
+
+        {/* MUSCLE GROUPS ROW */}
+        <div className="grid grid-cols-3 gap-3 mt-3">
+            {/* PIERNAS */}
+            <button 
+                onClick={() => incrementStat('legsCount')}
+                className="bg-stone-900 p-4 rounded-2xl border border-stone-800 hover:border-orange-700 transition-colors group relative overflow-hidden flex flex-col items-center justify-center gap-2"
+            >
+                <div className="absolute inset-0 bg-orange-900/5 group-hover:bg-orange-900/10 transition-colors"></div>
+                <div className="relative z-10 flex flex-col items-center">
+                    <LegIcon className="w-6 h-6 text-orange-500 mb-2" />
+                    <div className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Piernas</div>
+                    <div className="text-2xl font-black text-stone-200 leading-none">{exercise.legsCount || 0}</div>
+                </div>
+            </button>
+
+            {/* TIRÓN */}
+            <button 
+                onClick={() => incrementStat('pullCount')}
+                className="bg-stone-900 p-4 rounded-2xl border border-stone-800 hover:border-violet-700 transition-colors group relative overflow-hidden flex flex-col items-center justify-center gap-2"
+            >
+                <div className="absolute inset-0 bg-violet-900/5 group-hover:bg-violet-900/10 transition-colors"></div>
+                <div className="relative z-10 flex flex-col items-center">
+                    <BackIcon className="w-6 h-6 text-violet-500 mb-2" />
+                    <div className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Espalda</div>
+                    <div className="text-2xl font-black text-stone-200 leading-none">{exercise.pullCount || 0}</div>
+                </div>
+            </button>
+
+            {/* EMPUJE */}
+            <button 
+                onClick={() => incrementStat('pushCount')}
+                className="bg-stone-900 p-4 rounded-2xl border border-stone-800 hover:border-rose-700 transition-colors group relative overflow-hidden flex flex-col items-center justify-center gap-2"
+            >
+                <div className="absolute inset-0 bg-rose-900/5 group-hover:bg-rose-900/10 transition-colors"></div>
+                <div className="relative z-10 flex flex-col items-center">
+                    <ChestIcon className="w-6 h-6 text-rose-500 mb-2" />
+                    <div className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1">Pecho</div>
+                    <div className="text-2xl font-black text-stone-200 leading-none">{exercise.pushCount || 0}</div>
+                </div>
+            </button>
+        </div>
+
+        {/* SESSION TIMER (TOTAL WORKOUT) */}
+        <div className="bg-stone-900 rounded-2xl p-6 border border-stone-800 shadow-xl relative overflow-hidden mt-6">
+            <div className="text-center">
+                <h2 className="text-stone-400 font-bold uppercase tracking-widest text-sm mb-4">Tiempo de Entrenamiento</h2>
+                
+                <div className="text-[4rem] font-black font-mono leading-none text-white mb-6">
+                    {formatSessionTime(sessionSeconds)}
+                </div>
+
+                <div className="flex gap-4 items-center justify-center">
+                    <button
+                        onClick={() => setSessionIsRunning(!sessionIsRunning)}
+                        className={`flex-1 max-w-[200px] h-14 rounded-xl font-black text-lg transition-all flex items-center justify-center gap-2 ${
+                            sessionIsRunning 
+                                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700 border border-stone-700' 
+                                : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/40'
+                        }`}
+                    >
+                        {sessionIsRunning ? (
+                            <><Pause className="w-5 h-5" /> PAUSA</>
+                        ) : (
+                            <><Play className="w-5 h-5" /> {sessionSeconds > 0 ? 'REANUDAR' : 'EMPEZAR'}</>
+                        )}
+                    </button>
+                    
+                    {sessionSeconds > 0 && (
+                        <button
+                            onClick={() => { setSessionIsRunning(false); setShowSessionConfirmModal(true); }}
+                            className="w-14 h-14 rounded-xl font-bold bg-amber-600/20 text-amber-500 border border-amber-900/50 hover:bg-amber-600/30 transition-colors flex items-center justify-center shrink-0"
+                            title="Terminar entrenamiento"
+                        >
+                            <Square className="w-5 h-5 fill-current" />
+                        </button>
+                    )}
+                </div>
+            </div>
         </div>
         
         {/* INTERVAL TIMER SECTION */}
@@ -680,6 +815,50 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
                 </div>
             </div>
         </div>
+      )}
+
+      {/* Session Result Confirm Modal */}
+      {showSessionConfirmModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowSessionConfirmModal(false)}>
+              <div 
+                  className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 p-6 text-center"
+                  onClick={(e) => e.stopPropagation()}
+              >
+                  <h3 className="font-bold text-xl text-white mb-2">Fin del Entrenamiento</h3>
+                  <p className="text-stone-400 mb-8">
+                      ¿Añadir <span className="text-indigo-400 font-bold text-lg">{Math.round(sessionSeconds / 60)} minutos</span> al tiempo de entrenamiento total?
+                  </p>
+                  
+                  <div className="flex gap-4">
+                      <button 
+                          onClick={() => {
+                              setShowSessionConfirmModal(false);
+                              setSessionSeconds(0);
+                              sessionAccumulatedRef.current = 0;
+                              sessionStartTimeRef.current = null;
+                          }}
+                          className="flex-1 py-3 rounded-xl bg-stone-800 text-stone-300 font-bold hover:bg-stone-700 transition-colors"
+                      >
+                          Descartar
+                      </button>
+                      <button 
+                          onClick={() => {
+                              const minsToAdd = Math.round(sessionSeconds / 60);
+                              if (minsToAdd > 0) {
+                                  addMinutes(minsToAdd);
+                              }
+                              setShowSessionConfirmModal(false);
+                              setSessionSeconds(0);
+                              sessionAccumulatedRef.current = 0;
+                              sessionStartTimeRef.current = null;
+                          }}
+                          className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-500 shadow-lg shadow-indigo-900/20 transition-colors"
+                      >
+                          Añadir Tiempo
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
 
     </div>

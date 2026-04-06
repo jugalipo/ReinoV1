@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Friend, FriendInteractions, ReminderEvent } from '../types';
 import { ArrowLeft, Plus, Trash2, Heart, X, Check, BarChart2, Edit2, Save } from 'lucide-react';
 import { RemindersSection } from './RemindersSection';
+import { useModalHistory } from '../hooks/useModalHistory';
 
 interface LoveTreeViewProps {
   friends: Friend[];
@@ -41,24 +42,9 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
   }, [selectedFriendId]);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useEffect(() => {
-    const activeModal = isEditingFriend ? 'editFriend' : 
-                       showDeleteConfirm ? 'confirmDeleteFriend' : 
-                       selectedFriendId ? 'friendDetail' : null;
-
-    if (activeModal) {
-      window.history.pushState({ modal: activeModal }, '');
-      
-      const handlePopState = () => {
-        setIsEditingFriend(false); // Close without saving (Back = Cancel)
-        setShowDeleteConfirm(false);
-        setSelectedFriendId(null);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, [isEditingFriend, showDeleteConfirm, selectedFriendId]);
+  useModalHistory(!!selectedFriendId, () => setSelectedFriendId(null), 'friendDetail');
+  useModalHistory(isEditingFriend, () => setIsEditingFriend(false), 'editFriend');
+  useModalHistory(showDeleteConfirm, () => setShowDeleteConfirm(false), 'confirmDeleteFriend');
   // ---------------------------------------------
 
   const getDaysSince = (timestamp: number) => {
