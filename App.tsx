@@ -256,6 +256,7 @@ const INITIAL_DATA: AppData = {
       { id: 'q4-proj', name: 'Proyectos', current: 0, target: 100, unit: 'h' }
   ],
   leones: [],
+  forjaTasks: [],
   projects: PROJECT_DEFINITIONS.map((def, i) => ({
       id: `new-proj-${i}`,
       text: def.text,
@@ -327,6 +328,7 @@ const serializeAppData = (data: AppData) => {
     { id: 'friends', data: { items: data.friends } },
     { id: 'projects', data: { items: data.projects } },
     { id: 'forjas', data: { items: data.forjas } },
+    { id: 'forjaTasks', data: { items: data.forjaTasks } },
     { id: 'leones', data: { items: data.leones } },
     { id: 'hunosHistory', data: { items: data.hunosHistory } },
   ];
@@ -354,6 +356,8 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.projects = doc.data.items || INITIAL_DATA.projects;
     } else if (doc.id === 'forjas') {
       result.forjas = doc.data.items || INITIAL_DATA.forjas;
+    } else if (doc.id === 'forjaTasks') {
+      result.forjaTasks = doc.data.items || INITIAL_DATA.forjaTasks;
     } else if (doc.id === 'leones') {
       result.leones = doc.data.items || INITIAL_DATA.leones;
     } else if (doc.id === 'hunosHistory') {
@@ -404,6 +408,7 @@ const processResets = (parsed: AppData): AppData => {
        }
   }
   if (!result.leones) { result.leones = []; }
+  if (!result.forjaTasks) { result.forjaTasks = []; }
   if (!result.annualTrains) {
       result.annualTrains = ANNUAL_TRAIN_TASKS.map((task, i) => ({
           id: `annual-train-${i}`,
@@ -1127,7 +1132,7 @@ function App() {
       case 'sets': return <SetsView tasks={data.sets} onUpdate={handleSetsUpdate} onBack={() => setView('home')} />;
       case 'love': return <LoveTreeView friends={data.friends} onUpdate={(f) => setData(prev => ({ ...prev, friends: f }))} onBack={() => setView('home')} reminders={data.reminders} onUpdateReminders={(r) => setData(prev => ({ ...prev, reminders: r }))} />;
       case 'food': return <FoodBoardView foodState={data.food} onUpdate={(f) => setData(prev => ({ ...prev, food: f }))} onBack={() => setView('home')} />;
-      case 'forjas': return <ResourceTrackerView title="Forjas" themeColor="orange" tasks={data.forjas} onUpdate={t => setData(prev => ({ ...prev, forjas: t }))} onBack={() => setView('home')} />;
+      case 'forjas': return <ResourceTrackerView title="Forjas" themeColor="orange" tasks={data.forjas} forjaTasks={data.forjaTasks || []} onUpdateForjaTasks={t => setData(prev => ({ ...prev, forjaTasks: t }))} onUpdate={t => setData(prev => ({ ...prev, forjas: t }))} onBack={() => setView('home')} />;
       case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({...prev, billetesState: bs, huchaCount: hc}))} leonesState={data.leonesState || Array(20).fill(false)} leonesCount={data.leonesCount || 0} onUpdateLeones={(ls, lc) => setData(prev => ({...prev, leonesState: ls, leonesCount: lc}))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
       case 'exercise': return <ExerciseView exercise={data.exercise} onUpdate={ex => setData(prev => ({ ...prev, exercise: ex }))} onBack={() => setView('home')} />;
       case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;

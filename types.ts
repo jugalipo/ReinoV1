@@ -215,6 +215,7 @@ export interface AppData {
   food: FoodState;
   forjas: ResourceTask[];
   leones: ResourceTask[];
+  forjaTasks?: Task[];
   projects: Task[]; // Independent project list
   projectsHistoryMap?: Record<string, string[]>;
   trainsHistoryMap?: Record<string, string[]>;

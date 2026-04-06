@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ResourceTask } from '../types';
+import { ResourceTask, Task } from '../types';
 import { ArrowLeft, Plus, Minus, Edit2, Save, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 
@@ -15,6 +15,8 @@ interface ResourceTrackerViewProps {
   leonesState?: boolean[];
   leonesCount?: number;
   onUpdateLeones?: (leones: boolean[], count: number) => void;
+  forjaTasks?: Task[];
+  onUpdateForjaTasks?: (tasks: Task[]) => void;
 }
 
 export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({ 
@@ -28,7 +30,9 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
     onUpdateBilletes,
     leonesState = Array(20).fill(false),
     leonesCount = 0,
-    onUpdateLeones
+    onUpdateLeones,
+    forjaTasks = [],
+    onUpdateForjaTasks
 }) => {
   // We use the first task as the "Permanent" one. If none exists, we create a default one.
   const mainTask: ResourceTask = tasks.length > 0 ? tasks[0] : {
@@ -58,11 +62,26 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   const [showLeonesConfirm, setShowLeonesConfirm] = useState(false);
   const [lastLeonIndex, setLastLeonIndex] = useState<number | null>(null);
 
+  // --- FORJA WORK LIST STATE ---
+  const [isEditingForjaTasks, setIsEditingForjaTasks] = useState(false);
+  const [newForjaTaskText, setNewForjaTaskText] = useState('');
+
+  // --- OBJECTIVE POPUP STATE ---
+  const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
+  const selectedObjective = tasks.find(t => t.id === selectedObjectiveId);
+  const [isEditingInPopup, setIsEditingInPopup] = useState(false);
+
+  // Temporary edit state for popup
+  const [popupEditName, setPopupEditName] = useState('');
+  const [popupEditTarget, setPopupEditTarget] = useState('');
+  const [popupEditUnit, setPopupEditUnit] = useState('');
+
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useModalHistory(isEditingMain, () => setIsEditingMain(false), 'editMainObjective');
   useModalHistory(isEditingQuarterly, () => setIsEditingQuarterly(false), 'editQuarterlyObjectives');
   useModalHistory(showBilletesConfirm, () => setShowBilletesConfirm(false), 'confirmBilletes');
   useModalHistory(showLeonesConfirm, () => setShowLeonesConfirm(false), 'confirmLeones');
+  useModalHistory(!!selectedObjectiveId, () => setSelectedObjectiveId(null), 'objectivePopup');
   // ---------------------------------------------
 
   // Sync state if task changes externally (or initializes)
@@ -75,6 +94,14 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   useEffect(() => {
       setQuarterlyEdits(quarterlyTasks);
   }, [tasks]);
+
+  useEffect(() => {
+    if (selectedObjective && !isEditingInPopup) {
+      setPopupEditName(selectedObjective.name);
+      setPopupEditTarget(selectedObjective.target.toString());
+      setPopupEditUnit(selectedObjective.unit);
+    }
+  }, [selectedObjective, isEditingInPopup]);
 
   const saveMainChanges = () => {
       const updatedTask: ResourceTask = {
@@ -130,6 +157,46 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       const updated = [...quarterlyEdits];
       updated[index] = { ...updated[index], [field]: value };
       setQuarterlyEdits(updated);
+  };
+
+  // --- FORJA WORK LIST ACTIONS ---
+  const toggleForjaTask = (id: string) => {
+    if (!onUpdateForjaTasks) return;
+    const newTasks = forjaTasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+    onUpdateForjaTasks(newTasks);
+  };
+
+  const addForjaTask = () => {
+    if (!newForjaTaskText.trim() || !onUpdateForjaTasks) return;
+    const newTask: Task = {
+      id: `forja-task-${Date.now()}`,
+      text: newForjaTaskText,
+      completed: false
+    };
+    onUpdateForjaTasks([...forjaTasks, newTask]);
+    setNewForjaTaskText('');
+  };
+
+  const deleteForjaTask = (id: string) => {
+    if (!onUpdateForjaTasks) return;
+    onUpdateForjaTasks(forjaTasks.filter(t => t.id !== id));
+  };
+
+  const updateForjaTaskText = (id: string, text: string) => {
+    if (!onUpdateForjaTasks) return;
+    onUpdateForjaTasks(forjaTasks.map(t => t.id === id ? { ...t, text } : t));
+  };
+
+  const savePopupChanges = () => {
+    if (!selectedObjectiveId) return;
+    const newTasks = tasks.map(t => t.id === selectedObjectiveId ? {
+      ...t,
+      name: popupEditName,
+      target: Number(popupEditTarget) || 1,
+      unit: popupEditUnit
+    } : t);
+    onUpdate(newTasks);
+    setIsEditingInPopup(false);
   };
 
   const togglePrincipal = (taskId: string) => {
@@ -473,116 +540,117 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
             </div>
         )}
 
-        {/* QUARTERLY GOALS (FORJAS ONLY) */}
-        {title === 'Forjas' && quarterlyTasks.length > 0 && (
-            <div className="w-full pt-4 border-t border-stone-800">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-stone-500 uppercase tracking-widest text-[10px]">Objetivos de Estación</h3>
+        {/* FORJA WORK LIST (FORJAS ONLY) */}
+        {title === 'Forjas' && (
+            <div className="w-full bg-stone-900 p-4 rounded-3xl border border-stone-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                         Trabajos de Forja
+                    </h3>
                     <button 
-                        onClick={() => setIsEditingQuarterly(!isEditingQuarterly)} 
-                        className="p-1.5 text-stone-600 hover:text-stone-300 transition-colors rounded-full hover:bg-stone-800"
+                        onClick={() => setIsEditingForjaTasks(!isEditingForjaTasks)}
+                        className={`p-1.5 rounded-full transition-colors ${isEditingForjaTasks ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}
                     >
-                        {isEditingQuarterly ? <X className="w-4 h-4" /> : <Edit2 className="w-3.5 h-3.5" />}
+                        {isEditingForjaTasks ? <Save className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
                     </button>
                 </div>
 
-                {isEditingQuarterly ? (
-                    <div className="space-y-4 bg-stone-900/50 p-3 rounded-2xl border border-stone-800">
-                        {quarterlyEdits.map((task, i) => (
-                            <div key={task.id} className="space-y-2 p-2 rounded-xl bg-stone-950 border border-stone-800">
-                                <div className={`text-[9px] font-bold uppercase ${getQuarterlyColors(task.id).accent}`}>{getQuarterlyLabel(task.id, i)}</div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input 
-                                        value={task.name}
-                                        onChange={(e) => handleQuarterlyEditChange(i, 'name', e.target.value)}
-                                        className="col-span-2 bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-xs outline-none focus:border-stone-600"
-                                        placeholder="Nombre"
-                                    />
-                                    <input 
-                                        type="number"
-                                        value={task.target}
-                                        onChange={(e) => handleQuarterlyEditChange(i, 'target', e.target.value)}
-                                        className="bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-xs outline-none focus:border-stone-600"
-                                        placeholder="Meta"
-                                    />
-                                    <input 
-                                        value={task.unit}
-                                        onChange={(e) => handleQuarterlyEditChange(i, 'unit', e.target.value)}
-                                        className="bg-stone-900 border border-stone-800 rounded-lg p-2 text-stone-200 text-xs outline-none focus:border-stone-600"
-                                        placeholder="Unidad"
-                                    />
-                                </div>
+                {isEditingForjaTasks ? (
+                    <div className="space-y-2 animate-in fade-in duration-300">
+                        {forjaTasks.map(task => (
+                            <div key={task.id} className="flex gap-2">
+                                <input 
+                                    value={task.text}
+                                    onChange={(e) => updateForjaTaskText(task.id, e.target.value)}
+                                    className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-200 text-sm focus:outline-none focus:border-orange-500"
+                                />
+                                <button 
+                                    onClick={() => deleteForjaTask(task.id)}
+                                    className="p-1.5 text-red-500 hover:bg-red-900/20 rounded-lg transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
                         ))}
-                        <button 
-                            onClick={saveQuarterlyChanges}
-                            className={`w-full py-2.5 rounded-xl font-bold text-stone-100 flex justify-center items-center gap-2 mt-2 text-sm ${theme.button}`}
-                        >
-                            <Save className="w-4 h-4" /> Guardar Todos
-                        </button>
+                        <div className="flex gap-2 pt-2 border-t border-stone-800">
+                            <input 
+                                value={newForjaTaskText}
+                                onChange={(e) => setNewForjaTaskText(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && addForjaTask()}
+                                placeholder="Nueva tarea..."
+                                className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-200 text-sm focus:outline-none focus:border-orange-500"
+                            />
+                            <button 
+                                onClick={addForjaTask}
+                                className="p-1.5 bg-orange-600 text-stone-950 rounded-lg hover:bg-orange-500 transition-colors"
+                            >
+                                <Plus className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 ) : (
-                    <div className="space-y-8 mt-6">
-                        {quarterlyTasks.map((task, i) => {
-                             const colors = getQuarterlyColors(task.id);
-                             const qPercent = Math.min(100, (task.current / task.target) * 100);
-
-                             return (
-                                <div key={task.id} className={`flex flex-col items-center justify-center w-full space-y-4 transition-all duration-300 relative ${task.isPrincipal ? 'bg-stone-800/50 border border-stone-700/50 shadow-lg rounded-3xl p-5' : 'py-2'}`}>
-                                    <div className="absolute top-2 right-2 opacity-20 pointer-events-none">
-                                        {getQuarterlyIcon(task.id, "w-12 h-12")}
-                                    </div>
-                                    <div className="text-center w-full relative z-10">
-                                        <div className="flex items-center justify-center gap-3 mb-0.5">
-                                            <button 
-                                                onClick={() => togglePrincipal(task.id)}
-                                                className={`p-1 rounded-full transition-colors ${task.isPrincipal ? colors.accent : 'text-stone-600 hover:text-stone-400'}`}
-                                            >
-                                                {task.isPrincipal ? (
-                                                    <CheckCircle2 className="w-6 h-6" />
-                                                ) : (
-                                                    <Circle className="w-6 h-6" />
-                                                )}
-                                            </button>
-                                            <h2 className="text-2xl font-black text-stone-100">{task.name}</h2>
-                                        </div>
-                                        <p className={`text-base font-mono ${colors.accent} opacity-80`}>
-                                            {task.current} <span className="text-stone-500">/</span> {task.target} <span className="text-xs text-stone-600">{task.unit}</span>
-                                        </p>
-                                    </div>
-
-                                    <div className="w-full">
-                                        <div className="h-6 bg-stone-900 rounded-full overflow-hidden relative border border-stone-800 shadow-inner">
-                                            <div 
-                                                className={`h-full transition-all duration-500 ease-out ${colors.bar}`} 
-                                                style={{ width: `${qPercent}%` }}
-                                            ></div>
-                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white drop-shadow-md">
-                                                {Math.round(qPercent)}%
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-center gap-6 w-full">
-                                        <button 
-                                            onClick={() => updateQuarterlyProgress(task.id, -1)}
-                                            className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${colors.buttonSecondary} border border-stone-700`}
-                                        >
-                                            <Minus className="w-6 h-6 text-stone-400" />
-                                        </button>
-
-                                        <button 
-                                            onClick={() => updateQuarterlyProgress(task.id, 1)}
-                                            className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-md shadow-black/40 ${colors.button} border border-white/10`}
-                                        >
-                                            <Plus className="w-6 h-6 text-white" />
-                                        </button>
-                                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                        {forjaTasks.length === 0 && <p className="text-center text-stone-600 italic text-xs py-2">Sin trabajos activos.</p>}
+                        {forjaTasks.map(task => (
+                            <button 
+                                key={task.id}
+                                onClick={() => toggleForjaTask(task.id)}
+                                className="flex items-center gap-3 p-3 bg-stone-950/50 hover:bg-stone-800/50 rounded-2xl border border-stone-800 transition-all text-left group"
+                            >
+                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${task.completed ? 'bg-orange-600 border-orange-600 text-stone-900' : 'border-stone-700 group-hover:border-stone-500'}`}>
+                                    {task.completed && <CheckCircle2 className="w-4 h-4" />}
                                 </div>
-                             );
-                        })}
+                                <span className={`text-sm font-medium transition-colors ${task.completed ? 'text-stone-500 line-through' : 'text-stone-200'}`}>
+                                    {task.text}
+                                </span>
+                            </button>
+                        ))}
                     </div>
                 )}
+            </div>
+        )}
+
+        {/* 2x2 GRID (FORJAS ONLY) */}
+        {title === 'Forjas' && quarterlyTasks.length > 0 && (
+            <div className="w-full pt-4 border-t border-stone-800 space-y-4">
+                <h3 className="font-bold text-stone-500 uppercase tracking-widest text-[10px] px-1">Objetivos de Estación</h3>
+                <div className="grid grid-cols-2 gap-4">
+                    {quarterlyTasks.map((task, i) => {
+                         const colors = getQuarterlyColors(task.id);
+                         const qPercent = Math.min(100, (task.current / task.target) * 100);
+
+                         return (
+                            <button 
+                                key={task.id}
+                                onClick={() => setSelectedObjectiveId(task.id)}
+                                className={`
+                                    relative flex flex-col items-center justify-center aspect-square rounded-3xl p-4 transition-all duration-300 border-2 overflow-hidden group
+                                    ${colors.bg} ${colors.border} hover:scale-[1.02] active:scale-95 shadow-lg
+                                `}
+                            >
+                                <div className="absolute top-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    {getQuarterlyIcon(task.id, "w-12 h-12")}
+                                </div>
+                                
+                                <div className="relative z-10 flex flex-col items-center text-center space-y-1">
+                                    <h4 className="text-sm font-black text-stone-100 leading-tight line-clamp-2">{task.name}</h4>
+                                    <p className={`text-[10px] font-black ${colors.accent} opacity-90`}>
+                                        {task.current} <span className="text-stone-500">/</span> {task.target} <span className="text-[8px] text-stone-600 uppercase">{task.unit}</span>
+                                    </p>
+                                </div>
+
+                                {/* Mini Progress line at the bottom */}
+                                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-stone-900/50 overflow-hidden">
+                                    <div 
+                                        className={`h-full transition-all duration-700 ${colors.bar}`}
+                                        style={{ width: `${qPercent}%` }}
+                                    />
+                                </div>
+                                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                         );
+                    })}
+                </div>
             </div>
         )}
 
@@ -660,6 +728,120 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+      )}
+
+      {/* OBJECTIVE POPUP MODAL */}
+      {selectedObjective && (
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setSelectedObjectiveId(null)}
+        >
+            <div 
+              className="bg-stone-900 w-full max-w-sm rounded-[32px] shadow-2xl border border-stone-800 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+                {isEditingInPopup ? (
+                    /* EDIT MODE POPUP */
+                    <div className="p-6 space-y-4">
+                        <div className="flex justify-between items-center mb-2">
+                             <h3 className="font-bold text-stone-400 uppercase tracking-widest text-[10px]">Editar Objetivo</h3>
+                             <button onClick={() => setIsEditingInPopup(false)} className="text-stone-600 hover:text-stone-400">
+                                 <X className="w-5 h-5" />
+                             </button>
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-stone-500 font-bold uppercase ml-1">Nombre</label>
+                            <input 
+                                value={popupEditName}
+                                onChange={e => setPopupEditName(e.target.value)}
+                                className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-base font-bold"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] text-stone-500 font-bold uppercase ml-1">Meta</label>
+                                <input 
+                                    type="number"
+                                    value={popupEditTarget}
+                                    onChange={e => setPopupEditTarget(e.target.value)}
+                                    className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 font-mono text-base"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] text-stone-500 font-bold uppercase ml-1">Unidad</label>
+                                <input 
+                                    value={popupEditUnit}
+                                    onChange={e => setPopupEditUnit(e.target.value)}
+                                    className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-base"
+                                />
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={savePopupChanges}
+                            className={`w-full py-4 rounded-2xl font-black text-stone-100 flex justify-center items-center gap-2 mt-4 transition-transform active:scale-95 ${getQuarterlyColors(selectedObjective.id).button}`}
+                        >
+                            <Save className="w-5 h-5" /> Guardar Cambios
+                        </button>
+                    </div>
+                ) : (
+                    /* PROGRESS MODE POPUP */
+                    <div className="p-8 flex flex-col items-center text-center">
+                        <div className="flex justify-between w-full mb-6">
+                            <button 
+                                onClick={() => togglePrincipal(selectedObjective.id)}
+                                className={`p-2 rounded-full transition-colors ${selectedObjective.isPrincipal ? getQuarterlyColors(selectedObjective.id).accent : 'text-stone-700 hover:text-stone-500'}`}
+                            >
+                                {selectedObjective.isPrincipal ? <CheckCircle2 className="w-6 h-6" /> : <Circle className="w-6 h-6" />}
+                            </button>
+                            <button 
+                                onClick={() => setIsEditingInPopup(true)}
+                                className="p-2 text-stone-700 hover:text-stone-400 bg-stone-950 rounded-full border border-stone-800"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 border-2 ${getQuarterlyColors(selectedObjective.id).border} ${getQuarterlyColors(selectedObjective.id).bg}`}>
+                             {getQuarterlyIcon(selectedObjective.id, `w-10 h-10 ${getQuarterlyColors(selectedObjective.id).accent}`)}
+                        </div>
+
+                        <h2 className="text-xl font-black text-stone-100 mb-1">{selectedObjective.name}</h2>
+                        <div className="flex items-baseline gap-2 mb-8">
+                             <span className={`text-3xl font-black font-mono ${getQuarterlyColors(selectedObjective.id).accent}`}>{selectedObjective.current}</span>
+                             <span className="text-stone-600 text-lg">/</span>
+                             <span className="text-stone-500 font-bold text-lg">{selectedObjective.target}</span>
+                             <span className="text-stone-700 text-xs uppercase font-black">{selectedObjective.unit}</span>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-6 w-full mb-4">
+                            <button 
+                                onClick={() => updateQuarterlyProgress(selectedObjective.id, -1)}
+                                className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-90 bg-stone-950 border border-stone-800 text-stone-500 hover:text-stone-300`}
+                            >
+                                <Minus className="w-6 h-6" />
+                            </button>
+
+                            <button 
+                                onClick={() => updateQuarterlyProgress(selectedObjective.id, 1)}
+                                className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-black/40 ${getQuarterlyColors(selectedObjective.id).button} border border-white/10`}
+                            >
+                                <Plus className="w-6 h-6 text-white" />
+                            </button>
+                        </div>
+                        
+                        <button 
+                            onClick={() => setSelectedObjectiveId(null)}
+                            className="text-stone-600 hover:text-stone-400 text-xs font-bold uppercase tracking-widest mt-4"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
       )}
