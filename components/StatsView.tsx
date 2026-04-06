@@ -3,6 +3,7 @@ import { AppData, Friend, ExerciseDayStats } from '../types';
 import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X, ChevronDown, Grid, Activity } from 'lucide-react';
 import { HunosYearInPixelsModal } from './HunosYearInPixelsModal';
 import { HunosMonthLineChartModal } from './HunosMonthLineChartModal';
+import { CategoryHistoryModal } from './CategoryHistoryModal';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 interface StatsViewProps {
@@ -29,6 +30,10 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [exerciseTimeframe, setExerciseTimeframe] = useState<'mes' | 'año' | 'siempre'>('mes');
   const [exerciseSelectedPeriod, setExerciseSelectedPeriod] = useState<string>('');
+
+  const [showSetsModal, setShowSetsModal] = useState(false);
+  const [showTrainsModal, setShowTrainsModal] = useState(false);
+  const [showProjectsModal, setShowProjectsModal] = useState(false);
 
   const [viewingHistoryForTask, setViewingHistoryForTask] = useState<string | null>(null);
   const [taskHistoryTimeframe, setTaskHistoryTimeframe] = useState<'mes' | '60dias' | '90dias' | 'año' | 'siempre'>('mes');
@@ -71,6 +76,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useModalHistory(showHunosModal, () => setShowHunosModal(false));
   useModalHistory(showExerciseModal, () => setShowExerciseModal(false));
+  useModalHistory(showSetsModal, () => setShowSetsModal(false));
+  useModalHistory(showTrainsModal, () => setShowTrainsModal(false));
+  useModalHistory(showProjectsModal, () => setShowProjectsModal(false));
   useModalHistory(!!viewingHistoryForTask, () => setViewingHistoryForTask(null));
   // ---------------------------------------------
 
@@ -811,22 +819,22 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
             <Trophy className="w-4 h-4" /> Logros del Reino
           </h2>
           <div className="grid grid-cols-4 gap-3">
-            <div className="bg-stone-900 p-3 rounded-2xl border border-blue-900/30 flex flex-col items-center justify-center gap-2">
+            <button onClick={() => setShowTrainsModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-blue-900/30 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
               <Train className="w-6 h-6 text-blue-500" />
               <span className="text-2xl font-black text-white leading-none">{stats.perfectTrainMonths}</span>
-            </div>
-            <div className="bg-stone-900 p-3 rounded-2xl border border-red-900/30 flex flex-col items-center justify-center gap-2">
+            </button>
+            <button onClick={() => setShowSetsModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-red-900/30 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
               <MushroomIcon className="w-6 h-6 text-red-500" />
               <span className="text-2xl font-black text-white leading-none">{stats.perfectSetsWeeks}</span>
-            </div>
+            </button>
             <button onClick={() => setShowHunosModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-orange-900/30 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors w-full">
               <Sword className="w-6 h-6 text-orange-500" />
               <span className="text-2xl font-black text-white leading-none">{stats.hunoPlenos}</span>
             </button>
-            <div className="bg-stone-900 p-3 rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-2">
+            <button onClick={() => setShowProjectsModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
               <Settings className="w-6 h-6 text-stone-400" />
               <span className="text-2xl font-black text-white leading-none">{stats.projectPlenos}</span>
-            </div>
+            </button>
           </div>
         </section>
 
@@ -849,9 +857,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
         {/* HISTORICOS (CHARTS) */}
         <section className="space-y-6">
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <button onClick={() => setShowTrainsModal(true)} className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2 hover:text-blue-400 transition-colors">
               <Train className="w-4 h-4 text-blue-500" /> TRENES (6 MESES)
-            </h2>
+            </button>
             <div className="h-24 flex gap-1 px-1">
               {paddedTrainsHistory.map((v, i) => (
                 <React.Fragment key={i}>
@@ -862,9 +870,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
           </div>
 
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <button onClick={() => setShowSetsModal(true)} className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2 hover:text-red-400 transition-colors">
               <MushroomIcon className="w-4 h-4 text-red-500" /> SETAS (10 SEM)
-            </h2>
+            </button>
             <div className="h-24 flex gap-1 px-1">
               {paddedSetsHistory.map((v, i) => (
                 <React.Fragment key={i}>
@@ -1129,6 +1137,49 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
           monthsList={monthsList}
           initialMonth={monthsList[0] || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`}
           onClose={() => setShowMonthChart(false)}
+        />
+      )}
+
+      {showSetsModal && (
+        <CategoryHistoryModal
+          title="Estadísticas de Setas"
+          icon={<MushroomIcon className="w-5 h-5 text-red-500" />}
+          colorClass="text-red-500"
+          bgAccentClass="bg-red-500/10"
+          tasks={data.sets}
+          historyMap={data.setsHistoryMap || {}}
+          availableTimeframes={['mes', 'año', 'siempre']}
+          layout="list"
+          shouldIncludeLiveCounts={true}
+          onClose={() => setShowSetsModal(false)}
+        />
+      )}
+
+      {showTrainsModal && (
+        <CategoryHistoryModal
+          title="Estadísticas de Trenes"
+          icon={<Train className="w-5 h-5 text-blue-500" />}
+          colorClass="text-blue-500"
+          bgAccentClass="bg-blue-500/10"
+          tasks={data.trains}
+          historyMap={data.trainsHistoryMap || {}}
+          availableTimeframes={['año', 'siempre']}
+          layout="list"
+          shouldIncludeLiveCounts={true}
+          onClose={() => setShowTrainsModal(false)}
+        />
+      )}
+
+      {showProjectsModal && (
+        <CategoryHistoryModal
+          title="Estadísticas de Proyectos"
+          icon={<Settings className="w-5 h-5 text-stone-400" />}
+          colorClass="text-stone-300"
+          bgAccentClass="bg-stone-500/10"
+          tasks={data.projects}
+          historyMap={data.projectsHistoryMap || {}}
+          availableTimeframes={['mes', 'año', 'siempre']}
+          onClose={() => setShowProjectsModal(false)}
         />
       )}
     </div>
