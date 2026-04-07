@@ -10,7 +10,8 @@ import { ExerciseView } from './components/ExerciseView';
 import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
-import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check } from 'lucide-react';
+import { FootTasksModal } from './components/FootTasksModal';
+import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -631,6 +632,7 @@ function App() {
 
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [showFootModal, setShowFootModal] = useState(false);
 
   // --- MOBILE BACK BUTTON SUPPORT ---
   useEffect(() => {
@@ -1259,7 +1261,45 @@ function App() {
               <button onClick={() => setView('leones')} className="aspect-square bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-900/50 transition-colors border border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
               <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Flame className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
             </div>
-            <button onClick={() => setView('exercise')} className="w-full bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl p-4 flex items-center gap-4 group transition-colors mb-3"><div className="p-2 bg-emerald-900/40 rounded-xl flex-shrink-0"><Dumbbell className="w-6 h-6 text-emerald-500" /></div><div className="flex-1 flex gap-1 h-10">{Array.from({ length: 9 }).map((_, i) => (<div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < data.exercise.seriesCurrent ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30'}`} />))}</div></button>
+            <div className="grid grid-cols-4 gap-3 mb-3 h-[88px]">
+              {/* Pie (Footprints) Button - 1/4 width */}
+              {(() => {
+                const footTasks = [
+                  ...data.trains.flatMap(t => t.subtasks || []),
+                  ...data.sets.flatMap(s => s.subtasks || [])
+                ].filter(s => s.text.includes('🦶'));
+                const footProgress = footTasks.length > 0 ? (footTasks.filter(s => s.completed).length / footTasks.length) : 0;
+                
+                return (
+                  <button 
+                    onClick={() => setShowFootModal(true)}
+                    className="col-span-1 bg-emerald-950/20 rounded-2xl flex flex-col items-center justify-between p-3 border border-emerald-900/40 hover:bg-emerald-900/40 transition-all group relative"
+                  >
+                    <div className="flex-1 flex items-center justify-center">
+                      <Footprints className="w-8 h-8 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                    </div>
+                    <div className="w-full h-1 bg-emerald-900/40 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${footProgress * 100}%` }}></div>
+                    </div>
+                  </button>
+                );
+              })()}
+
+              {/* Sala de Entrenamiento Button - 3/4 width */}
+              <button 
+                onClick={() => setView('exercise')} 
+                className="col-span-3 bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl p-4 flex items-center gap-4 group transition-colors"
+              >
+                <div className="p-2 bg-emerald-900/40 rounded-xl flex-shrink-0">
+                  <Dumbbell className="w-6 h-6 text-emerald-500" />
+                </div>
+                <div className="flex-1 flex gap-1 h-10">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < data.exercise.seriesCurrent ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30'}`} />
+                  ))}
+                </div>
+              </button>
+            </div>
 
             <div className="bg-stone-900 rounded-2xl shadow-sm p-4 w-full mb-3 border border-stone-800">
               <div className="space-y-3">
@@ -1559,6 +1599,16 @@ function App() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {showFootModal && (
+              <FootTasksModal 
+                trains={data.trains}
+                sets={data.sets}
+                onUpdateTrains={handleTrainsUpdate}
+                onUpdateSets={handleSetsUpdate}
+                onClose={() => setShowFootModal(false)}
+              />
             )}
           </div>
         );

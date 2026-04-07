@@ -28,3 +28,5 @@ yarn-error.log*
 *.swp
 *.swo
 .DS_Store
+.firebase/
+firebase-debug.log
