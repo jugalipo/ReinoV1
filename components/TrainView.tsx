@@ -19,6 +19,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   const [isEditing, setIsEditing] = useState(false);
   const [editMonthlyText, setEditMonthlyText] = useState('');
   const [editAnnualText, setEditAnnualText] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'star' | 'foot' | null>(null);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useModalHistory(isEditing, () => setIsEditing(false));
@@ -178,12 +179,10 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
     setNewSubtask('');
   };
 
-  const toggleSubtask = (subId: string) => {
-    if (!activeTaskId) return;
-
-    if (annualTasks.some(t => t.id === activeTaskId)) {
+  const toggleSubtask = (taskId: string, subId: string, isAnnual: boolean) => {
+    if (isAnnual) {
         const updated = annualTasks.map(t => {
-            if (t.id === activeTaskId && t.subtasks) {
+            if (t.id === taskId && t.subtasks) {
                 return {
                     ...t,
                     subtasks: t.subtasks.map(s => 
@@ -196,7 +195,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
         onUpdateAnnual(updated);
     } else {
         const updated = tasks.map(t => {
-            if (t.id === activeTaskId && t.subtasks) {
+            if (t.id === taskId && t.subtasks) {
                 return {
                     ...t,
                     subtasks: t.subtasks.map(s => 
@@ -280,7 +279,78 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   
   const totalMonthlyHours = Math.round(totalMonthlyMinutes / 60);
 
+  const getFilteredTasks = (taskList: Task[], emoji: string) => {
+    return taskList.map(task => {
+      const taskHasEmoji = task.text.includes(emoji);
+      const matchingSubtasks = task.subtasks?.filter(s => s.text.includes(emoji)) || [];
+      
+      if (taskHasEmoji || matchingSubtasks.length > 0) {
+        return {
+          ...task,
+          subtasks: matchingSubtasks
+        };
+      }
+      return null;
+    }).filter(Boolean) as Task[];
+  };
+
+  const currentMonthlyTasks = activeFilter === 'star' ? getFilteredTasks(sortedTasks, '⭐') : activeFilter === 'foot' ? getFilteredTasks(sortedTasks, '🦶') : sortedTasks;
+  const currentAnnualTasks = activeFilter === 'star' ? getFilteredTasks(sortedAnnualTasks, '⭐') : activeFilter === 'foot' ? getFilteredTasks(sortedAnnualTasks, '🦶') : sortedAnnualTasks;
+
+  const renderSubtaskItem = (taskId: string, sub: any, isAnnual: boolean) => (
+    <div
+        key={sub.id}
+        className={`flex items-center justify-between p-4 rounded-2xl border transition-all mb-2 ${
+        sub.completed
+            ? 'bg-stone-900/40 border-stone-800 opacity-60'
+            : 'bg-stone-900 border-stone-800 hover:border-stone-700 shadow-sm'
+        }`}
+        onClick={() => toggleSubtask(taskId, sub.id, isAnnual)}
+    >
+        <div className="flex items-center gap-4 overflow-hidden">
+            <div
+                className={`flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                sub.completed
+                    ? 'bg-stone-700 border-stone-700 text-stone-400'
+                    : 'border-stone-600 hover:border-blue-400'
+                }`}
+            >
+                {sub.completed && <Check className="w-3.5 h-3.5" />}
+            </div>
+            <span
+                className={`font-bold text-lg ${
+                sub.completed ? 'line-through text-stone-500' : 'text-stone-200'
+                }`}
+            >
+                {sub.text}
+            </span>
+        </div>
+    </div>
+  );
+
   const renderTaskList = (list: Task[], isAnnual: boolean) => {
+      if (activeFilter && !isEditing) {
+          const emoji = activeFilter === 'star' ? '⭐' : '🦶';
+          const allSubtasks: Array<{taskId: string, sub: any}> = [];
+          list.forEach(task => {
+              task.subtasks?.forEach(sub => {
+                  if (sub.text.includes(emoji)) {
+                      allSubtasks.push({ taskId: task.id, sub });
+                  }
+              });
+          });
+
+          if (allSubtasks.length === 0) return <p className="text-center text-stone-600 py-4 italic">No hay subtareas con este emoji.</p>;
+
+          return (
+              <div className="space-y-1">
+                  {allSubtasks
+                      .sort((a, b) => Number(a.sub.completed) - Number(b.sub.completed))
+                      .map(item => renderSubtaskItem(item.taskId, item.sub, isAnnual))}
+              </div>
+          );
+      }
+
       if (isEditing) {
           return (
               <div className="w-full h-full min-h-[300px]">
@@ -316,7 +386,11 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                     {/* Checkbox (Hidden in Edit Mode) */}
                     {!isEditing && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); toggleTask(task.id, isAnnual); }}
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                // In filtered mode, we toggle the task in the ORIGINAL list by ID
+                                toggleTask(task.id, isAnnual); 
+                            }}
                             className={`ml-4 flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors z-10 ${
                             task.completed
                                 ? 'bg-stone-700 border-stone-700 text-stone-400'
@@ -428,19 +502,47 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
             </div>
         )}
 
+        {/* Emoji Grouping Buttons */}
+        {!isEditing && (
+            <div className="flex gap-2 mb-6">
+                <button
+                    onClick={() => setActiveFilter(activeFilter === 'star' ? null : 'star')}
+                    className={`flex-1 py-3 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold ${
+                        activeFilter === 'star' 
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-500 shadow-lg shadow-amber-500/10' 
+                        : 'bg-stone-900 border-stone-800 text-stone-500 hover:border-stone-700'
+                    }`}
+                >
+                    <span className="text-xl">⭐</span>
+                    <span className="text-xs uppercase tracking-widest">Locomotora</span>
+                </button>
+                <button
+                    onClick={() => setActiveFilter(activeFilter === 'foot' ? null : 'foot')}
+                    className={`flex-1 py-3 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold ${
+                        activeFilter === 'foot' 
+                        ? 'bg-blue-500/20 border-blue-500 text-blue-400 shadow-lg shadow-blue-500/10' 
+                        : 'bg-stone-900 border-stone-800 text-stone-500 hover:border-stone-700'
+                    }`}
+                >
+                    <span className="text-xl">🦶</span>
+                    <span className="text-xs uppercase tracking-widest">Passeggiata</span>
+                </button>
+            </div>
+        )}
+
         {/* Task List (Monthly) */}
         <div className="mb-8">
-            {renderTaskList(sortedTasks, false)}
+            {renderTaskList(currentMonthlyTasks, false)}
         </div>
 
         {/* Annual Tasks Section */}
-        {(sortedAnnualTasks.length > 0 || isEditing) && (
+        {(currentAnnualTasks.length > 0 || isEditing) && (
             <div className="border-t border-stone-800 pt-8">
                 <h2 className="text-xl font-bold text-stone-300 mb-4 flex items-center gap-2">
                     <span className="text-2xl">🌍</span> Trenes Anuales
                 </h2>
                 {!isEditing && <p className="text-xs text-stone-500 mb-4 px-1">Estas tareas solo se reinician al finalizar el año.</p>}
-                {renderTaskList(sortedAnnualTasks, true)}
+                {renderTaskList(currentAnnualTasks, true)}
             </div>
         )}
       </div>
@@ -470,7 +572,14 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                         {(!activeTask.subtasks || activeTask.subtasks.length === 0) && (
                             <p className="text-center text-stone-600 py-2 italic text-sm">Añade pasos para completar este tren.</p>
                         )}
-                        {[...(activeTask.subtasks || [])].sort((a, b) => Number(a.completed) - Number(b.completed)).map((sub) => (
+                        {[...(activeTask.subtasks || [])]
+                            .filter((sub) => {
+                                if (!activeFilter) return true;
+                                const emoji = activeFilter === 'star' ? '⭐' : '🦶';
+                                return sub.text.includes(emoji);
+                            })
+                            .sort((a, b) => Number(a.completed) - Number(b.completed))
+                            .map((sub) => (
                             <div
                                 key={sub.id}
                                 className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
@@ -481,7 +590,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     <button
-                                        onClick={() => toggleSubtask(sub.id)}
+                                        onClick={() => toggleSubtask(activeTask.id, sub.id, annualTasks.some(t => t.id === activeTask.id))}
                                         className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                                         sub.completed
                                             ? 'bg-blue-600 border-blue-600'
