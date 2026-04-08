@@ -233,4 +233,6 @@ export interface AppData {
   weeklyGoals?: WeeklyGoalsState;
   reminderTime?: string; // HH:mm
   lastReminderDate?: string; // YYYY-MM-DD
+  energy?: number; // 1 to 10
+  energyHistory?: Record<string, number>; // DateString -> Energy value
 }

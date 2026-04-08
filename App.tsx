@@ -276,7 +276,9 @@ const INITIAL_DATA: AppData = {
     history: {}
   },
   billetesState: Array(20).fill(false),
-  huchaCount: 0
+  huchaCount: 0,
+  energy: 1,
+  energyHistory: {}
 };
 
 const MushroomIcon = ({ className }: { className?: string }) => (
@@ -336,6 +338,7 @@ const serializeAppData = (data: AppData) => {
     { id: 'forjaTasks', data: { items: data.forjaTasks } },
     { id: 'leones', data: { items: data.leones } },
     { id: 'hunosHistory', data: { items: data.hunosHistory } },
+    { id: 'energy', data: { value: data.energy || 1, history: data.energyHistory || {} } },
   ];
   return rawDocs.map(doc => ({
     id: doc.id,
@@ -367,6 +370,9 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.leones = doc.data.items || INITIAL_DATA.leones;
     } else if (doc.id === 'hunosHistory') {
       result.hunosHistory = doc.data.items || INITIAL_DATA.hunosHistory;
+    } else if (doc.id === 'energy') {
+      result.energy = doc.data.value || 1;
+      result.energyHistory = doc.data.history || {};
     }
   });
   return result as AppData;
@@ -464,6 +470,8 @@ const processResets = (parsed: AppData): AppData => {
   }
   if (!result.billetesState) { result.billetesState = Array(20).fill(false); }
   if (typeof result.huchaCount === 'undefined') { result.huchaCount = 0; }
+  if (typeof result.energy === 'undefined') { result.energy = 1; }
+  if (!result.energyHistory) { result.energyHistory = {}; }
 
   // Cleanup old GAP task
   result.hunos = result.hunos.filter(t => t.text !== 'GAP');
@@ -483,6 +491,9 @@ const processResets = (parsed: AppData): AppData => {
       const completedIds = result.hunos.filter(t => t.completed).map(t => t.id);
       if (!result.hunosHistory) result.hunosHistory = {};
       result.hunosHistory[yesterdayKey] = completedIds;
+      
+      if (!result.energyHistory) result.energyHistory = {};
+      result.energyHistory[yesterdayKey] = result.energy || 1;
     }
 
     const yesterdayDate = new Date(result.lastDate || today);
@@ -1367,6 +1378,8 @@ function App() {
               hunoReward={data.stats.hunoReward || "Premio por definir"}
               onUpdate={handleHunosUpdate}
               onUpdateReward={(reward) => setData(prev => ({ ...prev, stats: { ...prev.stats, hunoReward: reward } }))}
+              energy={data.energy || 1}
+              onUpdateEnergy={(val) => setData(prev => ({ ...prev, energy: val }))}
             />
 
             <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300">

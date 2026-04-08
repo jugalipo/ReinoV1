@@ -449,6 +449,22 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
     }
   }
   const hunosMax = 5;
+  
+  // Logic for 30-day Energy evolution
+  const energyHistoryToDisplay: number[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateKey = d.toDateString();
+    
+    if (i === 0) {
+      energyHistoryToDisplay.push(data.energy || 1);
+    } else {
+      const pastEnergy = (data.energyHistory || {})[dateKey] || 1;
+      energyHistoryToDisplay.push(pastEnergy);
+    }
+  }
+  const energyMax = 10;
 
   // Logic for 10-week food evolution
   const currentFoodScore = food.score;
@@ -916,6 +932,19 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
               {hunosHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
                   {renderHistoryBar(v, hunosMax, 'bg-orange-600', i === 29, true)}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-orange-500" /> ENERGÍA (30 DÍAS)
+            </h2>
+            <div className="h-24 flex gap-[2px] px-1">
+              {energyHistoryToDisplay.map((v, i) => (
+                <React.Fragment key={i}>
+                  {renderHistoryBar(v, energyMax, 'bg-orange-500', i === 29, true)}
                 </React.Fragment>
               ))}
             </div>

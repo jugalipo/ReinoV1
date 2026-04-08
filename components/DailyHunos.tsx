@@ -12,6 +12,8 @@ interface DailyHunosProps {
   hunoReward: string;
   onUpdate: (tasks: Task[], isPleno?: boolean) => void;
   onUpdateReward?: (reward: string) => void;
+  energy: number;
+  onUpdateEnergy: (value: number) => void;
 }
 
 export const DailyHunos: React.FC<DailyHunosProps> = ({ 
@@ -21,7 +23,9 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   hunoPlenos, 
   hunoReward,
   onUpdate,
-  onUpdateReward 
+  onUpdateReward,
+  energy,
+  onUpdateEnergy
 }) => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showMonthView, setShowMonthView] = useState(false);
@@ -403,6 +407,68 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                     );
                     return elements;
                 })}
+            </div>
+
+            {/* Energy Slider */}
+            <div className="mt-8 pt-6 border-t border-stone-800/50">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+                            <span className="text-lg">⚡</span>
+                        </div>
+                        <span className="text-xs font-black text-stone-500 uppercase tracking-widest">Energía del día</span>
+                    </div>
+                    <div className="px-3 py-1 bg-stone-950 rounded-full border border-stone-800">
+                        <span className="text-sm font-black text-orange-500 font-mono">{energy} / 10</span>
+                    </div>
+                </div>
+                
+                <div className="relative h-12 flex items-center group/slider">
+                    {/* Background Track */}
+                    <div className="absolute inset-0 h-2 my-auto bg-stone-950 rounded-full border border-stone-800 overflow-hidden">
+                        {/* Fill Gradient */}
+                        <div 
+                            className="h-full bg-gradient-to-r from-orange-600 via-orange-500 to-red-500 shadow-[0_0_20px_rgba(249,115,22,0.3)] transition-all duration-300 ease-out"
+                            style={{ width: `${((energy - 1) / 9) * 100}%` }}
+                        />
+                    </div>
+                    
+                    {/* Tick marks */}
+                    <div className="absolute inset-0 flex justify-between px-1 items-center pointer-events-none">
+                        {Array.from({ length: 11 }).map((_, i) => (
+                            <div 
+                                key={i} 
+                                className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${i <= energy ? 'bg-white/20' : 'bg-stone-800'}`} 
+                            />
+                        ))}
+                    </div>
+
+                    {/* Invisible Input Slider */}
+                    <input 
+                        type="range"
+                        min="1"
+                        max="10"
+                        step="1"
+                        value={energy}
+                        onChange={(e) => onUpdateEnergy(parseInt(e.target.value))}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                    />
+
+                    {/* Visual Thumb */}
+                    <div 
+                        className="absolute w-8 h-8 rounded-full bg-stone-100 border-4 border-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.6)] pointer-events-none z-10 transition-all duration-300 ease-out group-active/slider:scale-110"
+                        style={{ 
+                            left: `calc(${(energy - 1) / 9 * 100}% - 16px)`,
+                            transition: 'left 0.1s ease-out, transform 0.2s ease'
+                        }}
+                    >
+                        <div className="absolute inset-0 m-auto w-1 h-3 bg-orange-600/30 rounded-full" />
+                    </div>
+                </div>
+                <div className="flex justify-between mt-2 px-1">
+                    <span className="text-[10px] font-black text-stone-700 uppercase">Agotado</span>
+                    <span className="text-[10px] font-black text-stone-700 uppercase">Invencible</span>
+                </div>
             </div>
         </div>
       )}
