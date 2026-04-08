@@ -10,6 +10,18 @@ export interface Task {
   plenoCompleted?: boolean; // true if completed at least once in the current "pleno" cycle
 }
 
+export interface GympiezaTask {
+  id: string;
+  text: string;
+  completed: boolean;
+  type: 'superficies' | 'barrer' | 'fregar';
+}
+
+export interface GympiezaState {
+  lastReset: number;
+  tasks: GympiezaTask[];
+}
+
 export interface WeeklyTask extends Task {
   dayCompleted?: number; // timestamp
 }
@@ -235,4 +247,5 @@ export interface AppData {
   lastReminderDate?: string; // YYYY-MM-DD
   energy?: number; // 1 to 10
   energyHistory?: Record<string, number>; // DateString -> Energy value
+  gympieza?: GympiezaState;
 }

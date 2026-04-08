@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppData, ViewState, Friend, Task, ResourceTask, WeeklyTask } from './types';
+import { AppData, ViewState, Friend, Task, ResourceTask, WeeklyTask, GympiezaState } from './types';
 import { DailyHunos } from './components/DailyHunos';
 import { TrainView } from './components/TrainView';
 import { SetsView } from './components/SetsView';
@@ -11,7 +11,7 @@ import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
-import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -140,6 +140,37 @@ const TRAIN_TASKS = [
   { text: "📘 Eficiencia 2h", subtasks: ["Escribir Eficiencia ⭐", "Limpieza -", "Orden -", "Alimentos -", "Ejercicio -", "PC / móvil -", "Limites -", "Registros -", "Web / RRSS -", "Personas -", "Dinero -", "Afilar hacha: móvil pc apps atajos -"] },
   { text: "📘 Desafío Cuerpo 5'", subtasks: ["Elegir desafío ⭐", "Comprometerme ⭐", "Ejecutar -", "(Test anual) -"] }
 ];
+
+const GYMPIEZA_TASKS_LIST = [
+  { text: "Superficies lavadero", type: 'superficies' },
+  { text: "Superficies cocina", type: 'superficies' },
+  { text: "Superficies pasillos", type: 'superficies' },
+  { text: "Superficies despacho", type: 'superficies' },
+  { text: "Superficies sala multiusos", type: 'superficies' },
+  { text: "Superficies baño 1", type: 'superficies' },
+  { text: "Superficies baño 2", type: 'superficies' },
+  { text: "Superficies dormitorio", type: 'superficies' },
+  { text: "Superficies salón", type: 'superficies' },
+  { text: "Superficies terraza", type: 'superficies' },
+  { text: "Barrer lavadero", type: 'barrer' },
+  { text: "Barrer cocina", type: 'barrer' },
+  { text: "Barrer pasillos", type: 'barrer' },
+  { text: "Barrer despacho", type: 'barrer' },
+  { text: "Barrer sala multiusos", type: 'barrer' },
+  { text: "Barrer baños", type: 'barrer' },
+  { text: "Barrer dormitorio", type: 'barrer' },
+  { text: "Barrer salón", type: 'barrer' },
+  { text: "Barrer terraza", type: 'barrer' },
+  { text: "Fregar lavadero", type: 'fregar' },
+  { text: "Fregar cocina", type: 'fregar' },
+  { text: "Fregar pasillos", type: 'fregar' },
+  { text: "Fregar despacho", type: 'fregar' },
+  { text: "Fregar sala multiusos", type: 'fregar' },
+  { text: "Fregar baños", type: 'fregar' },
+  { text: "Fregar dormitorio", type: 'fregar' },
+  { text: "Fregar salón", type: 'fregar' },
+  { text: "Fregar terraza", type: 'fregar' }
+] as const;
 
 const ANNUAL_TRAIN_TASKS = [
   { text: "🚂 Peluquería (IMPAR)", subtasks: ["Cita Peluquería", "Corte", "Descafeinado 15"] },
@@ -278,7 +309,16 @@ const INITIAL_DATA: AppData = {
   billetesState: Array(20).fill(false),
   huchaCount: 0,
   energy: 1,
-  energyHistory: {}
+  energyHistory: {},
+  gympieza: {
+    lastReset: Date.now(),
+    tasks: GYMPIEZA_TASKS_LIST.map((t, i) => ({
+      id: `gym-${i}`,
+      text: t.text,
+      completed: false,
+      type: t.type as 'superficies' | 'barrer' | 'fregar'
+    }))
+  }
 };
 
 const MushroomIcon = ({ className }: { className?: string }) => (
@@ -644,6 +684,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [showFootModal, setShowFootModal] = useState(false);
+  const [showGympiezaModal, setShowGympiezaModal] = useState(false);
 
   // --- MOBILE BACK BUTTON SUPPORT ---
   useEffect(() => {
@@ -1439,6 +1480,10 @@ function App() {
                     <Music className="w-5 h-5" />
                     <span className="font-bold">Profundizar en Piano</span>
                   </button>
+                  <button onClick={() => setShowGympiezaModal(true)} className="w-full mt-3 py-3 bg-emerald-950/30 border border-emerald-900/50 rounded-xl flex items-center justify-center gap-2 text-emerald-400 hover:bg-emerald-900/50 hover:text-emerald-300 transition-all">
+                    <Sparkles className="w-5 h-5" />
+                    <span className="font-bold">Gympieza</span>
+                  </button>
                 </>
               )}
             </div>
@@ -1623,6 +1668,20 @@ function App() {
                 onClose={() => setShowFootModal(false)}
               />
             )}
+
+            {showGympiezaModal && (
+              <GympiezaModal 
+                gympieza={data.gympieza || { lastReset: Date.now(), tasks: [] }}
+                onUpdate={(g) => setData(prev => ({ ...prev, gympieza: g }))}
+                onClose={() => setShowGympiezaModal(false)}
+                onCompleteAll={() => {
+                  const idx = data.projects.findIndex(p => p.text.includes('Gympieza'));
+                  if (idx !== -1 && !data.projects[idx].completed) {
+                    toggleProject(idx);
+                  }
+                }}
+              />
+            )}
           </div>
         );
     }
@@ -1630,6 +1689,151 @@ function App() {
 
   return (<div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative"> <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900">{renderView()}</div> </div>);
 }
+
+const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympieza: GympiezaState, onUpdate: (g: GympiezaState) => void, onClose: () => void, onCompleteAll: () => void }) => {
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
+
+  const toggleTask = (taskId: string) => {
+    const taskIndex = gympieza.tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
+
+    const task = gympieza.tasks[taskIndex];
+    if (!task.completed) {
+      if (taskIndex > 0 && !gympieza.tasks[taskIndex - 1].completed) return;
+    } else {
+      if (taskIndex < gympieza.tasks.length - 1 && gympieza.tasks[taskIndex + 1].completed) return;
+    }
+
+    const nextTasks = gympieza.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t);
+    onUpdate({ ...gympieza, tasks: nextTasks });
+
+    if (nextTasks.every(t => t.completed)) {
+      setTimeout(() => setShowConfirmReset(true), 600);
+    }
+  };
+
+  const handleConfirmReset = () => {
+    const resetTasks = gympieza.tasks.map(t => ({ ...t, completed: false }));
+    onUpdate({ ...gympieza, tasks: resetTasks });
+    onCompleteAll();
+    setShowConfirmReset(false);
+    onClose();
+  };
+
+  const completedCount = gympieza.tasks.filter(t => t.completed).length;
+  const progress = (completedCount / gympieza.tasks.length) * 100;
+
+  return (
+    <div className="fixed inset-0 max-w-md mx-auto z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-stone-900 w-full max-h-[80vh] rounded-3xl shadow-2xl border border-stone-800 flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-stone-800 flex justify-between items-center bg-stone-800/30">
+          <div>
+            <h3 className="text-xl font-bold text-emerald-400 flex items-center gap-2">
+              <Sparkles className="w-5 h-5" /> Gympieza
+            </h3>
+            <p className="text-stone-500 text-xs uppercase font-black tracking-widest mt-1">Sigue el orden estricto</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-stone-800 rounded-full transition-colors">
+            <X className="w-6 h-6 text-stone-500" />
+          </button>
+        </div>
+
+        <div className="p-4 bg-stone-950/50">
+          <div className="w-full h-3 bg-stone-800 rounded-full overflow-hidden border border-stone-700 shadow-inner">
+            <div 
+              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(52,211,153,0.3)]"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex justify-between mt-2 px-1">
+            <span className="text-[10px] font-black text-stone-500 uppercase tracking-tighter">{completedCount} / {gympieza.tasks.length} Tareas</span>
+            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">{Math.round(progress)}%</span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+          {gympieza.tasks.map((task, idx) => {
+            const isClickable = (idx === 0 || gympieza.tasks[idx - 1].completed) && (idx === gympieza.tasks.length - 1 || !gympieza.tasks[idx + 1].completed);
+            const isNext = !task.completed && (idx === 0 || gympieza.tasks[idx - 1].completed);
+            
+            let typeColor = "text-stone-400";
+            let bgColor = "bg-stone-800/20";
+            let borderColor = "border-stone-800";
+
+            if (task.completed) {
+              bgColor = "bg-emerald-900/20";
+              borderColor = "border-emerald-900/50";
+              typeColor = "text-emerald-500";
+            } else if (isNext) {
+              bgColor = "bg-stone-800/50";
+              borderColor = "border-stone-600";
+              typeColor = "text-stone-200";
+            }
+
+            return (
+              <button
+                key={task.id}
+                onClick={() => toggleTask(task.id)}
+                disabled={!isClickable}
+                className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all duration-200 ${bgColor} ${borderColor} ${!isClickable ? 'opacity-40 grayscale' : 'hover:scale-[1.01] active:scale-[0.98]'}`}
+              >
+                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors ${task.completed ? 'bg-emerald-500 border-emerald-500' : 'border-stone-700'}`}>
+                  {task.completed && <Check className="w-4 h-4 text-stone-900 stroke-[4px]" />}
+                </div>
+                <div className="flex-1 text-left">
+                  <div className={`text-sm font-bold ${task.completed ? 'text-emerald-200 line-through opacity-70' : isNext ? 'text-stone-100' : 'text-stone-500'}`}>
+                    {task.text}
+                  </div>
+                  <div className="text-[10px] font-black uppercase tracking-widest opacity-40 mt-0.5">
+                    {task.type}
+                  </div>
+                </div>
+                {isNext && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+              </button>
+            );
+          })}
+        </div>
+        
+        <div className="p-6 border-t border-stone-800 bg-stone-800/10">
+          <button 
+            onClick={onClose}
+            className="w-full py-4 bg-stone-100 text-stone-900 font-black rounded-2xl hover:bg-white transition-all shadow-xl uppercase tracking-tight text-sm"
+          >
+            Cerrar Ventana
+          </button>
+        </div>
+      </div>
+
+      {showConfirmReset && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in zoom-in-95 duration-300">
+          <div className="bg-stone-900 border border-emerald-500/30 rounded-[2.5rem] p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(16,185,129,0.2)]">
+            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/50">
+              <Sparkles className="w-10 h-10 text-emerald-400" />
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tight italic">¡Gympieza Completa!</h3>
+            <p className="text-stone-400 mb-8 text-sm leading-relaxed">
+              Has terminado todas las tareas de limpieza. ¿Quieres marcar el **Proyecto Gympieza** y resetear la lista?
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <button 
+                onClick={() => setShowConfirmReset(false)}
+                className="py-4 rounded-2xl border border-stone-800 text-stone-500 font-bold hover:bg-stone-800 transition-all text-xs uppercase"
+              >
+                Todavía no
+              </button>
+              <button 
+                onClick={handleConfirmReset}
+                className="py-4 rounded-2xl bg-emerald-500 text-stone-950 font-black hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-900/20 text-xs uppercase"
+              >
+                ¡Sí, Marcar!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default App;
 
