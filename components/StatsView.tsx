@@ -163,6 +163,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
     })).sort((a, b) => b.count - a.count);
   }, [data.hunos, data.hunosHistory, hunosTimeframe, hunosSelectedPeriod]);
 
+  const totalHunos = useMemo(() => hunoCounts.reduce((acc, h) => acc + h.count, 0), [hunoCounts]);
+
   const coreScoreDistribution = useMemo(() => {
     const distro: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     
@@ -998,6 +1000,13 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
             
             <div className="overflow-y-auto p-2">
               <div className="grid grid-cols-4 gap-2 mb-4">
+                {/* Total Card */}
+                <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] border border-amber-400/50 gap-2 cursor-default">
+                  <span className="text-2xl drop-shadow-sm filter">✨</span>
+                  <span className="font-mono font-bold text-amber-950 bg-white/30 px-2 py-0.5 rounded-md min-w-[2.5rem] text-center text-xs">
+                    {totalHunos}
+                  </span>
+                </div>
                 {hunoCounts.map(huno => {
                   if (huno.text === 'GAP') return null;
                   return (
