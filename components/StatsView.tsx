@@ -34,6 +34,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
   const [showSetsModal, setShowSetsModal] = useState(false);
   const [showTrainsModal, setShowTrainsModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [showInteractionsModal, setShowInteractionsModal] = useState(false);
+  const [interactionTimeframe, setInteractionTimeframe] = useState<'mes' | 'año' | 'siempre'>('mes');
+  const [interactionSelectedPeriod, setInteractionSelectedPeriod] = useState<string>('');
 
   const [viewingHistoryForTask, setViewingHistoryForTask] = useState<string | null>(null);
   const [taskHistoryTimeframe, setTaskHistoryTimeframe] = useState<'mes' | '60dias' | '90dias' | 'año' | 'siempre'>('mes');
@@ -73,12 +76,21 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
     }
   }, [hunosTimeframe, monthsList, yearsList, hunosSelectedPeriod, availableMonths, availableYears]);
 
+  useEffect(() => {
+    if (interactionTimeframe === 'mes' && (!interactionSelectedPeriod || !availableMonths.has(interactionSelectedPeriod))) {
+      setInteractionSelectedPeriod(monthsList[0] || '');
+    } else if (interactionTimeframe === 'año' && (!interactionSelectedPeriod || !availableYears.has(interactionSelectedPeriod))) {
+      setInteractionSelectedPeriod(yearsList[0] || '');
+    }
+  }, [interactionTimeframe, monthsList, yearsList, interactionSelectedPeriod, availableMonths, availableYears]);
+
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useModalHistory(showHunosModal, () => setShowHunosModal(false));
   useModalHistory(showExerciseModal, () => setShowExerciseModal(false));
   useModalHistory(showSetsModal, () => setShowSetsModal(false));
   useModalHistory(showTrainsModal, () => setShowTrainsModal(false));
   useModalHistory(showProjectsModal, () => setShowProjectsModal(false));
+  useModalHistory(showInteractionsModal, () => setShowInteractionsModal(false));
   useModalHistory(!!viewingHistoryForTask, () => setViewingHistoryForTask(null));
   // ---------------------------------------------
 
@@ -406,6 +418,18 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
   const interactionsHistoryToDisplay = [...stats.interactionsHistory.slice(-5), currentMonthInteractions];
   const paddedInteractionsHistory = Array(Math.max(0, 6 - interactionsHistoryToDisplay.length)).fill(0).concat(interactionsHistoryToDisplay);
   const interactionsMax = Math.max(...paddedInteractionsHistory, 10); // Floor of 10 for better scaling
+
+  const interactionTotals = useMemo(() => {
+    const totals = { person: 0, call: 0, gift: 0, photo: 0, message: 0 };
+    friends.forEach(f => {
+      totals.person += f.interactions?.person || 0;
+      totals.call += f.interactions?.call || 0;
+      totals.gift += f.interactions?.gift || 0;
+      totals.photo += f.interactions?.photo || 0;
+      totals.message += f.interactions?.message || 0;
+    });
+    return totals;
+  }, [friends]);
 
   // Logic for 30-day Hunos evolution
   const hunosHistoryToDisplay: number[] = [];
@@ -909,9 +933,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
           </div>
 
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <button onClick={() => setShowInteractionsModal(true)} className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2 hover:text-pink-400 transition-colors">
               <Heart className="w-4 h-4 text-pink-500" /> BROTES (6 MESES)
-            </h2>
+            </button>
             <div className="h-24 flex gap-1 px-1">
               {paddedInteractionsHistory.map((v, i) => (
                 <React.Fragment key={i}>
@@ -1181,6 +1205,83 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
           availableTimeframes={['mes', 'año', 'siempre']}
           onClose={() => setShowProjectsModal(false)}
         />
+      )}
+
+      {showInteractionsModal && (
+        <div 
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setShowInteractionsModal(false)}
+        >
+          <div 
+            className="bg-stone-900 rounded-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh] border border-stone-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-950">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <Heart className="w-5 h-5 text-pink-500" />
+                Estadísticas de Brotes
+              </h3>
+              <button onClick={() => setShowInteractionsModal(false)} className="text-stone-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 border-b border-stone-800 bg-stone-900/50 space-y-3">
+              <div className="flex bg-stone-950 rounded-lg p-1">
+                {(['mes', 'año', 'siempre'] as const).map(tf => (
+                  <button
+                    key={tf}
+                    onClick={() => setInteractionTimeframe(tf)}
+                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-colors ${interactionTimeframe === tf ? 'bg-stone-800 text-white' : 'text-stone-500 hover:text-stone-300'}`}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
+              
+              {interactionTimeframe !== 'siempre' && (
+                <select
+                  value={interactionSelectedPeriod}
+                  onChange={(e) => setInteractionSelectedPeriod(e.target.value)}
+                  className="w-full bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500/50"
+                >
+                  {interactionTimeframe === 'mes' 
+                    ? monthsList.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)
+                    : yearsList.map(y => <option key={y} value={y}>{y}</option>)
+                  }
+                </select>
+              )}
+            </div>
+            
+            <div className="overflow-y-auto p-4">
+              {/* Category Breakdown (Accumulated) */}
+              <div className="grid grid-cols-5 gap-2 mb-6">
+                {(['person', 'call', 'gift', 'photo', 'message'] as const).map(type => {
+                  const icons = { person: '🫂', call: '📞', gift: '🎁', photo: '📸', message: '💬' };
+                  return (
+                    <div key={type} className="flex flex-col items-center justify-center p-3 rounded-xl bg-stone-800/30 gap-1">
+                      <span className="text-2xl">{icons[type]}</span>
+                      <span className="font-mono font-bold text-pink-500 text-xs">
+                        {interactionTotals[type]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* History Chart */}
+              <div className="border-t border-stone-800 pt-4">
+                <h4 className="text-[10px] font-black text-stone-600 uppercase tracking-widest mb-4">Evolución (6 meses)</h4>
+                {renderMiniBarChart(
+                   interactionsHistoryToDisplay, 
+                   ['5M', '4M', '3M', '2M', '1M', 'Hoy'], 
+                   interactionsMax,
+                   interactionsHistoryToDisplay.reduce((a, b) => a + b, 0)
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
