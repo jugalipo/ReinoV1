@@ -221,7 +221,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
     <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 relative">
       
       {/* Header Row */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
             <Sword className="w-6 h-6 text-stone-400" />
             <button 
@@ -244,40 +244,39 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                     {hunoPlenoCurrent} <span className="text-stone-700">/ 50</span>
                 </span>
             </div>
-            
-            {/* Core Hunos Pie Chart */}
-            {!isEditing && (
-                <div className="ml-2 w-6 h-6 rounded-full border border-orange-500/30 overflow-hidden bg-orange-950/50 relative" title={`Principal del día: ${coreScore}/${coreTotal}`}>
-                  <div 
-                    className="absolute inset-0 bg-orange-500"
-                    style={{
-                      clipPath: `polygon(50% 50%, 50% 0, ${coreScore >= coreTotal ? '100% 0, 100% 100%, 0 100%, 0 0, 50% 0' : getClipPath(coreScore, coreTotal)})`
-                    }}
-                  />
-                </div>
-            )}
         </div>
         
-        <div className="flex items-center gap-3">
-             {!isEditing && (
-                 <span className="text-sm font-mono text-stone-500">{completedCount}/{visibleTasks.length}</span>
-             )}
-             <button 
-                onClick={handleEditToggle} 
-                className={`p-2 rounded-full transition-colors ${isEditing ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}
-            >
-                {isEditing ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
-            </button>
-        </div>
+        <button 
+            onClick={handleEditToggle} 
+            className={`p-2 rounded-full transition-colors ${isEditing ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}
+        >
+            {isEditing ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
+        </button>
       </div>
 
-      {/* Progress Bar (Only visible when NOT editing) */}
+      {/* Money, Counter and Progress Row */}
       {!isEditing && (
-        <div className="w-full h-2 bg-stone-800 rounded-full overflow-hidden mb-6">
-            <div 
-                className="h-full bg-blue-600 transition-all duration-300" 
-                style={{ width: `${progressPercent}%` }}
-            />
+        <div className="flex items-center gap-3 mb-6">
+            {/* Money Counter (Pending tasks that FAILED yesterday) */}
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-red-950/20 rounded-lg border border-red-900/30">
+                <span className="text-sm font-bold text-red-500">
+                    -{visibleTasks.filter(t => t.failedYesterday && !t.completed).length}
+                </span>
+                <span className="text-xs">🪙</span>
+            </div>
+
+            {/* Hunos Counter */}
+            <span className="text-xs font-mono text-stone-500 whitespace-nowrap">
+                {completedCount}/{visibleTasks.length}
+            </span>
+
+            {/* Progress Bar Container */}
+            <div className="flex-1 h-2 bg-stone-800 rounded-full overflow-hidden">
+                <div 
+                    className="h-full bg-blue-600 transition-all duration-300 shadow-[0_0_10px_rgba(37,99,235,0.4)]" 
+                    style={{ width: `${progressPercent}%` }}
+                />
+            </div>
         </div>
       )}
 

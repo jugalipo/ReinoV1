@@ -14,6 +14,7 @@ interface TrainViewProps {
 export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpdate, onUpdateAnnual, onBack }) => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [newSubtask, setNewSubtask] = useState('');
+  const [subtaskToDelete, setSubtaskToDelete] = useState<{ id: string, text: string } | null>(null);
   
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -24,6 +25,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useModalHistory(isEditing, () => setIsEditing(false));
   useModalHistory(!!activeTaskId, () => setActiveTaskId(null));
+  useModalHistory(!!subtaskToDelete, () => setSubtaskToDelete(null));
   // ---------------------------------------------
 
   const tasksToText = (taskList: Task[]) => {
@@ -455,33 +457,68 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
         {/* Train Visualization (Hidden when Editing to reduce clutter) */}
         {!isEditing && (
             <div className="mb-8 p-6 bg-stone-900 rounded-2xl shadow-sm border border-blue-900/50">
-                {/* Monthly Progress (Train) */}
-                <div className="relative h-24 flex items-center">
-                    {/* Track */}
-                    <div className="absolute w-full h-3 bg-stone-800 rounded-full overflow-hidden">
-                        <div className="w-full h-full" style={{ backgroundImage: 'linear-gradient(90deg, transparent 50%, #475569 50%)', backgroundSize: '20px 100%' }}></div>
+                {/* Monthly Progress Information Bullets (Above the SVG) */}
+                <div className="flex justify-center flex-wrap gap-2 mb-4">
+                    {/* Month Bullet */}
+                    <div className="bg-stone-950 text-blue-400 text-xs font-black px-4 py-2 rounded-full border border-stone-800 shadow-sm uppercase tracking-widest">
+                        {new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date())}
                     </div>
 
-                    {/* Moving Train */}
-                    <div 
-                        className="absolute transition-all duration-1000 ease-in-out z-10"
-                        style={{ left: `calc(${progress}% - 32px)` }} 
-                    >
-                        <div className="bg-blue-600 p-3 rounded-lg shadow-lg ring-2 ring-blue-400/50">
-                            <Train className="w-8 h-8 text-white" />
-                        </div>
-                        <div className="text-center mt-2 font-bold text-blue-400 text-sm">
-                            {Math.round(progress)}%
-                        </div>
+                    {/* Progress Percentage Bullet */}
+                    <div className="bg-blue-600 text-white text-xs font-black px-4 py-2 rounded-full shadow-lg border border-blue-400">
+                        {Math.round(progress)}%
                     </div>
-                </div>
-                
-                <div className="flex justify-center mt-6 mb-6">
+
+                    {/* Hours Bullet */}
                     {totalMonthlyHours >= 0 && (
-                        <span className="flex items-center gap-1 text-sm font-mono font-bold text-blue-400 bg-blue-900/20 px-4 py-2 rounded-full border border-blue-800/50 shadow-sm">
+                        <div className="bg-blue-900/20 text-blue-400 text-xs font-black px-4 py-2 rounded-full border border-blue-800/50 shadow-sm">
                             {totalMonthlyHours}h
-                        </span>
+                        </div>
                     )}
+                </div>
+
+                {/* Monthly Progress (Zigzag) */}
+                <div className="relative w-full py-4 pt-4">
+                    <svg viewBox="0 0 400 120" className="w-full h-auto overflow-visible drop-shadow-2xl">
+                        {/* Background Path (Track) - INVERTED */}
+                        <path 
+                            d="M 380 60 H 350 V 100 H 300 V 20 H 250 V 100 H 200 V 20 H 150 V 100 H 100 V 20 H 50 V 60 H 20" 
+                            fill="none" 
+                            stroke="#262626" 
+                            strokeWidth="14" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                            className="opacity-100"
+                        />
+                        {/* Progress Path (Illuminated Track) - INVERTED */}
+                        <path 
+                            d="M 380 60 H 350 V 100 H 300 V 20 H 250 V 100 H 200 V 20 H 150 V 100 H 100 V 20 H 50 V 60 H 20" 
+                            fill="none" 
+                            stroke="url(#progressGradient)" 
+                            strokeWidth="14" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                            strokeDasharray="1000"
+                            strokeDashoffset={1000 - (1000 * (progress / 100))}
+                            className="transition-all duration-1000 ease-in-out"
+                            style={{ filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.4))' }}
+                        />
+                        {/* Gradient Definition */}
+                        <defs>
+                            <linearGradient id="progressGradient" x1="100%" y1="0%" x2="0%" y2="0%">
+                                <stop offset="0%" stopColor="#3b82f6" />
+                                <stop offset="100%" stopColor="#60a5fa" />
+                            </linearGradient>
+                        </defs>
+
+                        {/* Icons - INVERTED POSITION */}
+                        <g transform="translate(380, 48)">
+                            <text x="-5" y="28" className="text-4xl select-none">🚂</text>
+                        </g>
+                        <g transform="translate(0, 48)">
+                            <text x="0" y="28" className="text-4xl select-none">🚉</text>
+                        </g>
+                    </svg>
                 </div>
 
                 {/* Annual Progress (Simple Bar) */}
@@ -560,7 +597,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                  <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
                      <div>
                         <h3 className="font-bold text-stone-200 text-lg truncate pr-4">{parseTrainInfo(activeTask.text).name}</h3>
-                        <p className="text-xs text-stone-500">Subtareas del vagón</p>
+                        <p className="text-xs text-stone-500">Cabinas del vagón</p>
                      </div>
                      <button onClick={() => setActiveTaskId(null)} className="p-1 hover:bg-stone-700 rounded-full">
                          <X className="w-6 h-6 text-stone-400" />
@@ -608,7 +645,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                                     </span>
                                 </div>
                                 <button
-                                    onClick={() => deleteSubtask(sub.id)}
+                                    onClick={() => setSubtaskToDelete({ id: sub.id, text: sub.text })}
                                     className="text-stone-600 hover:text-red-400 p-1"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -636,6 +673,41 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                  </div>
              </div>
         </div>
+      )}
+
+      {/* Subtask Delete Confirmation Modal */}
+      {subtaskToDelete && (
+          <div 
+              className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+              onClick={() => setSubtaskToDelete(null)}
+          >
+              <div 
+                  className="bg-stone-900 border border-stone-800 rounded-2xl p-6 w-full max-w-xs shadow-2xl scale-in-center"
+                  onClick={(e) => e.stopPropagation()}
+              >
+                  <h3 className="text-lg font-bold text-stone-200 mb-2">¿Eliminar subtarea?</h3>
+                  <p className="text-stone-400 text-sm mb-6">
+                      Se borrará "<span className="text-stone-300 font-semibold">{subtaskToDelete.text}</span>". Esta acción no se puede deshacer.
+                  </p>
+                  <div className="flex gap-3">
+                      <button
+                          onClick={() => setSubtaskToDelete(null)}
+                          className="flex-1 py-3 rounded-xl bg-stone-800 text-stone-300 font-bold hover:bg-stone-700 transition-colors"
+                      >
+                          Cancelar
+                      </button>
+                      <button
+                          onClick={() => {
+                              deleteSubtask(subtaskToDelete.id);
+                              setSubtaskToDelete(null);
+                          }}
+                          className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20"
+                      >
+                          Eliminar
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );
