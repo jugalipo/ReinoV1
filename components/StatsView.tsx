@@ -26,6 +26,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
   const [showMonthChart, setShowMonthChart] = useState(false);
   const [hunosTimeframe, setHunosTimeframe] = useState<'mes' | 'año' | 'siempre'>('mes');
   const [hunosSelectedPeriod, setHunosSelectedPeriod] = useState<string>('');
+  const [hunosOrderType, setHunosOrderType] = useState<'cantidad' | 'tendencia'>('cantidad');
   
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [exerciseTimeframe, setExerciseTimeframe] = useState<'mes' | 'año' | 'siempre'>('mes');
@@ -131,37 +132,72 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
 
   const hunoCounts = useMemo(() => {
     const counts: Record<string, number> = {};
+    const prevCounts: Record<string, number> = {};
     
     data.hunos.forEach(h => {
       counts[h.id] = 0;
+      prevCounts[h.id] = 0;
     });
+
+    // Calculate previous period string
+    let prevPeriod = '';
+    if (hunosTimeframe === 'mes' && hunosSelectedPeriod) {
+      const [y, m] = hunosSelectedPeriod.split('-').map(Number);
+      const prevDate = new Date(y, m - 2, 1);
+      prevPeriod = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+    } else if (hunosTimeframe === 'año' && hunosSelectedPeriod) {
+      prevPeriod = (Number(hunosSelectedPeriod) - 1).toString();
+    }
 
     Object.entries(data.hunosHistory || {}).forEach(([dateStr, completedIds]) => {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return;
       
-      let include = false;
-      if (hunosTimeframe === 'siempre') {
-        include = true;
-      } else if (hunosTimeframe === 'año') {
-        include = d.getFullYear().toString() === hunosSelectedPeriod;
-      } else if (hunosTimeframe === 'mes') {
-        const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        include = mStr === hunosSelectedPeriod;
-      }
+      const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const yStr = d.getFullYear().toString();
 
-      if (include) {
+      // Current period
+      let includeCurrent = false;
+      if (hunosTimeframe === 'siempre') includeCurrent = true;
+      else if (hunosTimeframe === 'año') includeCurrent = yStr === hunosSelectedPeriod;
+      else if (hunosTimeframe === 'mes') includeCurrent = mStr === hunosSelectedPeriod;
+
+      if (includeCurrent) {
         (completedIds as string[]).forEach((id: string) => {
           counts[id] = (counts[id] || 0) + 1;
         });
       }
+
+      // Previous period
+      if (hunosOrderType === 'tendencia' && hunosTimeframe !== 'siempre') {
+        let includePrev = false;
+        if (hunosTimeframe === 'año') includePrev = yStr === prevPeriod;
+        else if (hunosTimeframe === 'mes') includePrev = mStr === prevPeriod;
+
+        if (includePrev) {
+          (completedIds as string[]).forEach((id: string) => {
+            prevCounts[id] = (prevCounts[id] || 0) + 1;
+          });
+        }
+      }
     });
 
-    return data.hunos.map(h => ({
-      ...h,
-      count: counts[h.id] || 0
-    })).sort((a, b) => b.count - a.count);
-  }, [data.hunos, data.hunosHistory, hunosTimeframe, hunosSelectedPeriod]);
+    return data.hunos.map(h => {
+      const currentCount = counts[h.id] || 0;
+      const previousCount = prevCounts[h.id] || 0;
+      return {
+        ...h,
+        count: currentCount,
+        prevCount: previousCount,
+        delta: currentCount - previousCount
+      };
+    }).sort((a, b) => {
+      if (hunosOrderType === 'tendencia' && hunosTimeframe !== 'siempre') {
+        return b.delta - a.delta;
+      }
+      return b.count - a.count;
+    });
+  }, [data.hunos, data.hunosHistory, hunosTimeframe, hunosSelectedPeriod, hunosOrderType]);
 
   const totalHunos = useMemo(() => hunoCounts.reduce((acc, h) => acc + h.count, 0), [hunoCounts]);
 
@@ -1025,6 +1061,20 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
                   }
                 </select>
               )}
+
+              {hunosTimeframe !== 'siempre' && (
+                <div className="flex bg-stone-950 rounded-lg p-1">
+                  {(['cantidad', 'tendencia'] as const).map(ot => (
+                    <button
+                      key={ot}
+                      onClick={() => setHunosOrderType(ot)}
+                      className={`flex-1 py-1 text-[10px] font-black uppercase rounded-md transition-colors ${hunosOrderType === ot ? 'bg-orange-600 text-white' : 'text-stone-600 hover:text-stone-400'}`}
+                    >
+                      {ot}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             
             <div className="overflow-y-auto p-2">
@@ -1042,11 +1092,30 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
                     <button 
                       key={huno.id} 
                       onClick={() => setViewingHistoryForTask(huno.id)}
-                      className="flex flex-col items-center justify-center p-3 rounded-xl bg-stone-800/30 hover:bg-stone-800/50 transition-colors gap-2 cursor-pointer"
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all gap-2 cursor-pointer ${
+                        hunosOrderType === 'tendencia' && hunosTimeframe !== 'siempre'
+                          ? (huno.delta > 0 
+                              ? 'bg-emerald-600/20 border border-emerald-500/30' 
+                              : huno.delta < 0 
+                                ? 'bg-rose-600/20 border border-rose-500/30' 
+                                : 'bg-stone-800/30 border border-stone-800/50')
+                          : 'bg-stone-800/30 hover:bg-stone-800/50 border border-transparent'
+                      }`}
                     >
                       <span className="text-2xl drop-shadow-sm filter">{getEmoji(huno.text)}</span>
-                      <span className="font-mono font-bold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-md min-w-[2.5rem] text-center text-xs">
-                        {huno.count}
+                      <span className={`font-mono font-bold px-2 py-0.5 rounded-md min-w-[2.5rem] text-center text-xs ${
+                        hunosOrderType === 'tendencia' && hunosTimeframe !== 'siempre'
+                          ? (huno.delta > 0 
+                              ? 'bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]' 
+                              : huno.delta < 0 
+                                ? 'bg-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.4)]' 
+                                : 'bg-stone-500 text-stone-200')
+                          : 'text-orange-500 bg-orange-500/10'
+                      }`}>
+                        {hunosOrderType === 'tendencia' && hunosTimeframe !== 'siempre' 
+                          ? (huno.delta > 0 ? `+${huno.delta}` : huno.delta)
+                          : huno.count
+                        }
                       </span>
                     </button>
                   );
