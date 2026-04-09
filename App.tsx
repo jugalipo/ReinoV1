@@ -689,10 +689,14 @@ function App() {
   // --- MOBILE BACK BUTTON SUPPORT ---
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      if (event.state && event.state.view) {
-        setView(event.state.view);
+      const state = event.state;
+      if (state) {
+        if (state.view) setView(state.view);
+        if (state.modal === 'gympieza') setShowGympiezaModal(true);
+        else setShowGympiezaModal(false);
       } else {
         setView('home');
+        setShowGympiezaModal(false);
       }
     };
 
@@ -707,12 +711,14 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Push new state if the current history view doesn't match the state view
-    // This handles both forward navigation (clicking a button) and deep updates
-    if (window.history.state?.view !== view) {
-      window.history.pushState({ view }, '');
+    const currentState = window.history.state;
+    const modalState = showGympiezaModal ? 'gympieza' : null;
+    
+    // Solo hacemos push si el estado actual es diferente al deseado
+    if (currentState?.view !== view || currentState?.modal !== modalState) {
+      window.history.pushState({ view, modal: modalState }, '');
     }
-  }, [view]);
+  }, [view, showGympiezaModal]);
 
   // --- NOTIFICATION REMINDER LOOP ---
   useEffect(() => {
@@ -1480,7 +1486,7 @@ function App() {
                     <Music className="w-5 h-5" />
                     <span className="font-bold">Profundizar en Piano</span>
                   </button>
-                  <button onClick={() => setShowGympiezaModal(true)} className="w-full mt-3 py-3 bg-emerald-950/30 border border-emerald-900/50 rounded-xl flex items-center justify-center gap-2 text-emerald-400 hover:bg-emerald-900/50 hover:text-emerald-300 transition-all">
+                  <button onClick={(e) => { e.stopPropagation(); setShowGympiezaModal(true); }} className="w-full mt-3 py-3 bg-emerald-950/30 border border-emerald-900/50 rounded-xl flex items-center justify-center gap-2 text-emerald-400 hover:bg-emerald-900/50 hover:text-emerald-300 transition-all">
                     <Sparkles className="w-5 h-5" />
                     <span className="font-bold">Gympieza</span>
                   </button>
@@ -1692,6 +1698,33 @@ function App() {
 
 const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympieza: GympiezaState, onUpdate: (g: GympiezaState) => void, onClose: () => void, onCompleteAll: () => void }) => {
   const [showConfirmReset, setShowConfirmReset] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Restaurar posición de scroll inicial
+    if (scrollContainerRef.current && gympieza.scrollPosition) {
+      scrollContainerRef.current.scrollTop = gympieza.scrollPosition;
+    }
+    // No gestionamos historial aquí, ya lo hace App.tsx globalmente
+  }, []);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    // Solo actualizamos el ref, sin disparar re-renders masivos del App
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.dataset.scrollPos = e.currentTarget.scrollTop.toString();
+    }
+  };
+
+  const handleInternalClose = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // Guardar posición final antes de cerrar
+    const finalScroll = scrollContainerRef.current ? parseInt(scrollContainerRef.current.dataset.scrollPos || "0") : (gympieza.scrollPosition || 0);
+    onUpdate({ ...gympieza, scrollPosition: finalScroll });
+    onClose();
+  };
 
   const toggleTask = (taskId: string) => {
     const taskIndex = gympieza.tasks.findIndex(t => t.id === taskId);
@@ -1705,7 +1738,8 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
     }
 
     const nextTasks = gympieza.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t);
-    onUpdate({ ...gympieza, tasks: nextTasks });
+    const currentScroll = scrollContainerRef.current ? parseInt(scrollContainerRef.current.dataset.scrollPos || "0") : (gympieza.scrollPosition || 0);
+    onUpdate({ ...gympieza, tasks: nextTasks, scrollPosition: currentScroll });
 
     if (nextTasks.every(t => t.completed)) {
       setTimeout(() => setShowConfirmReset(true), 600);
@@ -1714,7 +1748,7 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
 
   const handleConfirmReset = () => {
     const resetTasks = gympieza.tasks.map(t => ({ ...t, completed: false }));
-    onUpdate({ ...gympieza, tasks: resetTasks });
+    onUpdate({ ...gympieza, tasks: resetTasks, scrollPosition: 0 });
     onCompleteAll();
     setShowConfirmReset(false);
     onClose();
@@ -1724,8 +1758,16 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
   const progress = (completedCount / gympieza.tasks.length) * 100;
 
   return (
-    <div className="fixed inset-0 max-w-md mx-auto z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-stone-900 w-full max-h-[80vh] rounded-3xl shadow-2xl border border-stone-800 flex flex-col overflow-hidden">
+    <div 
+      className="fixed inset-0 max-w-md mx-auto z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-300"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleInternalClose(e);
+      }}
+    >
+      <div 
+        className="bg-stone-900 w-full max-h-[80vh] rounded-3xl shadow-2xl border border-stone-800 flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6 border-b border-stone-800 flex justify-between items-center bg-stone-800/30">
           <div>
             <h3 className="text-xl font-bold text-emerald-400 flex items-center gap-2">
@@ -1733,7 +1775,7 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
             </h3>
             <p className="text-stone-500 text-xs uppercase font-black tracking-widest mt-1">Sigue el orden estricto</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-stone-800 rounded-full transition-colors">
+          <button onClick={() => handleInternalClose()} className="p-2 hover:bg-stone-800 rounded-full transition-colors">
             <X className="w-6 h-6 text-stone-500" />
           </button>
         </div>
@@ -1751,7 +1793,11 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+        <div 
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar"
+        >
           {gympieza.tasks.map((task, idx) => {
             const isClickable = (idx === 0 || gympieza.tasks[idx - 1].completed) && (idx === gympieza.tasks.length - 1 || !gympieza.tasks[idx + 1].completed);
             const isNext = !task.completed && (idx === 0 || gympieza.tasks[idx - 1].completed);
@@ -1794,14 +1840,7 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
           })}
         </div>
         
-        <div className="p-6 border-t border-stone-800 bg-stone-800/10">
-          <button 
-            onClick={onClose}
-            className="w-full py-4 bg-stone-100 text-stone-900 font-black rounded-2xl hover:bg-white transition-all shadow-xl uppercase tracking-tight text-sm"
-          >
-            Cerrar Ventana
-          </button>
-        </div>
+        {/* Botón inferior eliminado por redundancia con cierre exterior/atrás */}
       </div>
 
       {showConfirmReset && (

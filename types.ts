@@ -20,6 +20,7 @@ export interface GympiezaTask {
 export interface GympiezaState {
   lastReset: number;
   tasks: GympiezaTask[];
+  scrollPosition?: number;
 }
 
 export interface WeeklyTask extends Task {
