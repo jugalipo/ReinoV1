@@ -21,18 +21,18 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
       parentName: string;
     }> = [];
 
-    trains.forEach(t => {
-      t.subtasks?.forEach(s => {
-        if (s.text.includes('🦶')) {
-          footTasks.push({ taskId: t.id, sub: s, sourceType: 'train', parentName: t.text });
-        }
-      });
-    });
-
     sets.forEach(s => {
       s.subtasks?.forEach(sub => {
         if (sub.text.includes('🦶')) {
           footTasks.push({ taskId: s.id, sub, sourceType: 'set', parentName: s.text });
+        }
+      });
+    });
+
+    trains.forEach(t => {
+      t.subtasks?.forEach(s => {
+        if (s.text.includes('🦶')) {
+          footTasks.push({ taskId: t.id, sub: s, sourceType: 'train', parentName: t.text });
         }
       });
     });
@@ -82,7 +82,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
           <div>
             <div className="flex items-center gap-2">
               <Footprints className="w-6 h-6 text-emerald-500" />
-              <h3 className="font-bold text-emerald-100 text-xl tracking-tight">Paseos y Tareas</h3>
+              <h3 className="font-bold text-emerald-100 text-xl tracking-tight">Passeggiata</h3>
             </div>
             <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider mt-1">Sincronizado con Trenes y Setas</p>
           </div>
@@ -134,7 +134,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
         
         <div className="p-4 bg-emerald-950/10 border-t border-emerald-900/20">
           <div className="flex justify-between items-center mb-2 px-1">
-            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Progreso Paseo</span>
+            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Progreso Passeggiata</span>
             <span className="text-[10px] font-mono font-bold text-emerald-600">
               {allFootTasks.filter(t => t.sub.completed).length}/{allFootTasks.length}
             </span>

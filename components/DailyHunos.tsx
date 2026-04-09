@@ -269,11 +269,6 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                 <span className="text-xs">🪙</span>
             </div>
 
-            {/* Hunos Counter */}
-            <span className="text-xs font-mono text-stone-500 whitespace-nowrap">
-                {completedCount}/{visibleTasks.length}
-            </span>
-
             {/* Progress Bar Container */}
             <div className="flex-1 h-2 bg-stone-800 rounded-full overflow-hidden">
                 <div 
@@ -281,6 +276,11 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                     style={{ width: `${progressPercent}%` }}
                 />
             </div>
+
+            {/* Hunos Counter */}
+            <span className="text-xs font-mono text-stone-500 whitespace-nowrap">
+                {completedCount}/{visibleTasks.length}
+            </span>
         </div>
       )}
 
