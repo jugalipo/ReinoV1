@@ -8,6 +8,7 @@ export interface Task {
   failedYesterday?: boolean;
   missedDays?: number;
   plenoCompleted?: boolean; // true if completed at least once in the current "pleno" cycle
+  phase?: 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4';
 }
 
 export interface GympiezaTask {

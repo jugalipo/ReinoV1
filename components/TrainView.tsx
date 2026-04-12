@@ -18,7 +18,10 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
-  const [editMonthlyText, setEditMonthlyText] = useState('');
+  const [editPhase1Text, setEditPhase1Text] = useState('');
+  const [editPhase2Text, setEditPhase2Text] = useState('');
+  const [editPhase3Text, setEditPhase3Text] = useState('');
+  const [editPhase4Text, setEditPhase4Text] = useState('');
   const [editAnnualText, setEditAnnualText] = useState('');
   const [activeFilter, setActiveFilter] = useState<'star' | 'foot' | null>(null);
 
@@ -38,7 +41,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
       }).join('\n');
   };
 
-  const textToTasks = (text: string, existingTasks: Task[]): Task[] => {
+  const textToTasks = (text: string, existingTasks: Task[], phase?: 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4'): Task[] => {
       const lines = text.split('\n').map(l => l.trim()).filter(l => l);
       const newTasks: Task[] = [];
       let currentTask: Task | null = null;
@@ -52,7 +55,8 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                   id: existing ? existing.id : Date.now().toString() + Math.random().toString(),
                   text: line,
                   completed: existing ? existing.completed : false,
-                  subtasks: []
+                  subtasks: [],
+                  phase: (phase || existing?.phase || 'Fase 1') as 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4'
               };
               newTasks.push(currentTask);
           } else {
@@ -71,7 +75,8 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                       id: existing ? existing.id : Date.now().toString() + Math.random().toString(),
                       text: line,
                       completed: existing ? existing.completed : false,
-                      subtasks: []
+                      subtasks: [],
+                      phase: (phase || existing?.phase || 'Fase 1') as 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4'
                   };
                   newTasks.push(currentTask);
               }
@@ -82,13 +87,21 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
   const handleEditToggle = () => {
       if (isEditing) {
-          const newMonthly = textToTasks(editMonthlyText, tasks);
+          const newPhase1 = textToTasks(editPhase1Text, tasks, 'Fase 1');
+          const newPhase2 = textToTasks(editPhase2Text, tasks, 'Fase 2');
+          const newPhase3 = textToTasks(editPhase3Text, tasks, 'Fase 3');
+          const newPhase4 = textToTasks(editPhase4Text, tasks, 'Fase 4');
+          
+          const newMonthly = [...newPhase1, ...newPhase2, ...newPhase3, ...newPhase4];
           const newAnnual = textToTasks(editAnnualText, annualTasks);
           onUpdate(newMonthly);
           onUpdateAnnual(newAnnual);
           setIsEditing(false);
       } else {
-          setEditMonthlyText(tasksToText(tasks));
+          setEditPhase1Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 1')));
+          setEditPhase2Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 2')));
+          setEditPhase3Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 3')));
+          setEditPhase4Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 4')));
           setEditAnnualText(tasksToText(annualTasks));
           setIsEditing(true);
       }
@@ -375,14 +388,14 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
           );
       }
 
-      if (isEditing) {
+      if (isEditing && isAnnual) {
           return (
               <div className="w-full h-full min-h-[300px]">
                   <textarea
-                      value={isAnnual ? editAnnualText : editMonthlyText}
-                      onChange={(e) => isAnnual ? setEditAnnualText(e.target.value) : setEditMonthlyText(e.target.value)}
+                      value={editAnnualText}
+                      onChange={(e) => setEditAnnualText(e.target.value)}
                       className="w-full h-full min-h-[300px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
-                      placeholder={isAnnual ? "Pega aquí tus tareas anuales...\n🌍 Viajar a Japón\nComprar billetes\nReservar hotel" : "Pega aquí tus tareas mensuales...\n🦁 Gym 1h\nPecho\nEspalda"}
+                      placeholder={"Pega aquí tus tareas anuales...\n🌍 Viajar a Japón\nComprar billetes\nReservar hotel"}
                   />
               </div>
           );
@@ -591,7 +604,80 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
         {/* Task List (Monthly) */}
         <div className="mb-8">
-            {renderTaskList(currentMonthlyTasks, false)}
+            {isEditing ? (
+                <div className="space-y-6">
+                    <div>
+                        <h3 className="text-sm font-bold text-blue-400 mb-2 uppercase tracking-wider">Fase 1: Arranque</h3>
+                        <textarea
+                            value={editPhase1Text}
+                            onChange={(e) => setEditPhase1Text(e.target.value)}
+                            className="w-full min-h-[120px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
+                            placeholder="Tareas de Arranque..."
+                        />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-blue-400 mb-2 uppercase tracking-wider">Fase 2: Alternancias</h3>
+                        <textarea
+                            value={editPhase2Text}
+                            onChange={(e) => setEditPhase2Text(e.target.value)}
+                            className="w-full min-h-[120px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
+                            placeholder="Tareas de Alternancias..."
+                        />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-blue-400 mb-2 uppercase tracking-wider">Fase 3: Mantenimiento</h3>
+                        <textarea
+                            value={editPhase3Text}
+                            onChange={(e) => setEditPhase3Text(e.target.value)}
+                            className="w-full min-h-[120px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
+                            placeholder="Tareas de Mantenimiento..."
+                        />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-blue-400 mb-2 uppercase tracking-wider">Fase 4: Cierre</h3>
+                        <textarea
+                            value={editPhase4Text}
+                            onChange={(e) => setEditPhase4Text(e.target.value)}
+                            className="w-full min-h-[120px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
+                            placeholder="Tareas de Cierre..."
+                        />
+                    </div>
+                </div>
+            ) : activeFilter ? (
+                <div className="mb-6">
+                    {renderTaskList(currentMonthlyTasks, false)}
+                </div>
+            ) : (
+                <>
+                    {['Fase 1', 'Fase 2', 'Fase 3', 'Fase 4'].map((phaseCode) => {
+                        const phaseTasks = currentMonthlyTasks.filter(t => !t.completed && (t.phase || 'Fase 1') === phaseCode);
+                        if (phaseTasks.length === 0) return null;
+                        const titles = {
+                            'Fase 1': 'Fase 1: Arranque',
+                            'Fase 2': 'Fase 2: Alternancias',
+                            'Fase 3': 'Fase 3: Mantenimiento',
+                            'Fase 4': 'Fase 4: Cierre'
+                        };
+                        return (
+                            <div key={phaseCode} className="mb-6">
+                                <h3 className="text-lg font-bold text-stone-400 mb-3 ml-1">{titles[phaseCode as keyof typeof titles]}</h3>
+                                {renderTaskList(phaseTasks, false)}
+                            </div>
+                        );
+                    })}
+                    {(() => {
+                        const completedTasks = currentMonthlyTasks.filter(t => t.completed);
+                        if (completedTasks.length === 0) return null;
+                        return (
+                            <div className="mt-8 border-t border-stone-800 pt-6">
+                                <h3 className="text-sm font-bold text-stone-500 mb-3 ml-1 uppercase tracking-wider">Completadas</h3>
+                                {renderTaskList(completedTasks, false)}
+                            </div>
+                        );
+                    })()}
+                    {currentMonthlyTasks.length === 0 && <p className="text-center text-stone-600 py-4">Sin tareas.</p>}
+                </>
+            )}
         </div>
 
         {/* Annual Tasks Section */}
