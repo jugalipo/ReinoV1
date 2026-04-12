@@ -115,9 +115,21 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   const [newTaskText, setNewTaskText] = useState('');
 
   // Monthly Stats
-  const completedCount = tasks.filter((t) => t.completed).length;
-  const totalCount = tasks.length;
-  const progress = totalCount === 0 ? 0 : (completedCount / totalCount) * 100;
+  let completedSubtasksCount = 0;
+  let totalSubtasksCount = 0;
+  
+  tasks.forEach(task => {
+      const subs = task.subtasks || [];
+      if (subs.length > 0) {
+          totalSubtasksCount += subs.length;
+          completedSubtasksCount += subs.filter(s => s.completed).length;
+      } else {
+          totalSubtasksCount += 1;
+          completedSubtasksCount += task.completed ? 1 : 0;
+      }
+  });
+
+  const progress = totalSubtasksCount === 0 ? 0 : (completedSubtasksCount / totalSubtasksCount) * 100;
 
   // Annual Stats
   const annualCompletedCount = annualTasks.filter((t) => t.completed).length;
@@ -551,7 +563,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                             <text x="-5" y="28" className="text-4xl select-none">🚂</text>
                         </g>
                         <g transform="translate(0, 48)">
-                            <text x="0" y="28" className="text-4xl select-none">🚉</text>
+                            <text x="0" y="28" className="text-4xl select-none">🏠</text>
                         </g>
                     </svg>
                 </div>
