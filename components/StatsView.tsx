@@ -907,11 +907,11 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
             </button>
             <button onClick={() => setShowHunosModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-orange-900/30 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors w-full">
               <Sword className="w-6 h-6 text-orange-500" />
-              <span className="text-2xl font-black text-white leading-none">{stats.hunoPlenos}</span>
+              <span className="text-2xl font-black text-white leading-none">{(stats.hunoPlenoCurrent || 0) + ((stats.hunoPlenos || 0) * 50)}</span>
             </button>
             <button onClick={() => setShowProjectsModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
               <Settings className="w-6 h-6 text-stone-400" />
-              <span className="text-2xl font-black text-white leading-none">{stats.projectPlenos}</span>
+              <span className="text-2xl font-black text-white leading-none">{(stats.projectPlenoCurrent || 0) + ((stats.projectPlenos || 0) * 20)}</span>
             </button>
           </div>
         </section>

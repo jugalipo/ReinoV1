@@ -533,68 +533,66 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                         );
                     })}
                 </div>
-                 <p className="text-xs text-stone-500 px-2 pt-2 text-center">
-                    Los cambios en "Ayer" o "Hoy" se sincronizarán con la pantalla principal.
-                </p>
+                 {/* Energy Adjuster for Selected Date - Integrated into Hunos section */}
+                 <div className="space-y-4 pt-2">
+                      <div className="flex items-center justify-between px-2">
+                          <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider flex items-center gap-2">
+                              <Activity className="w-4 h-4 text-orange-400" /> Energía del día
+                          </h3>
+                          <div className="px-3 py-1 bg-stone-950 rounded-full border border-stone-800">
+                              <span className="text-sm font-black text-orange-500 font-mono">
+                                  {(data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1} / 10
+                              </span>
+                          </div>
+                      </div>
+
+                      <div className="px-2">
+                         <div className="relative h-12 flex items-center group/slider">
+                              {/* Track */}
+                              <div className="absolute inset-0 h-2 my-auto bg-stone-950 rounded-full border border-stone-800 overflow-hidden">
+                                  <div 
+                                      className="h-full bg-gradient-to-r from-orange-600 via-orange-500 to-red-500 shadow-[0_0_20px_rgba(249,115,22,0.3)] transition-all duration-300 ease-out"
+                                      style={{ width: `${((((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) - 1) / 9) * 100}%` }}
+                                  />
+                              </div>
+                              
+                              {/* Ticks */}
+                              <div className="absolute inset-0 flex justify-between px-1 items-center pointer-events-none">
+                                  {Array.from({ length: 11 }).map((_, i) => (
+                                      <div 
+                                          key={i} 
+                                          className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${i <= ((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) ? 'bg-white/20' : 'bg-stone-800'}`} 
+                                      />
+                                  ))}
+                              </div>
+
+                              {/* Input Slider */}
+                              <input 
+                                  type="range"
+                                  min="1"
+                                  max="10"
+                                  step="1"
+                                  value={(data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1}
+                                  onChange={(e) => updateEnergyHistory(parseInt(e.target.value))}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                              />
+
+                              {/* Thumb */}
+                              <div 
+                                  className="absolute w-8 h-8 rounded-full bg-stone-100 border-4 border-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.6)] pointer-events-none z-10 transition-all duration-300 ease-out"
+                                  style={{ 
+                                      left: `calc(${(((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) - 1) / 9 * 100}% - 16px)`,
+                                      transition: 'left 0.1s ease-out'
+                                  }}
+                              >
+                                  <div className="absolute inset-0 m-auto w-1 h-3 bg-orange-600/30 rounded-full" />
+                              </div>
+                          </div>
+                      </div>
+                 </div>
            </div>
 
-           {/* Energy Adjuster for Selected Date */}
-           <div className="space-y-4 pt-6 border-t border-stone-800">
-                <div className="flex items-center justify-between px-2">
-                    <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-orange-400" /> Energía del día
-                    </h3>
-                    <div className="px-3 py-1 bg-stone-950 rounded-full border border-stone-800">
-                        <span className="text-sm font-black text-orange-500 font-mono">
-                            {(data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1} / 10
-                        </span>
-                    </div>
-                </div>
 
-                <div className="px-2">
-                   <div className="relative h-12 flex items-center group/slider">
-                        {/* Track */}
-                        <div className="absolute inset-0 h-2 my-auto bg-stone-950 rounded-full border border-stone-800 overflow-hidden">
-                            <div 
-                                className="h-full bg-gradient-to-r from-orange-600 via-orange-500 to-red-500 shadow-[0_0_20px_rgba(249,115,22,0.3)] transition-all duration-300 ease-out"
-                                style={{ width: `${((((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) - 1) / 9) * 100}%` }}
-                            />
-                        </div>
-                        
-                        {/* Ticks */}
-                        <div className="absolute inset-0 flex justify-between px-1 items-center pointer-events-none">
-                            {Array.from({ length: 11 }).map((_, i) => (
-                                <div 
-                                    key={i} 
-                                    className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${i <= ((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) ? 'bg-white/20' : 'bg-stone-800'}`} 
-                                />
-                            ))}
-                        </div>
-
-                        {/* Input Slider */}
-                        <input 
-                            type="range"
-                            min="1"
-                            max="10"
-                            step="1"
-                            value={(data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1}
-                            onChange={(e) => updateEnergyHistory(parseInt(e.target.value))}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                        />
-
-                        {/* Thumb */}
-                        <div 
-                            className="absolute w-8 h-8 rounded-full bg-stone-100 border-4 border-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.6)] pointer-events-none z-10 transition-all duration-300 ease-out"
-                            style={{ 
-                                left: `calc(${(((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) - 1) / 9 * 100}% - 16px)`,
-                                transition: 'left 0.1s ease-out'
-                            }}
-                        >
-                            <div className="absolute inset-0 m-auto w-1 h-3 bg-orange-600/30 rounded-full" />
-                        </div>
-                    </div>
-                </div>
-           </div>
 
            {/* Stats Adjuster */}
            <div className="space-y-4 pt-6 border-t border-stone-800">
@@ -667,23 +665,23 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                         </div>
                     </div>
 
-                   <div className="flex items-center justify-between bg-amber-900/20 p-3 rounded-xl border border-amber-900/50">
-                       <span className="font-bold text-amber-500 text-sm">Leones (20s)</span>
-                       <div className="flex items-center gap-3">
-                           <button onClick={() => adjustRootCount('leonesCount', -1)} className="p-1 bg-amber-950/50 border border-amber-900/50 text-amber-500 rounded hover:bg-amber-900/50"><Minus className="w-4 h-4" /></button>
-                           <span className="font-mono w-8 text-center text-amber-400">{data.leonesCount || 0}</span>
-                           <button onClick={() => adjustRootCount('leonesCount', 1)} className="p-1 bg-amber-950/50 border border-amber-900/50 text-amber-500 rounded hover:bg-amber-900/50"><Plus className="w-4 h-4" /></button>
-                       </div>
-                   </div>
+                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
+                        <span className="font-bold text-stone-200 text-sm">Leones (20s)</span>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => adjustRootCount('leonesCount', -1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
+                            <span className="font-mono w-8 text-center text-stone-100">{data.leonesCount || 0}</span>
+                            <button onClick={() => adjustRootCount('leonesCount', 1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
+                        </div>
+                    </div>
 
-                   <div className="flex items-center justify-between bg-emerald-900/20 p-3 rounded-xl border border-emerald-900/50">
-                       <span className="font-bold text-emerald-500 text-sm">Billetes (20s)</span>
-                       <div className="flex items-center gap-3">
-                           <button onClick={() => adjustRootCount('huchaCount', -1)} className="p-1 bg-emerald-950/50 border border-emerald-900/50 text-emerald-500 rounded hover:bg-emerald-900/50"><Minus className="w-4 h-4" /></button>
-                           <span className="font-mono w-8 text-center text-emerald-400">{data.huchaCount || 0}</span>
-                           <button onClick={() => adjustRootCount('huchaCount', 1)} className="p-1 bg-emerald-950/50 border border-emerald-900/50 text-emerald-500 rounded hover:bg-emerald-900/50"><Plus className="w-4 h-4" /></button>
-                       </div>
-                   </div>
+                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
+                        <span className="font-bold text-stone-200 text-sm">Billetes (20s)</span>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => adjustRootCount('huchaCount', -1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
+                            <span className="font-mono w-8 text-center text-stone-100">{data.huchaCount || 0}</span>
+                            <button onClick={() => adjustRootCount('huchaCount', 1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
+                        </div>
+                    </div>
                </div>
            </div>
 

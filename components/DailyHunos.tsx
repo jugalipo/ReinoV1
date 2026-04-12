@@ -308,7 +308,23 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                         )}
                         
                         <div className="grid grid-cols-4 gap-3 relative z-10">
-                            {tasks.slice(0, 4).map((task, index) => (
+                            {tasks.slice(0, 4).map((task, index) => {
+                                const isFailed = task.failedYesterday && !task.completed;
+                                const missedDays = task.missedDays || 0;
+
+                                let fillPercentage = 0;
+                                let isBlinkingRed = false;
+                                if (isFailed) {
+                                    if (missedDays === 2) fillPercentage = 25;
+                                    else if (missedDays === 3) fillPercentage = 50;
+                                    else if (missedDays === 4) fillPercentage = 75;
+                                    else if (missedDays >= 5) {
+                                        fillPercentage = 100;
+                                        isBlinkingRed = true;
+                                    }
+                                }
+
+                                return (
                                 <button
                                     key={task.id}
                                     onClick={() => toggleTask(task.id)}
@@ -317,18 +333,25 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                                         aspect-square flex items-center justify-center text-3xl relative transition-all duration-300 overflow-hidden rounded-full
                                         ${task.completed
                                             ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
-                                            : task.failedYesterday && !task.completed
-                                                ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${task.missedDays >= 5 ? 'bg-red-600 animate-blink' : 'bg-red-900/50'}`
+                                            : isFailed
+                                                ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${isBlinkingRed ? 'bg-red-600 animate-blink' : 'bg-red-900/50'}`
                                                 : 'border-2 bg-stone-800/80 border-stone-700/50 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
                                         }
                                     `}
                                 >
+                                    {isFailed && fillPercentage > 0 && !isBlinkingRed && (
+                                        <div 
+                                            className="absolute bottom-0 left-0 right-0 bg-red-600/80 transition-all duration-500"
+                                            style={{ height: `${fillPercentage}%` }}
+                                        />
+                                    )}
                                     <span className="drop-shadow-sm filter relative z-10">{getEmoji(task.text)}</span>
                                     {!task.plenoCompleted && (
                                         <div className="absolute w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.8)] animate-pulse z-10 top-2 right-2"></div>
                                     )}
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
