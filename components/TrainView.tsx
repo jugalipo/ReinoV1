@@ -121,14 +121,30 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   const toggleTask = (id: string, isAnnual: boolean) => {
     if (isEditing) return; // Prevent toggling while editing
     if (isAnnual) {
-        const updated = annualTasks.map((t) =>
-            t.id === id ? { ...t, completed: !t.completed } : t
-        );
+        const updated = annualTasks.map((t) => {
+            if (t.id === id) {
+                const newCompleted = !t.completed;
+                return {
+                    ...t,
+                    completed: newCompleted,
+                    subtasks: t.subtasks?.map(s => ({ ...s, completed: newCompleted })) || []
+                };
+            }
+            return t;
+        });
         onUpdateAnnual(updated);
     } else {
-        const updated = tasks.map((t) =>
-            t.id === id ? { ...t, completed: !t.completed } : t
-        );
+        const updated = tasks.map((t) => {
+            if (t.id === id) {
+                const newCompleted = !t.completed;
+                return {
+                    ...t,
+                    completed: newCompleted,
+                    subtasks: t.subtasks?.map(s => ({ ...s, completed: newCompleted })) || []
+                };
+            }
+            return t;
+        });
         onUpdate(updated);
     }
   };
@@ -185,11 +201,14 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
     if (isAnnual) {
         const updated = annualTasks.map(t => {
             if (t.id === taskId && t.subtasks) {
+                const newSubtasks = t.subtasks.map(s => 
+                    s.id === subId ? { ...s, completed: !s.completed } : s
+                );
+                const allCompleted = newSubtasks.length > 0 && newSubtasks.every(s => s.completed);
                 return {
                     ...t,
-                    subtasks: t.subtasks.map(s => 
-                        s.id === subId ? { ...s, completed: !s.completed } : s
-                    )
+                    completed: allCompleted,
+                    subtasks: newSubtasks
                 };
             }
             return t;
@@ -198,11 +217,14 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
     } else {
         const updated = tasks.map(t => {
             if (t.id === taskId && t.subtasks) {
+                const newSubtasks = t.subtasks.map(s => 
+                    s.id === subId ? { ...s, completed: !s.completed } : s
+                );
+                const allCompleted = newSubtasks.length > 0 && newSubtasks.every(s => s.completed);
                 return {
                     ...t,
-                    subtasks: t.subtasks.map(s => 
-                        s.id === subId ? { ...s, completed: !s.completed } : s
-                    )
+                    completed: allCompleted,
+                    subtasks: newSubtasks
                 };
             }
             return t;

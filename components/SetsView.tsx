@@ -96,9 +96,17 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
 
   const toggleTask = (id: string) => {
     if (isEditing) return;
-    const updated = tasks.map((t) =>
-      t.id === id ? { ...t, completed: !t.completed } : t
-    );
+    const updated = tasks.map((t) => {
+      if (t.id === id) {
+        const newCompleted = !t.completed;
+        return {
+          ...t,
+          completed: newCompleted,
+          subtasks: t.subtasks?.map(s => ({ ...s, completed: newCompleted })) || []
+        };
+      }
+      return t;
+    });
     onUpdate(updated);
   };
 
@@ -318,11 +326,14 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                                       e.stopPropagation();
                                       const updated = tasks.map(t => {
                                           if (t.id === task.id && t.subtasks) {
+                                              const newSubtasks = t.subtasks.map(s => 
+                                                  s.id === sub.id ? { ...s, completed: !s.completed } : s
+                                              );
+                                              const allCompleted = newSubtasks.length > 0 && newSubtasks.every(s => s.completed);
                                               return {
                                                   ...t,
-                                                  subtasks: t.subtasks.map(s => 
-                                                      s.id === sub.id ? { ...s, completed: !s.completed } : s
-                                                  )
+                                                  completed: allCompleted,
+                                                  subtasks: newSubtasks
                                               };
                                           }
                                           return t;
