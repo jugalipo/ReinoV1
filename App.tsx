@@ -625,7 +625,7 @@ const processResets = (parsed: AppData): AppData => {
   const resetMonth = lastTrainsResetDate.getMonth();
   const resetYear = lastTrainsResetDate.getFullYear();
   if (currentYear > resetYear) {
-    result.annualTrains = result.annualTrains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.map(s => ({ ...s, completed: false })) }));
+    result.annualTrains = result.annualTrains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.filter(s => !s.isProvisional).map(s => ({ ...s, completed: false })) }));
   }
   if (currentYear > resetYear || (currentYear === resetYear && currentMonth > resetMonth)) {
     const completedCount = result.trains.filter(t => t.completed).length;
@@ -648,7 +648,7 @@ const processResets = (parsed: AppData): AppData => {
     result.stats.interactionsHistory.push(interactionsThisMonth);
     if (result.stats.interactionsHistory.length > 12) result.stats.interactionsHistory.shift();
     result.stats.lastTotalInteractions = currentTotalInteractions;
-    result.trains = result.trains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.map(s => ({ ...s, completed: false })) }));
+    result.trains = result.trains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.filter(s => !s.isProvisional).map(s => ({ ...s, completed: false })) }));
     result.trainsPlenoClaimed = false;
     result.lastTrainsReset = Date.now();
   }

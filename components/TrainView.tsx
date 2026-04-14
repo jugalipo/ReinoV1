@@ -35,7 +35,10 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
       return taskList.map(t => {
           let text = t.text;
           if (t.subtasks && t.subtasks.length > 0) {
-              text += '\n' + t.subtasks.map(s => s.text).join('\n');
+              const fixedSubtasks = t.subtasks.filter(s => !s.isProvisional);
+              if (fixedSubtasks.length > 0) {
+                  text += '\n' + fixedSubtasks.map(s => s.text).join('\n');
+              }
           }
           return text;
       }).join('\n');
@@ -190,7 +193,8 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                         {
                             id: Date.now().toString(),
                             text: newSubtask,
-                            completed: false
+                            completed: false,
+                            isProvisional: true
                         }
                     ]
                 };
@@ -209,7 +213,8 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                         {
                             id: Date.now().toString(),
                             text: newSubtask,
-                            completed: false
+                            completed: false,
+                            isProvisional: true
                         }
                     ]
                 };
@@ -742,7 +747,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                                 className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
                                 sub.completed
                                     ? 'bg-stone-800/50 border-stone-800'
-                                    : 'bg-stone-950 border-stone-800'
+                                    : sub.isProvisional ? 'bg-indigo-900/40 border-indigo-500/40 shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-stone-950 border-stone-800'
                                 }`}
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
@@ -764,12 +769,14 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                                         {sub.text}
                                     </span>
                                 </div>
-                                <button
-                                    onClick={() => setSubtaskToDelete({ id: sub.id, text: sub.text })}
-                                    className="text-stone-600 hover:text-red-400 p-1"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                {sub.isProvisional && (
+                                    <button
+                                        onClick={() => setSubtaskToDelete({ id: sub.id, text: sub.text })}
+                                        className="text-stone-600 hover:text-red-400 p-1"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>
