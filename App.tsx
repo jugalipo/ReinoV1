@@ -1730,13 +1730,6 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
     const taskIndex = gympieza.tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) return;
 
-    const task = gympieza.tasks[taskIndex];
-    if (!task.completed) {
-      if (taskIndex > 0 && !gympieza.tasks[taskIndex - 1].completed) return;
-    } else {
-      if (taskIndex < gympieza.tasks.length - 1 && gympieza.tasks[taskIndex + 1].completed) return;
-    }
-
     const nextTasks = gympieza.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t);
     const currentScroll = scrollContainerRef.current ? parseInt(scrollContainerRef.current.dataset.scrollPos || "0") : (gympieza.scrollPosition || 0);
     onUpdate({ ...gympieza, tasks: nextTasks, scrollPosition: currentScroll });
@@ -1773,7 +1766,6 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
             <h3 className="text-xl font-bold text-emerald-400 flex items-center gap-2">
               <Sparkles className="w-5 h-5" /> Gympieza
             </h3>
-            <p className="text-stone-500 text-xs uppercase font-black tracking-widest mt-1">Sigue el orden estricto</p>
           </div>
           <button onClick={() => handleInternalClose()} className="p-2 hover:bg-stone-800 rounded-full transition-colors">
             <X className="w-6 h-6 text-stone-500" />
@@ -1798,9 +1790,9 @@ const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympiez
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar"
         >
-          {gympieza.tasks.map((task, idx) => {
-            const isClickable = (idx === 0 || gympieza.tasks[idx - 1].completed) && (idx === gympieza.tasks.length - 1 || !gympieza.tasks[idx + 1].completed);
-            const isNext = !task.completed && (idx === 0 || gympieza.tasks[idx - 1].completed);
+          {[...gympieza.tasks].sort((a, b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1)).map((task, idx) => {
+            const isClickable = true;
+            const isNext = !task.completed;
             
             let typeColor = "text-stone-400";
             let bgColor = "bg-stone-800/20";
