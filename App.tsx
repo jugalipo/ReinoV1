@@ -1152,6 +1152,70 @@ function App() {
     return Math.round((data.trains.filter(t => t.completed).length / data.trains.length) * 100);
   };
 
+  const hasImportantLoveEventToday = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentDay = today.getDate();
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    const hasBirthday = data.friends?.some(f => {
+      if (!f.birthday) return false;
+      const parts = f.birthday.split('-');
+      if (parts.length === 3) {
+        return parseInt(parts[1], 10) === currentMonth && parseInt(parts[2], 10) === currentDay;
+      }
+      return false;
+    });
+
+    if (hasBirthday) return true;
+
+    // Default fallback to match RemindersSection if user hasn't modified reminders yet
+    const fallbackReminders = [
+      { id: '1', title: 'Nos casamos', date: '2022-05-22', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+      { id: '2', title: 'Empezamos a salir', date: '2017-05-24', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+      { id: '3', title: 'Nos fuimos a vivir juntos', date: '2017-09-04', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+      { id: '4', title: 'Empezó a trabajar', date: '2020-10-16', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+      { id: '5', title: 'En Hacienda', date: '2024-06-15', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+      { id: '6', title: 'Días Cotizados', date: '2020-07-18', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+      { id: '7', title: 'Santa Alicia', date: '2000-06-23', notifyYearly: true, notifyMonthly: false, notify100Days: false, hideAge: true },
+      { id: '8', title: 'Cumpleaños Alicia', date: '1993-06-14', notifyYearly: true, notifyMonthly: false, notify100Days: false }
+    ];
+
+    const hasReminder = (data.reminders || fallbackReminders).some((reminder: any) => {
+      if (!reminder.date) return false;
+      const eventDate = new Date(reminder.date);
+      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+      
+      if (reminder.notifyYearly) {
+        let nextA = new Date(todayDate.getFullYear(), eventDateOnly.getMonth(), eventDateOnly.getDate());
+        if (nextA.getTime() < todayDate.getTime()) {
+          nextA = new Date(todayDate.getFullYear() + 1, eventDateOnly.getMonth(), eventDateOnly.getDate());
+        }
+        if (Math.floor((nextA.getTime() - todayDate.getTime()) / 86400000) === 0) return true;
+      }
+      
+      if (reminder.notifyMonthly) {
+        let nextM = new Date(todayDate.getFullYear(), todayDate.getMonth(), eventDateOnly.getDate());
+        if (nextM.getTime() < todayDate.getTime()) {
+          nextM = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, eventDateOnly.getDate());
+        }
+        if (Math.floor((nextM.getTime() - todayDate.getTime()) / 86400000) === 0) return true;
+      }
+      
+      if (reminder.notify100Days) {
+        const diffDaysStart = Math.floor((todayDate.getTime() - eventDateOnly.getTime()) / 86400000);
+        if (diffDaysStart >= 0) {
+            let next100 = Math.ceil(diffDaysStart / 100) * 100;
+            if (next100 === 0) next100 = 100;
+            if (next100 - diffDaysStart === 0) return true;
+        }
+      }
+      return false;
+    });
+
+    return hasReminder;
+  };
+
   const getLoveProgress = () => {
     if (data.friends.length === 0) return 0;
     const now = Date.now();
@@ -1290,7 +1354,7 @@ function App() {
             <div className="grid grid-cols-4 gap-3 mb-6">
               <button onClick={() => setView('love')} className="aspect-square bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-900/50 transition-colors border border-pink-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
-                  <Heart className="w-8 h-8 text-pink-500 group-hover:text-pink-400 transition-colors" />
+                  <Heart className={`w-8 h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
                 </div>
                 <div className="w-full h-1 bg-pink-900/40 rounded-full overflow-hidden">
                   <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
