@@ -58,14 +58,14 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                   id: existing ? existing.id : Date.now().toString() + Math.random().toString(),
                   text: line,
                   completed: existing ? existing.completed : false,
-                  subtasks: [],
+                  subtasks: existing?.subtasks?.filter(s => s.isProvisional) || [],
                   phase: (phase || existing?.phase || 'Fase 1') as 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4'
               };
               newTasks.push(currentTask);
           } else {
               if (currentTask) {
                   const oldTask = existingTasks.find(t => t.text === currentTask!.text);
-                  const existingSub = oldTask?.subtasks?.find(s => s.text === line);
+                  const existingSub = oldTask?.subtasks?.find(s => s.text === line && !s.isProvisional);
                   
                   currentTask.subtasks!.push({
                       id: existingSub ? existingSub.id : Date.now().toString() + Math.random().toString(),
@@ -78,7 +78,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                       id: existing ? existing.id : Date.now().toString() + Math.random().toString(),
                       text: line,
                       completed: existing ? existing.completed : false,
-                      subtasks: [],
+                      subtasks: existing?.subtasks?.filter(s => s.isProvisional) || [],
                       phase: (phase || existing?.phase || 'Fase 1') as 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4'
                   };
                   newTasks.push(currentTask);
@@ -588,6 +588,16 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                         ></div>
                     </div>
                 </div>
+            </div>
+        )}
+
+        {/* Next Annual Train Highlight */}
+        {!isEditing && sortedAnnualTasks.find(t => !t.completed) && (
+            <div className="mb-6 bg-stone-900 rounded-2xl p-4 border border-indigo-500/30 shadow-lg shadow-indigo-500/5">
+                <h3 className="text-xs font-bold text-indigo-400 mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <span>🎯</span> Próximo Tren Anual
+                </h3>
+                {renderTaskList([sortedAnnualTasks.find(t => !t.completed)!], true)}
             </div>
         )}
 
