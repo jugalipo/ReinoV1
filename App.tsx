@@ -612,12 +612,8 @@ const processResets = (parsed: AppData): AppData => {
   }
 
   const lastWeeklyGoalsResetDate = new Date(result.weeklyGoals.lastReset || 0);
-  if (lastWeeklyGoalsResetDate.getTime() < startOfCurrentWeek.getTime()) {
-    result.weeklyGoals.leones.completed = false;
-    result.weeklyGoals.forjas.completed = false;
-    result.weeklyGoals.puerto.completed = false;
-    result.weeklyGoals.lastReset = Date.now();
-  }
+  // We no longer automatically reset weekly goals. The user must manually reset them.
+  // This allows them to see the expired state.
 
   const lastTrainsResetDate = new Date(result.lastTrainsReset);
   const currentMonth = new Date().getMonth();
@@ -1423,63 +1419,126 @@ function App() {
               </button>
             </div>
 
-            <div className="bg-stone-900 rounded-2xl shadow-sm p-4 w-full mb-3 border border-stone-800">
-              <div className="space-y-3">
-                {/* Leones */}
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl flex-shrink-0">🦁</span>
-                  <DebouncedInput
-                    type="text"
-                    value={data.weeklyGoals?.leones.text || ''}
-                    onChange={(val: string) => updateWeeklyGoal('leones', 'text', val)}
-                    className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-amber-500 transition-colors"
-                    placeholder="Objetivo Leones..."
-                  />
-                  <button
-                    onClick={() => updateWeeklyGoal('leones', 'completed', !(data.weeklyGoals?.leones.completed || false))}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.leones.completed ? 'bg-amber-600 border-amber-600' : 'border-stone-700 hover:border-amber-500'}`}
-                  >
-                    {data.weeklyGoals?.leones.completed && <Check className="w-5 h-5 text-white" />}
-                  </button>
-                </div>
+            {(() => {
+              const now = new Date();
+              const day = now.getDay(); // 0 is Sunday, 6 is Saturday
+              const diff = now.getDate() - day;
+              const startOfCurrentWeek = new Date(now.getFullYear(), now.getMonth(), diff);
+              startOfCurrentWeek.setHours(0, 0, 0, 0);
 
-                {/* Forjas */}
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl flex-shrink-0">🔥</span>
-                  <DebouncedInput
-                    type="text"
-                    value={data.weeklyGoals?.forjas.text || ''}
-                    onChange={(val: string) => updateWeeklyGoal('forjas', 'text', val)}
-                    className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-orange-500 transition-colors"
-                    placeholder="Objetivo Forjas..."
-                  />
-                  <button
-                    onClick={() => updateWeeklyGoal('forjas', 'completed', !(data.weeklyGoals?.forjas.completed || false))}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.forjas.completed ? 'bg-orange-600 border-orange-600' : 'border-stone-700 hover:border-orange-500'}`}
-                  >
-                    {data.weeklyGoals?.forjas.completed && <Check className="w-5 h-5 text-white" />}
-                  </button>
-                </div>
+              const goalsLastReset = new Date(data.weeklyGoals?.lastReset || 0);
+              const isExpired = goalsLastReset.getTime() < startOfCurrentWeek.getTime();
 
-                {/* Puerto */}
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl flex-shrink-0">⛵</span>
-                  <DebouncedInput
-                    type="text"
-                    value={data.weeklyGoals?.puerto.text || ''}
-                    onChange={(val: string) => updateWeeklyGoal('puerto', 'text', val)}
-                    className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 transition-colors"
-                    placeholder="Objetivo Puerto..."
-                  />
-                  <button
-                    onClick={() => updateWeeklyGoal('puerto', 'completed', !(data.weeklyGoals?.puerto.completed || false))}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.puerto.completed ? 'bg-blue-600 border-blue-600' : 'border-stone-700 hover:border-blue-500'}`}
-                  >
-                    {data.weeklyGoals?.puerto.completed && <Check className="w-5 h-5 text-white" />}
-                  </button>
+              return (
+                <div className="bg-stone-900 rounded-2xl shadow-sm p-4 w-full mb-3 border border-stone-800 relative overflow-hidden">
+                  {/* Expired Overlay */}
+                  {isExpired && (
+                    <div className="absolute inset-0 bg-stone-950/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-300">
+                      <span className="text-5xl mb-3 animate-bounce">⏳</span>
+                      <h3 className="text-stone-100 font-black tracking-tighter text-xl uppercase italic">Tiempo Agotado</h3>
+                      <p className="text-stone-500 text-[10px] font-bold tracking-widest uppercase mb-6">La semana ha terminado</p>
+                      <button 
+                        onClick={() => {
+                          setData(prev => ({
+                            ...prev,
+                            weeklyGoals: {
+                              leones: { text: '', completed: false },
+                              forjas: { text: '', completed: false },
+                              puerto: { text: '', completed: false },
+                              lastReset: Date.now()
+                            }
+                          }))
+                        }}
+                        className="bg-stone-200 text-stone-900 font-black px-6 py-3 rounded-xl text-xs hover:bg-white transition-all hover:scale-105 active:scale-95 shadow-xl uppercase tracking-widest flex items-center gap-2"
+                      >
+                         <Plus className="w-4 h-4" /> Nuevas Tareas
+                      </button>
+                    </div>
+                  )}
+
+                  <div className={`space-y-3 transition-opacity duration-500 ${isExpired ? 'opacity-20 pointer-events-none grayscale' : 'opacity-100'}`}>
+                    {/* Leones */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl flex-shrink-0">🦁</span>
+                      <DebouncedInput
+                        type="text"
+                        value={data.weeklyGoals?.leones.text || ''}
+                        onChange={(val: string) => updateWeeklyGoal('leones', 'text', val)}
+                        className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-amber-500 transition-colors"
+                        placeholder="Objetivo Leones..."
+                      />
+                      <button
+                        onClick={() => !isExpired && updateWeeklyGoal('leones', 'completed', !(data.weeklyGoals?.leones.completed || false))}
+                        className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.leones.completed ? 'bg-amber-600 border-amber-600' : 'border-stone-700 hover:border-amber-500'}`}
+                      >
+                        {data.weeklyGoals?.leones.completed && <Check className="w-5 h-5 text-white" />}
+                      </button>
+                    </div>
+
+                    {/* Forjas */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl flex-shrink-0">🔥</span>
+                      <DebouncedInput
+                        type="text"
+                        value={data.weeklyGoals?.forjas.text || ''}
+                        onChange={(val: string) => updateWeeklyGoal('forjas', 'text', val)}
+                        className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-orange-500 transition-colors"
+                        placeholder="Objetivo Forjas..."
+                      />
+                      <button
+                        onClick={() => !isExpired && updateWeeklyGoal('forjas', 'completed', !(data.weeklyGoals?.forjas.completed || false))}
+                        className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.forjas.completed ? 'bg-orange-600 border-orange-600' : 'border-stone-700 hover:border-orange-500'}`}
+                      >
+                        {data.weeklyGoals?.forjas.completed && <Check className="w-5 h-5 text-white" />}
+                      </button>
+                    </div>
+
+                    {/* Puerto */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl flex-shrink-0">⛵</span>
+                      <DebouncedInput
+                        type="text"
+                        value={data.weeklyGoals?.puerto.text || ''}
+                        onChange={(val: string) => updateWeeklyGoal('puerto', 'text', val)}
+                        className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 transition-colors"
+                        placeholder="Objetivo Puerto..."
+                      />
+                      <button
+                        onClick={() => !isExpired && updateWeeklyGoal('puerto', 'completed', !(data.weeklyGoals?.puerto.completed || false))}
+                        className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.puerto.completed ? 'bg-blue-600 border-blue-600' : 'border-stone-700 hover:border-blue-500'}`}
+                      >
+                        {data.weeklyGoals?.puerto.completed && <Check className="w-5 h-5 text-white" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Weekly Timeline - Linea discontinua de 7 secciones */}
+                  <div className={`mt-4 border-t border-stone-800 pt-3 transition-opacity duration-500 ${isExpired ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
+                    <div className="flex justify-between text-[9px] text-stone-500 font-black mb-2 px-1 tracking-[0.2em] uppercase">
+                      <span>Cronología Semanal</span>
+                      <span className="text-stone-400">{day + 1} / 7</span>
+                    </div>
+                    <div className="flex gap-1.5 h-1.5 w-full">
+                      {Array.from({ length: 7 }).map((_, i) => {
+                        const isPassed = i < day;
+                        const isToday = i === day;
+                        
+                        let bgColor = 'bg-stone-800';
+                        if (isPassed) bgColor = 'bg-stone-500';
+                        if (isToday) bgColor = 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]';
+
+                        return (
+                          <div 
+                            key={i} 
+                            className={`flex-1 rounded-full transition-all duration-700 ${bgColor}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
 
             <DailyHunos
               tasks={data.hunos}
