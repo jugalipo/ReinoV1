@@ -559,9 +559,10 @@ const processResets = (parsed: AppData): AppData => {
     result.lastDate = today;
   }
 
-  const day = now.getDay();
-  const diff = now.getDate() - day;
-  const startOfCurrentWeek = new Date(now.setDate(diff));
+  const dayOfWeek = now.getDay();
+  const diffToSunday = now.getDate() - dayOfWeek;
+  const startOfCurrentWeek = new Date(now.getTime());
+  startOfCurrentWeek.setDate(diffToSunday);
   startOfCurrentWeek.setHours(0, 0, 0, 0);
   const lastSetsResetDate = new Date(result.lastSetsReset);
   if (lastSetsResetDate.getTime() < startOfCurrentWeek.getTime()) {
@@ -589,15 +590,30 @@ const processResets = (parsed: AppData): AppData => {
     if (!result.stats.foodHistory) result.stats.foodHistory = [];
     result.stats.foodHistory.push(result.food.score);
     if (result.stats.foodHistory.length > 52) result.stats.foodHistory.shift();
+    
+    // We calculate the new week's Monday and the previous week's Monday
+    const dNewWeek = new Date();
+    const dayNewWeek = dNewWeek.getDay();
+    const diffNewWeek = dNewWeek.getDate() - dayNewWeek + (dayNewWeek === 0 ? -6 : 1);
+    const mondayNewWeek = new Date(dNewWeek.setDate(diffNewWeek));
+    mondayNewWeek.setHours(0, 0, 0, 0);
+    const mondayStr = mondayNewWeek.toISOString().split('T')[0];
+    
+    const prevMonday = new Date(mondayNewWeek.getTime());
+    prevMonday.setDate(prevMonday.getDate() - 7);
+    const prevMondayStr = prevMonday.toISOString().split('T')[0];
+
+    if (!result.food.pastWheels) result.food.pastWheels = {};
+    if (!result.food.pastBroccoli) result.food.pastBroccoli = {};
+    result.food.pastWheels[prevMondayStr] = result.food.wheel || { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false };
+    result.food.pastBroccoli[prevMondayStr] = result.food.broccoliStep || 0;
+
     result.food.score = 0;
     result.food.weeklyBonuses = { organs: false, legumes: false, fast24: false };
+    result.food.wheel = { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false };
+    result.food.broccoliStep = 0;
     result.food.lastWeeklyReset = Date.now();
 
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(now.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
-    const mondayStr = monday.toISOString().split('T')[0];
     if (!result.food.weeklyExtras) result.food.weeklyExtras = {};
     result.food.weeklyExtras[mondayStr] = 0;
   }
