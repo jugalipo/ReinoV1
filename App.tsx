@@ -1493,13 +1493,13 @@ function App() {
 
                     {/* Forjas */}
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl flex-shrink-0">🔥</span>
+                      <span className="text-2xl flex-shrink-0">🍁</span>
                       <DebouncedInput
                         type="text"
                         value={data.weeklyGoals?.forjas.text || ''}
                         onChange={(val: string) => updateWeeklyGoal('forjas', 'text', val)}
                         className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-orange-500 transition-colors"
-                        placeholder="Objetivo Forjas..."
+                        placeholder="Objetivo Roble..."
                       />
                       <button
                         onClick={() => !isExpired && updateWeeklyGoal('forjas', 'completed', !(data.weeklyGoals?.forjas.completed || false))}
@@ -1511,13 +1511,13 @@ function App() {
 
                     {/* Puerto */}
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl flex-shrink-0">⛵</span>
+                      <span className="text-2xl flex-shrink-0">⚔️</span>
                       <DebouncedInput
                         type="text"
                         value={data.weeklyGoals?.puerto.text || ''}
                         onChange={(val: string) => updateWeeklyGoal('puerto', 'text', val)}
                         className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 transition-colors"
-                        placeholder="Objetivo Puerto..."
+                        placeholder="Objetivo Yunque..."
                       />
                       <button
                         onClick={() => !isExpired && updateWeeklyGoal('puerto', 'completed', !(data.weeklyGoals?.puerto.completed || false))}
