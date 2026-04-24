@@ -1,4 +1,4 @@
-export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'leones' | 'exercise';
+export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'leones' | 'exercise' | 'yunque';
 
 export interface Task {
   id: string;
@@ -251,4 +251,6 @@ export interface AppData {
   energy?: number; // 1 to 10
   energyHistory?: Record<string, number>; // DateString -> Energy value
   gympieza?: GympiezaState;
+  yunqueLargas?: Task[];
+  yunqueRapidas?: Task[];
 }

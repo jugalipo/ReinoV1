@@ -11,7 +11,8 @@ import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
-import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles } from 'lucide-react';
+import { YunqueView } from './components/YunqueView';
+import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -1313,6 +1314,7 @@ function App() {
       case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({ ...prev, billetesState: bs, huchaCount: hc }))} leonesState={data.leonesState || Array(20).fill(false)} leonesCount={data.leonesCount || 0} onUpdateLeones={(ls, lc) => setData(prev => ({ ...prev, leonesState: ls, leonesCount: lc }))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
       case 'exercise': return <ExerciseView exercise={data.exercise} onUpdate={ex => setData(prev => ({ ...prev, exercise: ex }))} onBack={() => setView('home')} />;
       case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;
+      case 'yunque': return <YunqueView largas={data.yunqueLargas || []} rapidas={data.yunqueRapidas || []} onUpdateLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))} onUpdateRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))} onBack={() => setView('home')} />;
       case 'stats': return <StatsView data={data} onUpdate={setData} onBack={() => setView('home')} />;
       default:
         const trainProgress = getTrainProgress();
@@ -1363,7 +1365,7 @@ function App() {
                 </div>
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-5 gap-2 mb-6">
               <button onClick={() => setView('love')} className="aspect-square bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-900/50 transition-colors border border-pink-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
                   <Heart className={`w-8 h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
@@ -1394,6 +1396,14 @@ function App() {
               </button>
               <button onClick={() => setView('leones')} className="aspect-square bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-900/50 transition-colors border border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
               <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Flame className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
+              <button onClick={() => setView('yunque')} className="aspect-square bg-slate-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-slate-900/50 transition-colors border border-slate-900/50 group relative">
+                <div className="flex-1 flex items-center justify-center">
+                  <Anvil className="w-8 h-8 text-slate-500 group-hover:text-slate-400 transition-colors" />
+                </div>
+                <div className="w-full h-1 bg-slate-900/40 rounded-full overflow-hidden">
+                  <div className="h-full bg-slate-500 transition-all duration-300" style={{ width: `100%` }}></div>
+                </div>
+              </button>
             </div>
             <div className="grid grid-cols-4 gap-3 mb-3 h-[88px]">
               {/* Pie (Footprints) Button - 1/4 width */}
