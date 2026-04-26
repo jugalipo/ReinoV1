@@ -541,6 +541,8 @@ const processResets = (parsed: AppData): AppData => {
       result.energyHistory[yesterdayKey] = result.energy || 1;
     }
 
+    result.energy = 1;
+
     const yesterdayDate = new Date(result.lastDate || today);
     const todayDate = new Date(today);
     const diffTime = Math.abs(todayDate.getTime() - yesterdayDate.getTime());

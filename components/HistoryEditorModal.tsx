@@ -162,6 +162,11 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
     });
   };
 
+  const isToday = getFormattedDateKey(currentDate) === new Date().toDateString();
+  const currentEnergyValue = isToday 
+      ? (data.energy || 1) 
+      : ((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1);
+
   const getDayLabel = () => {
       const today = new Date();
 
@@ -541,7 +546,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                           </h3>
                           <div className="px-3 py-1 bg-stone-950 rounded-full border border-stone-800">
                               <span className="text-sm font-black text-orange-500 font-mono">
-                                  {(data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1} / 10
+                                  {currentEnergyValue} / 10
                               </span>
                           </div>
                       </div>
@@ -552,7 +557,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                               <div className="absolute inset-0 h-2 my-auto bg-stone-950 rounded-full border border-stone-800 overflow-hidden">
                                   <div 
                                       className="h-full bg-gradient-to-r from-orange-600 via-orange-500 to-red-500 shadow-[0_0_20px_rgba(249,115,22,0.3)] transition-all duration-300 ease-out"
-                                      style={{ width: `${((((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) - 1) / 9) * 100}%` }}
+                                      style={{ width: `${((currentEnergyValue - 1) / 9) * 100}%` }}
                                   />
                               </div>
                               
@@ -561,7 +566,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                                   {Array.from({ length: 11 }).map((_, i) => (
                                       <div 
                                           key={i} 
-                                          className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${i <= ((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) ? 'bg-white/20' : 'bg-stone-800'}`} 
+                                          className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${i <= currentEnergyValue ? 'bg-white/20' : 'bg-stone-800'}`} 
                                       />
                                   ))}
                               </div>
@@ -572,7 +577,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                                   min="1"
                                   max="10"
                                   step="1"
-                                  value={(data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1}
+                                  value={currentEnergyValue}
                                   onChange={(e) => updateEnergyHistory(parseInt(e.target.value))}
                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                               />
@@ -581,7 +586,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                               <div 
                                   className="absolute w-8 h-8 rounded-full bg-stone-100 border-4 border-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.6)] pointer-events-none z-10 transition-all duration-300 ease-out"
                                   style={{ 
-                                      left: `calc(${(((data.energyHistory || {})[getFormattedDateKey(currentDate)] || 1) - 1) / 9 * 100}% - 16px)`,
+                                      left: `calc(${(currentEnergyValue - 1) / 9 * 100}% - 16px)`,
                                       transition: 'left 0.1s ease-out'
                                   }}
                               >
