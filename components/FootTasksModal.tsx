@@ -5,19 +5,23 @@ import { Task, WeeklyTask } from '../types';
 interface FootTasksModalProps {
   trains: Task[];
   sets: WeeklyTask[];
+  yunqueLargas: Task[];
+  yunqueRapidas: Task[];
   onUpdateTrains: (tasks: Task[]) => void;
   onUpdateSets: (tasks: WeeklyTask[]) => void;
+  onUpdateYunqueLargas: (tasks: Task[]) => void;
+  onUpdateYunqueRapidas: (tasks: Task[]) => void;
   onClose: () => void;
 }
 
-export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, onUpdateTrains, onUpdateSets, onClose }) => {
+export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, yunqueLargas, yunqueRapidas, onUpdateTrains, onUpdateSets, onUpdateYunqueLargas, onUpdateYunqueRapidas, onClose }) => {
   
   // Extract all subtasks containing 🦶 emoji
   const getFootSubtasks = () => {
     const footTasks: Array<{
       taskId: string;
       sub: { id: string; text: string; completed: boolean };
-      sourceType: 'train' | 'set';
+      sourceType: 'train' | 'set' | 'yunqueLarga' | 'yunqueRapida';
       parentName: string;
     }> = [];
 
@@ -37,13 +41,25 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
       });
     });
 
+    yunqueLargas.forEach(y => {
+      if (y.text.includes('🦶')) {
+        footTasks.push({ taskId: y.id, sub: y, sourceType: 'yunqueLarga', parentName: 'Largas' });
+      }
+    });
+
+    yunqueRapidas.forEach(y => {
+      if (y.text.includes('🦶')) {
+        footTasks.push({ taskId: y.id, sub: y, sourceType: 'yunqueRapida', parentName: 'Rápidas' });
+      }
+    });
+
     return footTasks;
   };
 
   const allFootTasks = getFootSubtasks();
   const sortedFootTasks = [...allFootTasks].sort((a, b) => Number(a.sub.completed) - Number(b.sub.completed));
 
-  const toggleTask = (taskId: string, subId: string, type: 'train' | 'set') => {
+  const toggleTask = (taskId: string, subId: string, type: 'train' | 'set' | 'yunqueLarga' | 'yunqueRapida') => {
     if (type === 'train') {
       const updated = trains.map(t => {
         if (t.id === taskId && t.subtasks) {
@@ -55,7 +71,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
         return t;
       });
       onUpdateTrains(updated);
-    } else {
+    } else if (type === 'set') {
       const updated = sets.map(s => {
         if (s.id === taskId && s.subtasks) {
           return {
@@ -66,6 +82,22 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
         return s;
       });
       onUpdateSets(updated);
+    } else if (type === 'yunqueLarga') {
+      const updated = yunqueLargas.map(t => {
+        if (t.id === taskId) {
+          return { ...t, completed: !t.completed };
+        }
+        return t;
+      });
+      onUpdateYunqueLargas(updated);
+    } else if (type === 'yunqueRapida') {
+      const updated = yunqueRapidas.map(t => {
+        if (t.id === taskId) {
+          return { ...t, completed: !t.completed };
+        }
+        return t;
+      });
+      onUpdateYunqueRapidas(updated);
     }
   };
 
@@ -84,7 +116,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
               <Footprints className="w-6 h-6 text-emerald-500" />
               <h3 className="font-bold text-emerald-100 text-xl tracking-tight">Passeggiata</h3>
             </div>
-            <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider mt-1">Sincronizado con Trenes y Setas</p>
+            <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider mt-1">Sincronizado con Trenes, Setas y Yunque</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-emerald-900/30 rounded-full transition-colors">
             <X className="w-6 h-6 text-emerald-600" />
@@ -97,7 +129,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
               <div className="w-16 h-16 bg-stone-800 rounded-full flex items-center justify-center mx-auto mb-4 opacity-50">
                 <Footprints className="w-8 h-8 text-stone-600" />
               </div>
-              <p className="text-stone-500 italic text-sm">No hay subtareas con el emoji 🦶 en tus Trenes o Setas.</p>
+              <p className="text-stone-500 italic text-sm">No hay subtareas con el emoji 🦶 en tus Trenes, Setas o Yunque.</p>
             </div>
           ) : (
             sortedFootTasks.map(({ taskId, sub, sourceType, parentName }) => (
@@ -124,7 +156,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, on
                     {sub.text}
                   </span>
                   <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800">
-                    {sourceType === 'train' ? '🚂' : '🍄'} {parentName.split(' ').slice(1).join(' ')}
+                    {sourceType === 'train' ? '🚂' : sourceType === 'set' ? '🍄' : '⚔️'} {parentName.split(' ').slice(1).join(' ') || parentName}
                   </span>
                 </div>
               </div>

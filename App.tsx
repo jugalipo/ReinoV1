@@ -1420,7 +1420,9 @@ function App() {
               {(() => {
                 const footTasks = [
                   ...data.trains.flatMap(t => t.subtasks || []),
-                  ...data.sets.flatMap(s => s.subtasks || [])
+                  ...data.sets.flatMap(s => s.subtasks || []),
+                  ...(data.yunqueLargas || []),
+                  ...(data.yunqueRapidas || [])
                 ].filter(s => s.text.includes('🦶'));
                 const footProgress = footTasks.length > 0 ? (footTasks.filter(s => s.completed).length / footTasks.length) : 0;
                 
@@ -1828,8 +1830,12 @@ function App() {
               <FootTasksModal 
                 trains={data.trains}
                 sets={data.sets}
+                yunqueLargas={data.yunqueLargas || []}
+                yunqueRapidas={data.yunqueRapidas || []}
                 onUpdateTrains={handleTrainsUpdate}
                 onUpdateSets={handleSetsUpdate}
+                onUpdateYunqueLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))}
+                onUpdateYunqueRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))}
                 onClose={() => setShowFootModal(false)}
               />
             )}
