@@ -380,6 +380,7 @@ const serializeAppData = (data: AppData) => {
     { id: 'leones', data: { items: data.leones } },
     { id: 'hunosHistory', data: { items: data.hunosHistory } },
     { id: 'energy', data: { value: data.energy || 1, history: data.energyHistory || {} } },
+    { id: 'yunque', data: { largas: data.yunqueLargas || [], rapidas: data.yunqueRapidas || [] } },
   ];
   return rawDocs.map(doc => ({
     id: doc.id,
@@ -414,6 +415,9 @@ const deserializeAppData = (docs: any[]): AppData => {
     } else if (doc.id === 'energy') {
       result.energy = doc.data.value || 1;
       result.energyHistory = doc.data.history || {};
+    } else if (doc.id === 'yunque') {
+      result.yunqueLargas = doc.data.largas || INITIAL_DATA.yunqueLargas || [];
+      result.yunqueRapidas = doc.data.rapidas || INITIAL_DATA.yunqueRapidas || [];
     }
   });
   return result as AppData;
