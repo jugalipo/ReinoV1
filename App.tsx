@@ -14,7 +14,7 @@ import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { Heart, Utensils, BarChart3, X, Settings, Flame, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
-import { collection, doc, writeBatch, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 enum OperationType {
@@ -810,7 +810,13 @@ function App() {
       setIsInitializing(true);
       isFirstRender.current = true;
       try {
-        const snapshot = await getDocs(habitsRef);
+        let snapshot;
+        try {
+          snapshot = await getDocsFromServer(habitsRef);
+        } catch (e) {
+          console.log("No se pudo obtener del servidor, usando caché", e);
+          snapshot = await getDocs(habitsRef);
+        }
 
         if (!snapshot.empty) {
           const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
@@ -818,12 +824,16 @@ function App() {
           const processedData = processResets(newData);
 
           if (JSON.stringify(newData) !== JSON.stringify(processedData)) {
-            const batch = writeBatch(db);
-            const serializedDocs = serializeAppData(processedData);
-            serializedDocs.forEach(d => {
-              batch.set(doc(habitsRef, d.id), d.data);
-            });
-            await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+            if (!snapshot.metadata.fromCache) {
+              const batch = writeBatch(db);
+              const serializedDocs = serializeAppData(processedData);
+              serializedDocs.forEach(d => {
+                batch.set(doc(habitsRef, d.id), d.data);
+              });
+              await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+            } else {
+              isRemoteUpdate.current = true;
+            }
           }
 
           lastSnapshotData.current = JSON.stringify(processedData);
