@@ -357,7 +357,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       <div className="flex-1 flex flex-col p-6 items-center space-y-4 overflow-y-auto pb-12 no-scrollbar">
         
         {/* OVERALL PROGRESS BAR */}
-        {title === 'Forjas' && quarterlyTasks.length > 0 && (
+        {(title === 'Forjas' || title === 'Roble') && quarterlyTasks.length > 0 && (
             <div className="w-full mb-2">
                 <div className="flex justify-between items-end mb-2">
                     <h3 className="font-bold text-stone-400 uppercase tracking-widest text-xs">Progreso Global</h3>
@@ -541,11 +541,11 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
         )}
 
         {/* FORJA WORK LIST (FORJAS ONLY) */}
-        {title === 'Forjas' && (
+        {(title === 'Forjas' || title === 'Roble') && (
             <div className="w-full bg-stone-900 p-4 rounded-3xl border border-stone-800 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                     <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                         Trabajos de Forja
+                         {title === 'Roble' ? 'Trabajos de Roble' : 'Trabajos de Forja'}
                     </h3>
                     <button 
                         onClick={() => setIsEditingForjaTasks(!isEditingForjaTasks)}
@@ -611,7 +611,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
         )}
 
         {/* 2x2 GRID (FORJAS ONLY) */}
-        {title === 'Forjas' && quarterlyTasks.length > 0 && (
+        {(title === 'Forjas' || title === 'Roble') && quarterlyTasks.length > 0 && (
             <div className="w-full pt-4 border-t border-stone-800 space-y-4">
                 <h3 className="font-bold text-stone-500 uppercase tracking-widest text-[10px] px-1">Objetivos de Estación</h3>
                 <div className="grid grid-cols-2 gap-4">
