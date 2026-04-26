@@ -1,4 +1,4 @@
-export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'leones' | 'exercise' | 'yunque';
+export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'leones' | 'exercise' | 'yunque' | 'caminos';
 
 export interface Task {
   id: string;
@@ -44,6 +44,14 @@ export interface Book {
   currentPage: number;
   totalPages: number;
   completed: boolean;
+}
+
+export interface Camino {
+  id: string;
+  name: string;
+  progress: number; // This will now represent the current count
+  target?: number;
+  unit?: string;
 }
 
 export interface FriendInteractions {
@@ -253,4 +261,5 @@ export interface AppData {
   gympieza?: GympiezaState;
   yunqueLargas?: Task[];
   yunqueRapidas?: Task[];
+  caminos?: Camino[];
 }

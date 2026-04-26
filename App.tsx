@@ -12,7 +12,8 @@ import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous } from 'lucide-react';
+import { CaminosView } from './components/CaminosView';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -321,7 +322,8 @@ const INITIAL_DATA: AppData = {
     }))
   },
   yunqueLargas: [],
-  yunqueRapidas: []
+  yunqueRapidas: [],
+  caminos: []
 };
 
 const MushroomIcon = ({ className }: { className?: string }) => (
@@ -383,6 +385,7 @@ const serializeAppData = (data: AppData) => {
     { id: 'hunosHistory', data: { items: data.hunosHistory } },
     { id: 'energy', data: { value: data.energy || 1, history: data.energyHistory || {} } },
     { id: 'yunque', data: { largas: data.yunqueLargas || [], rapidas: data.yunqueRapidas || [] } },
+    { id: 'caminos', data: { items: data.caminos || [] } },
   ];
   return rawDocs.map(doc => ({
     id: doc.id,
@@ -420,6 +423,8 @@ const deserializeAppData = (docs: any[]): AppData => {
     } else if (doc.id === 'yunque') {
       result.yunqueLargas = doc.data.largas || INITIAL_DATA.yunqueLargas || [];
       result.yunqueRapidas = doc.data.rapidas || INITIAL_DATA.yunqueRapidas || [];
+    } else if (doc.id === 'caminos') {
+      result.caminos = doc.data.items || INITIAL_DATA.caminos || [];
     }
   });
   return result as AppData;
@@ -519,6 +524,7 @@ const processResets = (parsed: AppData): AppData => {
   if (typeof result.huchaCount === 'undefined') { result.huchaCount = 0; }
   if (typeof result.energy === 'undefined') { result.energy = 1; }
   if (!result.energyHistory) { result.energyHistory = {}; }
+  if (!result.caminos) { result.caminos = []; }
 
   // Cleanup old GAP task
   result.hunos = result.hunos.filter(t => t.text !== 'GAP');
@@ -1334,6 +1340,7 @@ function App() {
       case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;
       case 'yunque': return <YunqueView largas={data.yunqueLargas || []} rapidas={data.yunqueRapidas || []} onUpdateLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))} onUpdateRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))} onBack={() => setView('home')} />;
       case 'stats': return <StatsView data={data} onUpdate={setData} onBack={() => setView('home')} />;
+      case 'caminos': return <CaminosView caminos={data.caminos || []} onUpdate={c => setData(prev => ({ ...prev, caminos: c }))} onBack={() => setView('home')} />;
       default:
         const trainProgress = getTrainProgress();
         const isTrainPleno = trainProgress === 100;
@@ -1662,6 +1669,16 @@ function App() {
                 </>
               )}
             </div>
+
+            <button 
+              onClick={() => setView('caminos')}
+              className="w-full mt-4 py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-stone-700 transition-all shadow-xl group"
+            >
+              <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center border border-stone-700 group-hover:bg-stone-700 transition-colors">
+                <MapIcon className="w-6 h-6 text-stone-400" />
+              </div>
+              <span className="font-black text-lg uppercase tracking-tighter italic">Caminos</span>
+            </button>
 
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
             {showHistory && <HistoryEditorModal data={data} onUpdateData={setData} onClose={() => setShowHistory(false)} />}
