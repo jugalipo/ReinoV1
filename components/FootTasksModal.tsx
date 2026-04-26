@@ -41,16 +41,21 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, yu
       });
     });
 
-    yunqueLargas.forEach(y => {
+    yunqueRapidas.forEach(y => {
       if (y.text.includes('🦶')) {
-        footTasks.push({ taskId: y.id, sub: y, sourceType: 'yunqueLarga', parentName: 'Largas' });
+        footTasks.push({ taskId: y.id, sub: y, sourceType: 'yunqueRapida', parentName: 'Grapas' });
       }
     });
 
-    yunqueRapidas.forEach(y => {
+    yunqueLargas.forEach(y => {
       if (y.text.includes('🦶')) {
-        footTasks.push({ taskId: y.id, sub: y, sourceType: 'yunqueRapida', parentName: 'Rápidas' });
+        footTasks.push({ taskId: y.id, sub: y, sourceType: 'yunqueLarga', parentName: 'Argollas' });
       }
+      y.subtasks?.forEach(sub => {
+        if (sub.text.includes('🦶')) {
+          footTasks.push({ taskId: y.id, sub, sourceType: 'yunqueLarga', parentName: `Argolla: ${y.text}` });
+        }
+      });
     });
 
     return footTasks;
@@ -85,7 +90,14 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, yu
     } else if (type === 'yunqueLarga') {
       const updated = yunqueLargas.map(t => {
         if (t.id === taskId) {
-          return { ...t, completed: !t.completed };
+          if (t.id === subId) {
+            return { ...t, completed: !t.completed };
+          } else if (t.subtasks) {
+            return {
+              ...t,
+              subtasks: t.subtasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s)
+            };
+          }
         }
         return t;
       });

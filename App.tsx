@@ -319,7 +319,9 @@ const INITIAL_DATA: AppData = {
       completed: false,
       type: t.type as 'superficies' | 'barrer' | 'fregar'
     }))
-  }
+  },
+  yunqueLargas: [],
+  yunqueRapidas: []
 };
 
 const MushroomIcon = ({ className }: { className?: string }) => (
