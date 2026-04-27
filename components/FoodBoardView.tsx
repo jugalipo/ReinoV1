@@ -1,29 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { FoodState, FoodWheel, FoodBonuses, DailyFoodScore, FoodConfig } from '../types';
-import { ArrowLeft, ArrowRight, History, UtensilsCrossed, Timer, Bike, RotateCcw, Snowflake, Flame, Trophy, Award, Medal, Star, Gem, Check, X, Plus, Minus, Settings } from 'lucide-react';
+import { ArrowLeft, ArrowRight, History, UtensilsCrossed, Timer, Bike, Edit2, Flame, Trophy, Award, Medal, Star, Gem, Check, X, Plus, Minus, Settings } from 'lucide-react';
 import { FoodConfigEditor } from './FoodConfigEditor';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 const DEFAULT_WHEEL = [
-  { id: 'lemon', icon: '🍋' },
+  { id: 'drink', icon: '🥤' },
   { id: 'nuts', icon: '🥜' },
-  { id: 'dairy', icon: '🧀' },
-  { id: 'coffee', icon: '☕' },
+  { id: 'dairy', icon: '🥚' },
   { id: 'spices', icon: '🌶️' },
-  { id: 'supplements', icon: '💊' }
+  { id: 'coffee', icon: '☕' }
 ];
 
 const DEFAULT_BROCCOLI = [
-  { id: '0', icon: '🎵' },
-  { id: '1', icon: '🧹' },
-  { id: '2', icon: '🔲' },
-  { id: '3', icon: '💪' },
-  { id: '4', icon: '🍽️⏱️' },
-  { id: '5', icon: '🍳' },
-  { id: '6', icon: '🕺' },
-  { id: '7', icon: '🍽️✨' },
-  { id: '8', icon: '🧹' },
-  { id: '9', icon: '🔲' },
+  { id: 'dance', icon: '💃' },
+  { id: 'broccoli', icon: '🥦' },
+  { id: 'tablecloth', icon: '🪑' },
+  { id: 'pushups', icon: '💪' },
+  { id: 'dustpan', icon: '🧹' }
 ];
 
 const DEFAULT_BONUSES = [
@@ -64,21 +58,7 @@ const defaultDailyScore: DailyFoodScore = {
   fasting: false,
   deliveryLunch: false,
   deliveryDinner: false,
-  fahCount: 0,
-  fridgeCount: 0
-};
-
-export const getDailyFridgePenalty = (dateStr: string, allScores: Record<string, DailyFoodScore>) => {
-  const sortedDates = Object.keys(allScores).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-  let cumulative = 0;
-  for (const d of sortedDates) {
-    const prevCumulative = cumulative;
-    cumulative += allScores[d].fridgeCount || 0;
-    if (d === dateStr) {
-      return Math.floor(cumulative / 20) - Math.floor(prevCumulative / 20);
-    }
-  }
-  return 0;
+  fah: [false, false, false, false]
 };
 
 export const calculateDailyScore = (score: DailyFoodScore, dateStr: string, allScores: Record<string, DailyFoodScore>) => {
@@ -88,27 +68,35 @@ export const calculateDailyScore = (score: DailyFoodScore, dateStr: string, allS
   if (score.fasting) total += 2;
   if (score.deliveryLunch) total -= 2;
   if (score.deliveryDinner) total -= 2;
-  if (score.fahCount > 1) total -= (score.fahCount - 1);
   
-  const allScoresWithCurrent = { ...allScores, [dateStr]: score };
-  total -= getDailyFridgePenalty(dateStr, allScoresWithCurrent);
+  const fahCheckedCount = (score.fah || []).filter(v => v).length;
+  if (fahCheckedCount > 1) total -= (fahCheckedCount - 1);
   
-  return total;
+  // Clamp between -4 and +4
+  return Math.max(-4, Math.min(4, total));
 };
 
-export const calculateAllDaysTotal = (allScores: Record<string, DailyFoodScore>) => {
+export const calculateAllDaysTotal = (allScores: Record<string, DailyFoodScore>, month?: number, year?: number) => {
   let total = 0;
-  let totalFridge = 0;
-  for (const score of Object.values(allScores)) {
-    if (score.lunch) total += 1;
-    if (score.dinner) total += 1;
-    if (score.fasting) total += 2;
-    if (score.deliveryLunch) total -= 2;
-    if (score.deliveryDinner) total -= 2;
-    if (score.fahCount > 1) total -= (score.fahCount - 1);
-    totalFridge += (score.fridgeCount || 0);
+  for (const [dateStr, score] of Object.entries(allScores)) {
+    const d = new Date(dateStr);
+    if (month !== undefined && year !== undefined) {
+      if (d.getMonth() !== month || d.getFullYear() !== year) continue;
+    }
+    
+    let dayTotal = 0;
+    if (score.lunch) dayTotal += 1;
+    if (score.dinner) dayTotal += 1;
+    if (score.fasting) dayTotal += 2;
+    if (score.deliveryLunch) dayTotal -= 2;
+    if (score.deliveryDinner) dayTotal -= 2;
+    
+    const fahCheckedCount = (score.fah || []).filter(v => v).length;
+    if (fahCheckedCount > 1) dayTotal -= (fahCheckedCount - 1);
+    
+    // Clamp each day between -4 and +4 before adding to total
+    total += Math.max(-4, Math.min(4, dayTotal));
   }
-  total -= Math.floor(totalFridge / 20);
   return total;
 };
 
@@ -138,22 +126,42 @@ const DailyFoodScoreModal = ({
   // ----------------------------------
 
   const toggle = (field: keyof DailyFoodScore) => {
-    setScore(prev => ({ ...prev, [field]: !prev[field] }));
+    const newScore = { ...score, [field]: !score[field] };
+    setScore(newScore);
+    onSave(newScore);
   };
 
   const handleLunchClick = () => {
     if (score.lunch) {
-      setScore(prev => ({ ...prev, lunch: false, lunchMeal: undefined }));
+      const newScore = { ...score, lunchMeal: undefined, lunch: false };
+      setScore(newScore);
+      onSave(newScore);
     } else {
-      setSelectingMealFor('lunch');
+      const hasAvailable = meals.some(m => canSelectMeal(m.name, m.max));
+      if (hasAvailable) {
+        setSelectingMealFor('lunch');
+      } else {
+        const newScore = { ...score, lunch: true };
+        setScore(newScore);
+        onSave(newScore);
+      }
     }
   };
 
   const handleDinnerClick = () => {
     if (score.dinner) {
-      setScore(prev => ({ ...prev, dinner: false, dinnerMeal: undefined }));
+      const newScore = { ...score, dinnerMeal: undefined, dinner: false };
+      setScore(newScore);
+      onSave(newScore);
     } else {
-      setSelectingMealFor('dinner');
+      const hasAvailable = meals.some(m => canSelectMeal(m.name, m.max));
+      if (hasAvailable) {
+        setSelectingMealFor('dinner');
+      } else {
+        const newScore = { ...score, dinner: true };
+        setScore(newScore);
+        onSave(newScore);
+      }
     }
   };
 
@@ -181,20 +189,40 @@ const DailyFoodScoreModal = ({
   };
 
   const handleMealSelect = (mealName: string) => {
+    let newScore = score;
     if (selectingMealFor === 'lunch') {
-      setScore(prev => ({ ...prev, lunch: true, lunchMeal: mealName }));
+      newScore = { ...score, lunch: true, lunchMeal: mealName };
     } else if (selectingMealFor === 'dinner') {
-      setScore(prev => ({ ...prev, dinner: true, dinnerMeal: mealName }));
+      newScore = { ...score, dinner: true, dinnerMeal: mealName };
     }
+    setScore(newScore);
+    onSave(newScore);
     setSelectingMealFor(null);
   };
 
-  const increment = (field: 'fahCount' | 'fridgeCount') => {
-    setScore(prev => ({ ...prev, [field]: prev[field] + 1 }));
-  };
-
-  const decrement = (field: 'fahCount' | 'fridgeCount') => {
-    setScore(prev => ({ ...prev, [field]: Math.max(0, prev[field] - 1) }));
+  const toggleFah = (index: number) => {
+    const currentFah = score.fah || [false, false, false, false];
+    const checkedCount = currentFah.filter(v => v).length;
+    
+    const newFah = [false, false, false, false];
+    let newCount = 0;
+    
+    if (index < checkedCount) {
+        // Unmarking: if I click the 2nd (index 1) and 3 are marked, I want to keep only 1 marked?
+        // Or if I click the 2nd, I want to keep only the 1st?
+        // User said: "si pulso en el segundo... se desmarcan el tercero y el cuarto"
+        // This implies clicking index 1 sets count to 1 (only index 0 remains).
+        newCount = index;
+    } else {
+        // Marking: if I click the 4th (index 3), I want all 4 marked.
+        newCount = index + 1;
+    }
+    
+    for (let i = 0; i < newCount; i++) newFah[i] = true;
+    
+    const newScore = { ...score, fah: newFah };
+    setScore(newScore);
+    onSave(newScore);
   };
 
   const dateStr = date.toDateString();
@@ -229,7 +257,13 @@ const DailyFoodScoreModal = ({
         <div className="p-6 space-y-6 overflow-y-auto">
           {selectingMealFor ? (
             <div className="grid grid-cols-2 gap-3">
-              {meals.map(meal => {
+              {[...meals].sort((a, b) => {
+                const aCan = canSelectMeal(a.name, a.max);
+                const bCan = canSelectMeal(b.name, b.max);
+                if (aCan && !bCan) return -1;
+                if (!aCan && bCan) return 1;
+                return 0;
+              }).map(meal => {
                 const canSelect = canSelectMeal(meal.name, meal.max);
                 return (
                   <button
@@ -303,77 +337,62 @@ const DailyFoodScoreModal = ({
                   <input
                     type="number"
                     step="50"
-                    placeholder="kcal del día"
+                    placeholder="kcal"
                     value={score.calories || ''}
-                    onChange={(e) => setScore(prev => ({ ...prev, calories: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
+                    onChange={(e) => {
+                      const newScore = { ...score, calories: e.target.value ? parseInt(e.target.value, 10) : undefined };
+                      setScore(newScore);
+                      onSave(newScore);
+                    }}
                     className="w-full bg-transparent text-stone-300 font-bold text-right outline-none placeholder:text-stone-700"
                   />
                   <span className="text-stone-500 font-bold text-sm">kcal</span>
                 </div>
               </div>
 
-              {/* Counters */}
-              <div className="space-y-2">
-            <div className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <CakeSliceOff className="w-5 h-5 text-orange-500" />
-                <span className="text-[10px] font-black text-orange-600/80">-1</span>
+              {/* FAH 4-button grid */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                        <CakeSliceOff className="w-4 h-4 text-orange-500" />
+                        <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Azúcar / Fritos / Harinas</span>
+                    </div>
+                    <span className="text-[10px] font-black text-orange-600/80">-{Math.max(0, (score.fah || []).filter(v => v).length - 1)}</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                    {[0, 1, 2, 3].map(idx => {
+                        const isActive = (score.fah || [])[idx];
+                        const isFirst = idx === 0;
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => toggleFah(idx)}
+                                className={`aspect-square rounded-xl border flex items-center justify-center transition-all ${
+                                    isActive 
+                                        ? isFirst
+                                            ? 'bg-stone-100/20 border-stone-200 text-stone-100 shadow-[0_0_10px_rgba(255,255,255,0.1)]'
+                                            : 'bg-red-600/20 border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.1)]' 
+                                        : 'bg-stone-950 border-stone-800 text-stone-900'
+                                }`}
+                            >
+                                <CakeSliceOff className={`w-5 h-5 ${isActive ? 'opacity-100' : 'opacity-20'}`} />
+                            </button>
+                        );
+                    })}
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => decrement('fahCount')} className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-300 hover:bg-stone-700">
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className={`text-lg font-black w-6 text-center ${score.fahCount >= 2 ? 'text-red-500' : 'text-orange-400'}`}>
-                  {score.fahCount}
-                </span>
-                <button onClick={() => increment('fahCount')} className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-300 hover:bg-stone-700">
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Snowflake className="w-5 h-5 text-cyan-500" />
-                <span className="text-[10px] font-black text-cyan-600/80">-1/20</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => decrement('fridgeCount')} className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-300 hover:bg-stone-700">
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="text-lg font-black text-cyan-400 w-6 text-center">{score.fridgeCount}</span>
-                <button onClick={() => increment('fridgeCount')} className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-300 hover:bg-stone-700">
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
           </>
         )}
         </div>
 
         {!selectingMealFor && (
-          <div className="p-4 border-t border-stone-800 bg-stone-900/50 flex items-center justify-between shrink-0">
-            <div className="flex flex-col">
-              <span className="text-xs text-stone-500 font-bold uppercase">Total del día</span>
-              <span className={`text-2xl font-black ${total > 0 ? 'text-lime-500' : total < 0 ? 'text-red-500' : 'text-stone-400'}`}>
-                {total > 0 ? `+${total}` : total}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={onClose}
-                className="bg-stone-800 hover:bg-stone-700 text-stone-300 p-3 rounded-xl font-bold transition-colors flex items-center justify-center"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={() => onSave(score)}
-                className="bg-lime-500 hover:bg-lime-400 text-stone-950 px-6 py-3 rounded-xl font-bold transition-colors"
-              >
-                Guardar
-              </button>
-            </div>
+          <div className="p-4 border-t border-stone-800 bg-stone-900/50 flex items-center justify-center shrink-0">
+              <div className="flex flex-col items-center">
+                  <span className="text-[10px] text-stone-500 font-black uppercase tracking-[0.2em] mb-1">Total Día</span>
+                  <span className={`text-4xl font-black tracking-tighter ${total > 0 ? 'text-lime-500' : total < 0 ? 'text-red-500' : 'text-stone-400'}`}>
+                    {total > 0 ? `+${total}` : total}
+                  </span>
+              </div>
           </div>
         )}
       </div>
@@ -402,83 +421,7 @@ const CakeSliceOff = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const FoodHistoryModal = ({
-    dailyScores,
-    weeklyExtras,
-    onClose
-}: {
-    dailyScores: Record<string, DailyFoodScore>;
-    weeklyExtras?: Record<string, number>;
-    onClose: () => void;
-}) => {
-    // Generate a list of the last 12 weeks
-    const weeks = [];
-    const now = new Date();
-    for (let i = 0; i > -12; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() + (i * 7));
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-        const monday = new Date(d.setDate(diff));
-        monday.setHours(0, 0, 0, 0);
-        
-        let daysSum = 0;
-        for (let j = 0; j < 7; j++) {
-            const currentDay = new Date(monday);
-            currentDay.setDate(monday.getDate() + j);
-            const dateStr = currentDay.toDateString();
-            const score = dailyScores[dateStr] || defaultDailyScore;
-            daysSum += calculateDailyScore(score, dateStr, dailyScores);
-        }
-        
-        const mondayStr = monday.toISOString().split('T')[0];
-        const extras = weeklyExtras?.[mondayStr] || 0;
-        
-        // Skip entirely empty weeks
-        if (daysSum === 0 && extras === 0 && i < 0) continue;
-
-        weeks.push({
-            label: `Sem. ${monday.getDate()} ${monday.toLocaleDateString('es-ES', { month: 'short' })}`,
-            daysSum,
-            extras,
-            total: daysSum + extras
-        });
-    }
-
-    return (
-        <div className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
-                <div className="p-4 border-b border-stone-800 flex items-center justify-between bg-stone-900/50 shrink-0">
-                    <h2 className="text-lg font-bold text-stone-200">Histórico Puntos</h2>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-stone-800 text-stone-400 transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-                <div className="p-6 space-y-4 overflow-y-auto">
-                    {weeks.length === 0 ? (
-                        <p className="text-stone-500 text-center py-4 text-sm">No hay datos pasados</p>
-                    ) : (
-                        weeks.map((week, idx) => (
-                            <div key={idx} className="bg-stone-950 border border-stone-800 rounded-2xl p-4 flex justify-between items-center transition-all hover:bg-stone-900">
-                                <span className="font-bold text-stone-300 text-sm">{week.label}</span>
-                                <div className="flex flex-col items-end gap-1">
-                                    <span className={`text-2xl font-black ${week.total > 0 ? "text-lime-500" : week.total < 0 ? "text-red-500" : "text-stone-500"}`}>
-                                        {week.total}
-                                    </span>
-                                    <div className="flex items-center gap-2 text-[10px] text-stone-500 font-bold capitalize">
-                                        <span>Días: <span className={week.daysSum > 0 ? "text-lime-400" : "text-stone-400"}>{week.daysSum > 0 ? `+${week.daysSum}` : week.daysSum}</span></span>
-                                        <span>•</span>
-                                        <span>Extra: <span className={week.extras > 0 ? "text-lime-400" : "text-stone-400"}>{week.extras > 0 ? `+${week.extras}` : week.extras}</span></span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
+// FoodHistoryModal removed as navigation is now monthly via main view navigation
 
 interface FoodBoardViewProps {
   foodState: FoodState;
@@ -486,15 +429,140 @@ interface FoodBoardViewProps {
   onBack: () => void;
 }
 
+  const CalendarProgressPath = ({ score, color, isLegendary }: { score: number, color: string, isLegendary: boolean }) => {
+      const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
+      const containerRef = React.useRef<HTMLDivElement>(null);
+
+      useEffect(() => {
+          const update = () => {
+              if (containerRef.current) {
+                  const rect = containerRef.current.getBoundingClientRect();
+                  if (rect.width > 0 && (rect.width !== dimensions.w || rect.height !== dimensions.h)) {
+                      setDimensions({ w: rect.width, h: rect.height });
+                  }
+              }
+          };
+          update();
+          const timer = setTimeout(update, 500);
+          window.addEventListener('resize', update);
+          return () => {
+              window.removeEventListener('resize', update);
+              clearTimeout(timer);
+          };
+      }, [dimensions.w, dimensions.h]);
+
+      const { w, h } = dimensions;
+      const padding = 5; 
+      const rx = 24;
+      
+      const pathData = w > 0 && h > 0 ? `
+          M ${w/2} ${padding}
+          L ${w - rx} ${padding}
+          A ${rx-padding} ${rx-padding} 0 0 1 ${w - padding} ${rx}
+          L ${w - padding} ${h - rx}
+          A ${rx-padding} ${rx-padding} 0 0 1 ${w - rx} ${h - padding}
+          L ${rx} ${h - padding}
+          A ${rx-padding} ${rx-padding} 0 0 1 ${padding} ${h - rx}
+          L ${padding} ${rx}
+          A ${rx-padding} ${rx-padding} 0 0 1 ${rx} ${padding}
+          L ${w/2} ${padding}
+          Z
+      ` : '';
+
+      const progress = Math.max(0, Math.min(1, score / 200));
+      const milestoneValues = [40, 100, 140, 168, 180];
+      const textColorClass = color.split(' ').find(c => c.startsWith('text-')) || 'text-lime-500';
+
+      // Unified coordinate calculation
+      const W_inner = w - padding * 2;
+      const H_inner = h - padding * 2;
+      const perimeter = 2 * W_inner + 2 * H_inner;
+
+      const getPoint = (p: number) => {
+          if (w === 0 || h === 0) return { x: 0, y: 0 };
+          let dist = p * perimeter;
+
+          // Segment 1: Top Center to Top Right
+          if (dist <= W_inner/2) return { x: w/2 + dist, y: padding };
+          dist -= W_inner/2;
+          // Segment 2: Right Side
+          if (dist <= H_inner) return { x: w - padding, y: padding + dist };
+          dist -= H_inner;
+          // Segment 3: Bottom Side
+          if (dist <= W_inner) return { x: w - padding - dist, y: h - padding };
+          dist -= W_inner;
+          // Segment 4: Left Side
+          if (dist <= H_inner) return { x: padding, y: h - padding - dist };
+          dist -= H_inner;
+          // Segment 5: Left to Top Center
+          return { x: padding + dist, y: padding };
+      };
+
+      return (
+          <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-visible">
+              <svg className="w-full h-full overflow-visible">
+                  {/* Track background */}
+                  <path
+                      d={pathData}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="10"
+                      className="text-stone-800/20"
+                  />
+                  {/* Single Progress path */}
+                  {w > 0 && (
+                      <path
+                        d={pathData}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        className={`${textColorClass} transition-all duration-1000 ${color.includes('animate-blink') ? 'animate-blink' : color.includes('animate-pulse') ? 'animate-pulse' : ''}`}
+                        style={{
+                            strokeDasharray: `${perimeter * progress} 5000`,
+                            strokeDashoffset: 0
+                        }}
+                      />
+                  )}
+                  {/* Milestone Points */}
+                  {w > 0 && milestoneValues.map(mVal => {
+                      const point = getPoint(mVal / 200);
+                      const achieved = score >= mVal;
+                      return (
+                          <g key={mVal}>
+                            <circle
+                                cx={point.x}
+                                cy={point.y}
+                                r="6"
+                                className={`${achieved ? textColorClass : 'text-stone-700'} transition-colors duration-500`}
+                                fill="currentColor"
+                            />
+                            <circle
+                                cx={point.x}
+                                cy={point.y}
+                                r="8"
+                                className="text-stone-950/20"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                            />
+                          </g>
+                      );
+                  })}
+              </svg>
+          </div>
+      );
+  };
+
 export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdate, onBack }) => {
-  const { score, history, wheel, weeklyBonuses, dishes = {}, dailyScores = {}, broccoliStep = 0, config } = foodState;
+  const { score, history, wheel, broccoliWheel, monthlyBonuses, wheelPlenoCount, broccoliPlenoCount, dishes = {}, dailyScores = {}, config } = foodState;
   const [showWheelConfirm, setShowWheelConfirm] = useState(false);
   const [showBroccoliConfirm, setShowBroccoliConfirm] = useState(false);
   const [showConfigEditor, setShowConfigEditor] = useState(false);
-  const [lastToggledItem, setLastToggledItem] = useState<keyof FoodWheel | null>(null);
+  const [lastToggledItem, setLastToggledItem] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const activeConfig = {
@@ -504,49 +572,66 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     meals: config?.meals || DEFAULT_MEALS,
   };
 
-  const handleBroccoliClick = (index: number) => {
-    if (index === currentBroccoli) {
-      const nextStep = currentBroccoli + 1;
-      if (nextStep === 10) {
-        if (weekOffset === 0) onUpdate({ ...foodState, broccoliStep: 10 });
-        else onUpdate({ ...foodState, pastBroccoli: { ...foodState.pastBroccoli, [displayedMondayStr]: 10 } });
-        setShowBroccoliConfirm(true);
-      } else {
-        if (weekOffset === 0) onUpdate({ ...foodState, broccoliStep: nextStep });
-        else onUpdate({ ...foodState, pastBroccoli: { ...foodState.pastBroccoli, [displayedMondayStr]: nextStep } });
-      }
-    } else if (index === currentBroccoli - 1) {
-      if (weekOffset === 0) onUpdate({ ...foodState, broccoliStep: index });
-      else onUpdate({ ...foodState, pastBroccoli: { ...foodState.pastBroccoli, [displayedMondayStr]: index } });
+  const updateMonthData = (changes: any) => {
+    if (monthOffset === 0) {
+        onUpdate({ ...foodState, ...changes });
+    } else {
+        const history = foodState.monthlyHistory || {};
+        const oldMonthData = history[monthKey] || {
+            wheelPlenoCount: 0,
+            broccoliPlenoCount: 0,
+            bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
+            dishes: {},
+            wheel: { drink: false, nuts: false, dairy: false, spices: false, coffee: false },
+            broccoliWheel: { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false }
+        };
+        
+        // Map top-level property names to historical property names if they differ
+        const updatedMonthData = { ...oldMonthData };
+        if (changes.wheelPlenoCount !== undefined) updatedMonthData.wheelPlenoCount = changes.wheelPlenoCount;
+        if (changes.broccoliPlenoCount !== undefined) updatedMonthData.broccoliPlenoCount = changes.broccoliPlenoCount;
+        if (changes.monthlyBonuses !== undefined) updatedMonthData.bonuses = changes.monthlyBonuses;
+        if (changes.dishes !== undefined) updatedMonthData.dishes = changes.dishes;
+        if (changes.wheel !== undefined) updatedMonthData.wheel = changes.wheel;
+        if (changes.broccoliWheel !== undefined) updatedMonthData.broccoliWheel = changes.broccoliWheel;
+        
+        onUpdate({
+            ...foodState,
+            monthlyHistory: { ...history, [monthKey]: updatedMonthData }
+        });
     }
   };
 
-  const currentMondayStr = (() => {
-      const d = new Date();
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(d.setDate(diff));
-      monday.setHours(0, 0, 0, 0);
-      return monday.toISOString().split('T')[0];
-  })();
+  const handleBroccoliClick = (id: string) => {
+    const isChecking = !currentBroccoliWheel[id];
+    const newWheel = { ...currentBroccoliWheel, [id]: isChecking };
+    const allChecked = Object.values(newWheel).every(val => val === true);
+
+    if (allChecked && isChecking) {
+      setLastToggledItem(id);
+      updateMonthData({ broccoliWheel: newWheel });
+      setShowBroccoliConfirm(true);
+    } else {
+      updateMonthData({ broccoliWheel: newWheel });
+      setLastToggledItem(null);
+    }
+  };
 
   const confirmBroccoliPleno = () => {
-    const currentExtras = foodState.weeklyExtras || {};
-    onUpdate({
-      ...foodState,
-      score: weekOffset === 0 ? updateScore(1) : score,
-      weeklyExtras: { ...currentExtras, [displayedMondayStr]: (currentExtras[displayedMondayStr] || 0) + 1 },
-      broccoliStep: weekOffset === 0 ? 0 : broccoliStep,
-      pastBroccoli: weekOffset === 0 ? foodState.pastBroccoli : { ...foodState.pastBroccoli, [displayedMondayStr]: 0 },
-      history: addHistory(weekOffset === 0 ? 'Rutina Brócoli' : 'Retro: Rutina Brócoli', 1)
+    const emptyBroccoli = { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false };
+    updateMonthData({
+      score: monthOffset === 0 ? updateScore(1) : score,
+      broccoliPlenoCount: effectiveBroccoliPlenoCount + 1,
+      broccoliWheel: emptyBroccoli,
+      history: addHistory(monthOffset === 0 ? 'Rutina Brócoli' : `Retro: Rutina Brócoli (${monthKey})`, 1)
     });
     setShowBroccoliConfirm(false);
+    setLastToggledItem(null);
   };
 
   const cancelBroccoliPleno = () => {
-    if (weekOffset === 0) onUpdate({ ...foodState, broccoliStep: 9 });
-    else onUpdate({ ...foodState, pastBroccoli: { ...foodState.pastBroccoli, [displayedMondayStr]: 9 } });
     setShowBroccoliConfirm(false);
+    setLastToggledItem(null);
   };
 
   const handleSaveConfig = (newConfig: FoodConfig) => {
@@ -554,50 +639,67 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     setShowConfigEditor(false);
   };
 
-  const getDaysOfWeek = (offset: number) => {
+  const getDaysOfMonth = (offset: number) => {
     const now = new Date();
-    now.setDate(now.getDate() + (offset * 7));
-    const dayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const targetMonth = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const month = targetMonth.getMonth();
+    const year = targetMonth.getFullYear();
     
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + diffToMonday);
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
     
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      days.push(d);
+    // Day of week for 1st (0 is Sunday)
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    
+    const days: (Date | null)[] = [];
+    
+    // Empty slots before 1st
+    for (let i = 0; i < firstDayWeekday; i++) {
+      days.push(null);
     }
+    
+    // Days of the month
+    for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
+      days.push(new Date(year, month, i));
+    }
+    
+    // Empty slots after last day to fill the last row
+    while (days.length % 7 !== 0) {
+      days.push(null);
+    }
+    
     return days;
   };
 
-  const getWeekMondayStr = (offset: number) => {
-    const days = getDaysOfWeek(offset);
-    const monday = days[0];
-    monday.setHours(0, 0, 0, 0);
-    return monday.toISOString().split('T')[0];
-  };
+  const currentMonthDate = new Date();
+  currentMonthDate.setMonth(currentMonthDate.getMonth() + monthOffset);
+  const currentMonth = currentMonthDate.getMonth();
+  const currentYear = currentMonthDate.getFullYear();
 
-  const calculateDaysSumForWeek = (offset: number) => {
-    const days = getDaysOfWeek(offset);
-    let sum = 0;
-    for (const day of days) {
-      const dateStr = day.toDateString();
-      const dayScore = dailyScores[dateStr] || defaultDailyScore;
-      sum += calculateDailyScore(dayScore, dateStr, dailyScores);
-    }
-    return sum;
-  };
+  const daysOfMonth = getDaysOfMonth(monthOffset);
+  
+  // Use historical data if viewing a past month
+  const monthKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}`;
+  const historicalData = foodState.monthlyHistory?.[monthKey];
+  
+  const effectiveWheelPlenoCount = monthOffset === 0 ? (wheelPlenoCount || 0) : (historicalData?.wheelPlenoCount || 0);
+  const effectiveBroccoliPlenoCount = monthOffset === 0 ? (broccoliPlenoCount || 0) : (historicalData?.broccoliPlenoCount || 0);
+  const effectiveBonuses = monthOffset === 0 ? monthlyBonuses : (historicalData?.bonuses || {});
+  const effectiveDishes = monthOffset === 0 ? dishes : (historicalData?.dishes || {});
+  const effectiveWheel = monthOffset === 0 ? wheel : (historicalData?.wheel || { drink: false, nuts: false, dairy: false, spices: false, coffee: false });
+  const effectiveBroccoliWheel = monthOffset === 0 ? broccoliWheel : (historicalData?.broccoliWheel || { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false });
 
-  const daysOfWeek = getDaysOfWeek(weekOffset);
-  const displayedMondayStr = getWeekMondayStr(weekOffset);
-  const displayedWeekDaysSum = calculateDaysSumForWeek(weekOffset);
-  let displayedWeeklyExtras = foodState.weeklyExtras?.[displayedMondayStr] || 0;
-  const currentCalculatedScore = displayedWeekDaysSum + displayedWeeklyExtras;
+  const currentCalculatedScore = calculateAllDaysTotal(dailyScores, currentMonth, currentYear) + (effectiveWheelPlenoCount * 3) + (effectiveBroccoliPlenoCount * 1);
+  // Add bonus points
+  const bonusScore = Object.entries(effectiveBonuses).reduce((acc, [id, squares]) => {
+    const bonusConfig = activeConfig.bonuses.find(b => b.id === id);
+    if (!bonusConfig) return acc;
+    const checkedCount = squares.filter(s => s).length;
+    return acc + (checkedCount * bonusConfig.points);
+  }, 0);
+  
+  const totalMonthlyScore = currentCalculatedScore + bonusScore;
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
   let monthlyDeliveryCount = 0;
   for (const [dateStr, rawScore] of Object.entries(dailyScores)) {
       const scoreData = rawScore as DailyFoodScore;
@@ -608,9 +710,8 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       }
   }
 
-  const currentWheel = weekOffset === 0 ? wheel : (foodState.pastWheels?.[displayedMondayStr] || { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false });
-  const currentBroccoli = weekOffset === 0 ? broccoliStep : (foodState.pastBroccoli?.[displayedMondayStr] || 0);
-  const getBonusKey = (id: string) => weekOffset === 0 ? id : `${displayedMondayStr}_${id}`;
+  const currentWheel = effectiveWheel;
+  const currentBroccoliWheel = effectiveBroccoliWheel;
 
   const getEffectiveDishesForDate = (date: Date) => {
       const now = new Date();
@@ -620,28 +721,13 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       
       const targetMonth = date.getMonth();
       const targetYear = date.getFullYear();
-      const computedDishes: Record<string, boolean> = {};
-      const mealCounts: Record<string, number> = {};
+      const targetMonthKey = `${targetYear}-${(targetMonth + 1).toString().padStart(2, '0')}`;
       
-      for (const [dateStr, score] of Object.entries(dailyScores)) {
-          const s = score as DailyFoodScore;
-          const d = new Date(dateStr);
-          if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
-              if (s.lunchMeal) mealCounts[s.lunchMeal] = (mealCounts[s.lunchMeal] || 0) + 1;
-              if (s.dinnerMeal) mealCounts[s.dinnerMeal] = (mealCounts[s.dinnerMeal] || 0) + 1;
-          }
-      }
-      
-      for (const meal of activeConfig.meals) {
-          const count = Math.min(mealCounts[meal.name] || 0, meal.max);
-          for (let i = 0; i < count; i++) {
-              computedDishes[meal.name + ' '.repeat(i)] = true;
-          }
-      }
-      return computedDishes;
+      return foodState.monthlyHistory?.[targetMonthKey]?.dishes || {};
   };
 
   const handleSaveDailyScore = (date: Date, newDailyScore: DailyFoodScore) => {
+    const now = new Date();
     const dateStr = date.toDateString();
     const oldDailyScore = dailyScores[dateStr] || defaultDailyScore;
     const newScores = { ...dailyScores, [dateStr]: newDailyScore };
@@ -650,7 +736,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     const newTotal = calculateAllDaysTotal(newScores);
     const diff = newTotal - oldTotal;
 
-    let newDishes = { ...dishes };
+    const newDishes = { ...effectiveDishes };
 
     const getDishCountLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
         let count = 0;
@@ -677,42 +763,61 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         }
     };
 
-    // Only update dishes if the edited date belongs to the current calendar month
-    const now = new Date();
-    const isCurrentMonth = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-
-    if (isCurrentMonth) {
-        // Handle lunch meal changes
-        if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
-            const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.lunchMeal);
-            if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-        }
-        if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
-            const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.lunchMeal);
-            if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-        }
-
-        // Handle dinner meal changes
-        if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
-            const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.dinnerMeal);
-            if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-        }
-        if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
-            const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.dinnerMeal);
-            if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-        }
+    // Always update dishes for the month that the date belongs to
+    // Handle lunch meal changes
+    if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
+        const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.lunchMeal);
+        if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+    if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
+        const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.lunchMeal);
+        if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
 
-    const isCurrentWeek = weekOffset === 0;
+    // Handle dinner meal changes
+    if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
+        const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.dinnerMeal);
+        if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+    if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
+        const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.dinnerMeal);
+        if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
 
-    onUpdate({
-      ...foodState,
-      score: isCurrentWeek ? updateScore(diff) : score,
-      dailyScores: newScores,
-      dishes: newDishes,
-      history: diff !== 0 ? addHistory(isCurrentWeek ? `Día: ${date.getDate()}` : `Retro-Día: ${date.getDate()}`, diff) : history
-    });
-    setSelectedDate(null);
+    const isCurrentMonthDate = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    const isCurrentMonthView = monthOffset === 0;
+
+    if (isCurrentMonthDate) {
+        onUpdate({
+            ...foodState,
+            score: isCurrentMonthView ? updateScore(diff) : score,
+            dailyScores: newScores,
+            dishes: newDishes,
+            history: diff !== 0 ? addHistory(isCurrentMonthView ? `Día: ${date.getDate()}` : `Retro-Día: ${date.getDate()}`, diff) : history
+        });
+    } else {
+        const history = foodState.monthlyHistory || {};
+        const monthKeyForDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        const oldMonthData = history[monthKeyForDate] || {
+            wheelPlenoCount: 0,
+            broccoliPlenoCount: 0,
+            bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
+            dishes: {}
+        };
+        
+        onUpdate({
+            ...foodState,
+            dailyScores: newScores,
+            monthlyHistory: {
+                ...history,
+                [monthKeyForDate]: {
+                    ...oldMonthData,
+                    dishes: newDishes
+                }
+            },
+            history: diff !== 0 ? addHistory(`Retro-Día: ${date.getDate()} (${monthKeyForDate})`, diff) : history
+        });
+    }
   };
 
   const addHistory = (action: string, delta: number) => {
@@ -726,19 +831,18 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       return score + delta;
   };
 
-  const handleBonus = (type: keyof FoodBonuses, delta: number) => {
-      const key = getBonusKey(type as string);
-      const isActive = weeklyBonuses[key];
-      const scoreChange = isActive ? -delta : delta;
+  const handleBonus = (type: string, index: number, points: number) => {
+      const currentSquares = effectiveBonuses[type] || [false, false, false, false];
+      const newSquares = [...currentSquares];
+      newSquares[index] = !newSquares[index];
       
-      const currentExtras = foodState.weeklyExtras || {};
+      const isActive = newSquares[index];
+      const scoreChange = isActive ? points : -points;
       
-      onUpdate({
-          ...foodState,
-          score: weekOffset === 0 ? updateScore(scoreChange) : score,
-          weeklyExtras: { ...currentExtras, [displayedMondayStr]: (currentExtras[displayedMondayStr] || 0) + scoreChange },
-          weeklyBonuses: { ...weeklyBonuses, [key]: !isActive },
-          history: addHistory(isActive ? `Deshacer: ${type}` : (weekOffset === 0 ? `Bonus: ${type}` : `Retro-bonus: ${type}`), scoreChange)
+      updateMonthData({
+          score: monthOffset === 0 ? updateScore(scoreChange) : score,
+          monthlyBonuses: { ...effectiveBonuses, [type]: newSquares },
+          history: addHistory(isActive ? `Bonus: ${type} [${index+1}]` : `Deshacer: ${type} [${index+1}]`, scoreChange)
       });
   };
 
@@ -746,7 +850,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       let count = 0;
       for (let i = 0; i < max; i++) {
           const key = baseName + ' '.repeat(i);
-          if (dishes[key]) count++;
+          if (effectiveDishes[key]) count++;
       }
       return count;
   };
@@ -755,10 +859,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       let count = getDishCount(baseName, max);
       if (count < max) {
           const key = baseName + ' '.repeat(count);
-          onUpdate({
-              ...foodState,
+          updateMonthData({
               dishes: {
-                  ...dishes,
+                  ...effectiveDishes,
                   [key]: true
               }
           });
@@ -769,103 +872,84 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       let count = getDishCount(baseName, max);
       if (count > 0) {
           const key = baseName + ' '.repeat(count - 1);
-          onUpdate({
-              ...foodState,
+          updateMonthData({
               dishes: {
-                  ...dishes,
+                  ...effectiveDishes,
                   [key]: false
               }
           });
       }
   };
 
-  const toggleWheelItem = (item: keyof FoodWheel) => {
+  const toggleWheelItem = (item: string) => {
       const isChecking = !currentWheel[item];
       const newWheel = { ...currentWheel, [item]: isChecking };
       const allChecked = Object.values(newWheel).every(val => val === true);
 
       if (allChecked && isChecking) {
           setLastToggledItem(item);
-          if (weekOffset === 0) onUpdate({ ...foodState, wheel: newWheel });
-          else onUpdate({ ...foodState, pastWheels: { ...foodState.pastWheels, [displayedMondayStr]: newWheel } });
+          updateMonthData({ wheel: newWheel });
           setShowWheelConfirm(true);
       } else {
-          if (weekOffset === 0) onUpdate({ ...foodState, wheel: newWheel });
-          else onUpdate({ ...foodState, pastWheels: { ...foodState.pastWheels, [displayedMondayStr]: newWheel } });
+          updateMonthData({ wheel: newWheel });
           setLastToggledItem(null);
       }
   };
 
   const confirmWheelPleno = () => {
-      const currentExtras = foodState.weeklyExtras || {};
-      const emptyWheel = { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false };
-      onUpdate({
-          ...foodState,
-          score: weekOffset === 0 ? updateScore(3) : score,
-          weeklyExtras: { ...currentExtras, [displayedMondayStr]: (currentExtras[displayedMondayStr] || 0) + 3 },
-          wheel: weekOffset === 0 ? emptyWheel : wheel,
-          pastWheels: weekOffset === 0 ? foodState.pastWheels : { ...foodState.pastWheels, [displayedMondayStr]: emptyWheel },
-          history: addHistory(weekOffset === 0 ? 'Rueda Completa' : 'Retro: Rueda Completa', 3)
+      const emptyWheel = { drink: false, nuts: false, dairy: false, spices: false, coffee: false };
+      updateMonthData({
+          score: monthOffset === 0 ? updateScore(3) : score,
+          wheelPlenoCount: effectiveWheelPlenoCount + 1,
+          wheel: emptyWheel,
+          history: addHistory(monthOffset === 0 ? 'Rueda Completa' : `Retro: Rueda Completa (${monthKey})`, 3)
       });
       setShowWheelConfirm(false);
       setLastToggledItem(null);
   };
 
   const cancelWheelPleno = () => {
-      if (lastToggledItem) {
-          const revertedWheel = { ...currentWheel, [lastToggledItem]: false };
-          if (weekOffset === 0) onUpdate({ ...foodState, wheel: revertedWheel });
-          else onUpdate({ ...foodState, pastWheels: { ...foodState.pastWheels, [displayedMondayStr]: revertedWheel } });
-      }
       setShowWheelConfirm(false);
       setLastToggledItem(null);
   };
 
-  const resetGame = () => {
-      if(window.confirm("¿Reiniciar tu progreso de comida? (Esto reseteará la puntuación a 0)")) {
-          onUpdate({ 
-              ...foodState, 
-              score: 0, 
-              weeklyExtras: {},
-              weeklyBonuses: { organs: false, legumes: false, fast24: false },
-              dishes: {},
-              history: [] 
-          });
-      }
-  }
 
   const getScoreColor = (val: number) => {
-      if (val >= 50) return 'text-yellow-400 drop-shadow-[0_0_12px_rgba(234,179,8,0.9)] animate-pulse font-black';
-      if ([25, 35, 42, 45].includes(val)) return 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] font-black';
-      if (val >= 25) return 'text-yellow-500/80 font-bold';
-      if (val > 10) return 'text-lime-500 font-bold';
-      if (val < 0) return 'text-red-500 font-bold';
-      return 'text-lime-500 font-bold';
+      if (val >= 200) return 'text-stone-950 font-black drop-shadow-sm';
+      if (val >= 180) return 'text-[#FFD700] drop-shadow-[0_0_15px_rgba(255,215,0,0.6)] animate-pulse font-black';
+      if (val >= 168) return 'text-[#FFD700] drop-shadow-[0_0_10px_rgba(255,215,0,0.4)] font-black';
+      if (val >= 140) return 'text-[#B8860B] font-black';
+      if (val >= 100) return 'text-lime-500 font-black';
+      if (val >= 40) return 'text-orange-500 font-black';
+      if (val < 0) return 'text-red-600 font-black animate-blink';
+      return 'text-red-600 font-black';
   };
 
   const milestones = [
-      { val: 25, label: 'Brote', icon: Award },
-      { val: 35, label: 'Raíz', icon: Medal },
-      { val: 42, label: 'Tronco', icon: Star },
-      { val: 45, label: 'Copa', icon: Trophy },
-      { val: 50, label: 'Fruto', icon: Gem }
+      { val: 40, label: 'Superviviente', icon: Award },
+      { val: 100, label: 'Maestro', icon: Medal },
+      { val: 140, label: 'Élite', icon: Star },
+      { val: 168, label: 'Héroe', icon: Trophy },
+      { val: 200, label: 'Leyenda', icon: Gem }
   ];
 
+  const isLegendary = totalMonthlyScore >= 200;
+
+  // Moved CalendarProgressPath outside FoodBoardView to prevent re-mount on every render
+
+
   return (
-    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
-      <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
+    <div className={`fixed inset-0 max-w-md mx-auto z-50 flex flex-col animate-in fade-in duration-200 transition-colors duration-1000 ${isLegendary ? 'bg-[#FFD700]' : 'bg-stone-950'}`}>
+      <div className={`p-4 shadow-sm flex items-center justify-between border-b shrink-0 transition-colors duration-1000 ${isLegendary ? 'bg-[#FFD700] border-black/20' : 'bg-stone-900 border-stone-800'}`}>
         <div className="flex items-center gap-4">
-             <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
-                <ArrowLeft className="w-6 h-6 text-lime-500" />
+             <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isLegendary ? 'hover:bg-black/10' : 'hover:bg-stone-800'}`}>
+                <ArrowLeft className={`w-6 h-6 ${isLegendary ? 'text-stone-950' : 'text-lime-500'}`} />
             </button>
-            <h1 className="text-xl font-bold text-lime-200 uppercase tracking-tighter">Jumangiare</h1>
+            <h1 className={`text-xl font-bold uppercase tracking-tighter transition-colors ${isLegendary ? 'text-stone-950' : 'text-lime-200'}`}>Jumangiare</h1>
         </div>
         <div className="flex items-center gap-2">
-            <button onClick={() => setShowConfigEditor(true)} className="p-2 text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-full transition-colors">
-                <Settings className="w-5 h-5" />
-            </button>
-            <button onClick={resetGame} className="text-xs text-lime-400/50 hover:text-lime-300 flex items-center gap-1 transition-colors p-2">
-                <RotateCcw className="w-4 h-4" />
+            <button onClick={() => setShowConfigEditor(true)} className={`p-2 rounded-full transition-colors ${isLegendary ? 'text-stone-900 hover:bg-black/10' : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'}`}>
+                <Edit2 className="w-5 h-5" />
             </button>
         </div>
       </div>
@@ -874,196 +958,191 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         
         {/* Main Counter */}
         <div className="flex flex-col items-center justify-center py-6">
-            {weekOffset < 0 && (
-                <div className="text-stone-500 text-xs font-bold tracking-widest uppercase mb-2">
-                    Semana del {daysOfWeek[0].getDate()} al {daysOfWeek[6].getDate()}
-                </div>
-            )}
+            <div className={`text-xs font-bold tracking-widest uppercase mb-2 transition-colors ${isLegendary ? 'text-stone-950/60' : 'text-stone-500'}`}>
+                {currentMonthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+            </div>
             <div className="flex items-center gap-6">
                 <button 
-                    onClick={() => setWeekOffset(prev => prev - 1)} 
-                    className="p-3 text-stone-600 hover:text-stone-300 hover:bg-stone-800 rounded-full transition-colors active:scale-90"
+                    onClick={() => setMonthOffset(prev => prev - 1)} 
+                    className={`p-3 rounded-full transition-colors active:scale-90 ${isLegendary ? 'text-stone-900/40 hover:text-stone-900 hover:bg-black/5' : 'text-stone-600 hover:text-stone-300 hover:bg-stone-800'}`}
                 >
                     <ArrowLeft className="w-8 h-8" />
                 </button>
-                <div className={`text-7xl transition-all duration-300 w-32 tracking-tighter text-center ${getScoreColor(currentCalculatedScore)}`}>
-                    {currentCalculatedScore}
+                <div className={`text-7xl transition-all duration-300 w-32 tracking-tighter text-center ${getScoreColor(totalMonthlyScore)}`}>
+                    {totalMonthlyScore}
                 </div>
                 <div className="flex items-center gap-1">
                     <button 
-                        onClick={() => setWeekOffset(prev => prev + 1)} 
-                        disabled={weekOffset >= 0}
-                        className="p-3 text-stone-600 hover:text-stone-300 hover:bg-stone-800 rounded-full transition-colors active:scale-90 disabled:opacity-20 disabled:hover:bg-transparent"
+                        onClick={() => setMonthOffset(prev => prev + 1)} 
+                        disabled={monthOffset >= 0}
+                        className={`p-3 rounded-full transition-colors active:scale-90 disabled:opacity-10 ${isLegendary ? 'text-stone-900/40 hover:text-stone-900 hover:bg-black/5' : 'text-stone-600 hover:text-stone-300 hover:bg-stone-800'}`}
                     >
                         <ArrowRight className="w-8 h-8" />
                     </button>
-                    <button 
-                        onClick={() => setShowHistoryModal(true)} 
-                        className="p-3 text-stone-500 hover:text-lime-500 hover:bg-stone-800 rounded-full transition-colors active:scale-90"
-                        title="Ver histórico de semanas"
-                    >
-                        <History className="w-6 h-6" />
-                    </button>
                 </div>
             </div>
         </div>
 
-        {/* Medals / Milestones Section */}
-        <div className="bg-stone-900/40 rounded-3xl p-6 border border-stone-800/50">
-            <div className="flex justify-between items-start gap-1">
-                {milestones.map((m) => {
-                    const isAchieved = currentCalculatedScore >= m.val;
-                    const Icon = m.icon;
-                    return (
-                        <div key={m.val} className="flex flex-col items-center gap-2 flex-1">
-                            <div className={`
-                                w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-500
-                                ${isAchieved 
-                                    ? 'bg-yellow-600/20 border-yellow-500 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)] scale-110' 
-                                    : 'bg-stone-900 border-stone-800 text-stone-700 opacity-40 grayscale'}
-                            `}>
-                                <Icon className="w-6 h-6" />
-                            </div>
-                            <span className={`text-[9px] font-black tracking-tighter transition-colors ${isAchieved ? 'text-yellow-500' : 'text-stone-700'}`}>
-                                {m.val}
-                            </span>
-                        </div>
-                    );
-                })}
-            </div>
+
+        {/* Snake Progress Border Wrapper */}
+        <div className="relative p-2">
+            <CalendarProgressPath 
+                score={totalMonthlyScore} 
+                color={getScoreColor(totalMonthlyScore)}
+                isLegendary={isLegendary}
+            />
+
+            <div className={`bg-stone-900/40 rounded-3xl p-4 relative z-10 transition-colors duration-1000 ${isLegendary ? 'bg-white/5 border-black/10' : 'bg-stone-900/40 border-stone-800/50'}`}>
+          <div className="grid grid-cols-7 gap-y-4 gap-x-1">
+            {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map(day => (
+              <div key={day} className="text-[10px] font-black text-stone-600 text-center mb-1">
+                {day}
+              </div>
+            ))}
+            {daysOfMonth.map((date, index) => {
+              if (!date) return <div key={`empty-${index}`} />;
+              
+              const dateStr = date.toDateString();
+              const dayScore = dailyScores[dateStr] || defaultDailyScore;
+              const total = calculateDailyScore(dayScore, dateStr, dailyScores);
+              const isToday = date.toDateString() === new Date().toDateString();
+              const isFuture = date > new Date() && !isToday;
+
+              const percentage = Math.min(100, (Math.abs(total) / 4) * 100);
+              let conicGradient = '';
+              if (total > 0) {
+                  conicGradient = `conic-gradient(#84cc16 ${percentage}%, transparent 0)`;
+              } else if (total < 0) {
+                  conicGradient = `conic-gradient(transparent ${100 - percentage}%, #ef4444 0)`;
+              }
+
+              return (
+                <button
+                  key={dateStr}
+                  disabled={isFuture}
+                  onClick={() => setSelectedDate(date)}
+                  className={`flex flex-col items-center gap-1 transition-all ${isFuture ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
+                >
+                  <div className="relative w-9 h-9 rounded-full flex items-center justify-center">
+                    <div className={`absolute inset-0 rounded-full transition-colors
+                      ${total > 0 ? 'bg-lime-500/10' : total < 0 ? 'bg-red-500/10' : isToday ? 'bg-stone-800' : 'bg-stone-900/50'}
+                    `} />
+                    
+                    {conicGradient && (
+                      <div 
+                        className="absolute inset-0 rounded-full" 
+                        style={{ 
+                          background: conicGradient,
+                          WebkitMaskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)',
+                          maskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)'
+                        }} 
+                      />
+                    )}
+                    
+                    <span className={`relative z-10 text-[11px] font-bold
+                      ${total > 0 ? 'text-lime-400' : total < 0 ? 'text-red-400' : isToday ? 'text-lime-500' : 'text-stone-400'}
+                    `}>
+                      {date.getDate()}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
+      </div>
 
-        {/* Days of Week Row */}
-        <div className="flex justify-between items-center bg-stone-900/40 rounded-2xl p-4 border border-stone-800/50">
-          {daysOfWeek.map((date, index) => {
-            const dateStr = date.toDateString();
-            const dayScore = dailyScores[dateStr] || defaultDailyScore;
-            const total = calculateDailyScore(dayScore, dateStr, dailyScores);
-            const isToday = date.toDateString() === new Date().toDateString();
-            const isFuture = date > new Date() && !isToday;
-            const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-
-            const percentage = Math.min(100, (Math.abs(total) / 4) * 100);
-            let conicGradient = '';
-            if (total > 0) {
-                conicGradient = `conic-gradient(#84cc16 ${percentage}%, transparent 0)`;
-            } else if (total < 0) {
-                conicGradient = `conic-gradient(transparent ${100 - percentage}%, #ef4444 0)`;
-            }
-
-            return (
-              <button
-                key={dateStr}
-                disabled={isFuture}
-                onClick={() => setSelectedDate(date)}
-                className={`flex flex-col items-center gap-2 transition-all ${isFuture ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
-              >
-                <span className={`text-[10px] font-black ${isToday ? 'text-lime-500' : 'text-stone-500'}`}>
-                  {dayNames[index]}
-                </span>
-                <div className="relative w-10 h-10 rounded-full flex items-center justify-center">
-                  {/* Background */}
-                  <div className={`absolute inset-0 rounded-full transition-colors
-                    ${total > 0 ? 'bg-lime-500/20' : total < 0 ? 'bg-red-500/20' : isToday ? 'bg-stone-800' : 'bg-stone-900'}
-                  `} />
-                  
-                  {/* Circular Progress Ring */}
-                  {conicGradient && (
-                    <div 
-                      className="absolute inset-0 rounded-full" 
-                      style={{ 
-                        background: conicGradient,
-                        WebkitMaskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)',
-                        maskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)'
-                      }} 
-                    />
-                  )}
-                  
-                  {/* Text */}
-                  <span className={`relative z-10 text-xs font-bold
-                    ${total > 0 ? 'text-lime-400' : total < 0 ? 'text-red-400' : isToday ? 'text-lime-500' : 'text-stone-300'}
-                  `}>
-                    {total > 0 ? `+${total}` : total}
-                  </span>
+        {/* Habits Grouped Section */}
+        <div className="bg-stone-900/60 rounded-[2rem] border border-stone-800/50 overflow-hidden">
+            {/* Rueda Row */}
+            <div className="p-5 border-b border-stone-800/50">
+                <div className="flex items-center justify-between mb-3 px-1">
+                    <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">La Rueda</span>
                 </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Rueda Section */}
-        <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800">
-            <div className="grid grid-cols-6 gap-2">
-                {activeConfig.wheel.map((item) => (
-                    <button 
-                        key={item.id}
-                        onClick={() => toggleWheelItem(item.id as keyof FoodWheel)}
-                        className={`
-                            aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300
-                            ${currentWheel[item.id as keyof FoodWheel] 
-                                ? 'bg-lime-600/20 border border-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.2)] grayscale-0 scale-105' 
-                                : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
-                        `}
-                    >
-                        {item.icon}
-                    </button>
-                ))}
-            </div>
-        </div>
-
-        {/* Broccoli Section */}
-        <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800">
-            <div className="grid grid-cols-5 gap-3">
-                {activeConfig.broccoli.map((step, index) => {
-                    const isCompleted = index < currentBroccoli;
-                    const isNext = index === currentBroccoli;
-                    const isLocked = index > currentBroccoli;
-
-                    return (
+                <div className="grid grid-cols-6 gap-2">
+                    {activeConfig.wheel.map((item) => (
                         <button 
-                            key={step.id}
-                            onClick={() => handleBroccoliClick(index)}
-                            disabled={isLocked}
+                            key={item.id}
+                            onClick={() => toggleWheelItem(item.id)}
                             className={`
                                 aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300
-                                ${isCompleted 
-                                    ? 'bg-emerald-600/20 border border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] grayscale-0 scale-105' 
-                                    : isNext
-                                    ? 'bg-stone-800 border border-stone-600 grayscale-0 animate-pulse'
-                                    : 'bg-stone-950 border border-stone-800 grayscale opacity-30 cursor-not-allowed'}
+                                ${currentWheel[item.id] 
+                                    ? 'bg-lime-600/20 border border-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.1)] grayscale-0 scale-105' 
+                                    : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
                             `}
                         >
-                            {step.icon}
+                            {item.icon}
                         </button>
-                    );
-                })}
+                    ))}
+                    <div className="aspect-square rounded-xl bg-stone-950/50 border border-stone-800/50 flex flex-col items-center justify-center gap-0.5 opacity-50">
+                        <span className="text-[8px] font-black text-stone-600 uppercase">Total</span>
+                        <span className="text-sm font-black text-stone-400">{effectiveWheelPlenoCount}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Brócoli Row */}
+            <div className="p-5 border-b border-stone-800/50">
+                <div className="flex items-center justify-between mb-3 px-1">
+                    <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Brócoli</span>
+                </div>
+                <div className="grid grid-cols-6 gap-2">
+                    {activeConfig.broccoli.map((item) => (
+                        <button 
+                            key={item.id}
+                            onClick={() => handleBroccoliClick(item.id)}
+                            className={`
+                                aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300
+                                ${currentBroccoliWheel[item.id] 
+                                    ? 'bg-emerald-600/20 border border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.1)] grayscale-0 scale-105' 
+                                    : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
+                            `}
+                        >
+                            {item.icon}
+                        </button>
+                    ))}
+                    <div className="aspect-square rounded-xl bg-stone-950/50 border border-stone-800/50 flex flex-col items-center justify-center gap-0.5 opacity-50">
+                        <span className="text-[8px] font-black text-stone-600 uppercase">Total</span>
+                        <span className="text-sm font-black text-stone-400">{effectiveBroccoliPlenoCount}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bonus Row */}
+            <div className="p-5">
+                <div className="flex items-center justify-between mb-4 px-1">
+                    <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Supervivencia</span>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                    {activeConfig.bonuses.map((bonus) => {
+                        const squares = effectiveBonuses[bonus.id] || [false, false, false, false];
+                        return (
+                            <div key={bonus.id} className="flex flex-col items-center gap-3">
+                                <div className="text-2xl filter drop-shadow-sm">{bonus.icon}</div>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    {squares.map((isActive, idx) => (
+                                        <button
+                                            key={`${bonus.id}-${idx}`}
+                                            onClick={() => handleBonus(bonus.id, idx, bonus.points)}
+                                            className={`w-6 h-6 rounded-md border transition-all duration-300 ${
+                                                isActive 
+                                                    ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]' 
+                                                    : 'bg-stone-950 border-stone-800'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                                <span className="text-[8px] font-black text-stone-500 uppercase tracking-tighter text-center leading-none">
+                                    {bonus.label}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
 
-        {/* Weekly Bonuses Section */}
-        <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-                {activeConfig.bonuses.map((bonus) => {
-                    const isActive = weeklyBonuses[getBonusKey(bonus.id)];
-                    return (
-                    <button 
-                        key={bonus.id}
-                        onClick={() => handleBonus(bonus.id, bonus.points)}
-                        className={`p-4 rounded-2xl border text-sm font-bold flex flex-col items-center gap-1 transition-all ${
-                            isActive 
-                                ? 'bg-emerald-600 border-emerald-500 text-stone-950 shadow-lg' 
-                                : 'bg-stone-900 border-stone-800 text-stone-400 opacity-60'
-                        }`}
-                    >
-                        <span className="text-xl">{bonus.icon}</span>
-                        <span className="text-[10px] font-black">{bonus.label}</span>
-                    </button>
-                )})}
-            </div>
-        </div>
-
-        {/* Meal Checklist (Platos Cocinados) - New Section */}
-        {weekOffset === 0 && (
+        {/* Meal Checklist (Platos Cocinados) */}
         <div className="space-y-4 pt-4 border-t border-stone-800">
             <div className="flex items-center justify-between px-1">
                 <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-widest">Menú del Superviviente</h3>
@@ -1131,7 +1210,6 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                 })}
             </div>
         </div>
-        )}
 
       </div>
 
@@ -1199,13 +1277,8 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         </div>
       )}
 
-      {showHistoryModal && (
-          <FoodHistoryModal
-              dailyScores={dailyScores}
-              weeklyExtras={foodState.weeklyExtras}
-              onClose={() => setShowHistoryModal(false)}
-          />
-      )}
+      {/* Confirmation Modals are shown conditionally */}
+
 
       {selectedDate && (
         <DailyFoodScoreModal

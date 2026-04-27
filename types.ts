@@ -99,26 +99,34 @@ export interface DailyFoodScore {
   fasting: boolean;
   deliveryLunch: boolean;
   deliveryDinner: boolean;
-  fahCount: number;
-  fridgeCount: number;
+  fah: boolean[]; // length 4
   calories?: number;
 }
 
 export interface FoodState {
   score: number; // 0 to 50
-  lastWeeklyReset: number; // timestamp
+  lastMonthlyReset: number; // timestamp
   lastMonthlyDishesReset?: number; // timestamp
-  fridgeCount: number; // 0 to 20
   ritualCount: number; // 0 to 10
   wheel: FoodWheel;
-  weeklyBonuses: FoodBonuses;
+  broccoliWheel: FoodWheel; // Added for any-order broccoli habits
+  monthlyBonuses: Record<string, boolean[]>; // Changed from weeklyBonuses: FoodBonuses
+  wheelPlenoCount: number; // Added
+  broccoliPlenoCount: number; // Added
   dishes?: Record<string, boolean>; // Monthly meal checklist
   dailyScores?: Record<string, DailyFoodScore>; // YYYY-MM-DD -> DailyFoodScore
-  broccoliStep?: number; // 0 to 10
   pastWheels?: Record<string, FoodWheel>;
   pastBroccoli?: Record<string, number>;
   config?: FoodConfig;
   weeklyExtras?: Record<string, number>; // YYYY-MM-DD (Monday) -> Total Extra Points for that week
+  monthlyHistory?: Record<string, { // YYYY-MM -> Month data
+    wheelPlenoCount: number;
+    broccoliPlenoCount: number;
+    bonuses: Record<string, boolean[]>;
+    dishes: Record<string, boolean>;
+    wheel: FoodWheel;
+    broccoliWheel: FoodWheel;
+  }>;
   history: {
     action: string;
     timestamp: number;

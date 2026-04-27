@@ -278,12 +278,15 @@ const INITIAL_DATA: AppData = {
   friends: [],
   food: {
     score: 0,
-    lastWeeklyReset: Date.now(),
-    fridgeCount: 0,
+    lastMonthlyReset: Date.now(),
     ritualCount: 0,
-    wheel: { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false },
-    weeklyBonuses: { organs: false, legumes: false, fast24: false },
+    wheel: { drink: false, nuts: false, dairy: false, spices: false, coffee: false },
+    broccoliWheel: { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false },
+    monthlyBonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
+    wheelPlenoCount: 0,
+    broccoliPlenoCount: 0,
     dishes: {},
+    monthlyHistory: {},
     history: []
   },
   forjas: [
@@ -503,9 +506,14 @@ const processResets = (parsed: AppData): AppData => {
       return p;
     });
   }
-  if (typeof result.food.fridgeCount === 'undefined') {
-    result.food = { ...result.food, fridgeCount: 0, ritualCount: 0, lastWeeklyReset: Date.now(), wheel: { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false }, weeklyBonuses: { organs: false, legumes: false, fast24: false } };
+  if (!result.food.monthlyBonuses) {
+    result.food.monthlyBonuses = { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] };
   }
+  if (!result.food.broccoliWheel) {
+    result.food.broccoliWheel = { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false };
+  }
+  if (typeof result.food.wheelPlenoCount === 'undefined') result.food.wheelPlenoCount = 0;
+  if (typeof result.food.broccoliPlenoCount === 'undefined') result.food.broccoliPlenoCount = 0;
   if (!result.food.weeklyExtras) {
     result.food.weeklyExtras = {};
   }
@@ -600,38 +608,7 @@ const processResets = (parsed: AppData): AppData => {
     result.lastSetsReset = Date.now();
   }
 
-  const lastFoodResetDate = new Date(result.food.lastWeeklyReset || 0);
-  if (lastFoodResetDate.getTime() < startOfCurrentWeek.getTime()) {
-    if (!result.stats.foodHistory) result.stats.foodHistory = [];
-    result.stats.foodHistory.push(result.food.score);
-    if (result.stats.foodHistory.length > 52) result.stats.foodHistory.shift();
-    
-    // We calculate the new week's Monday and the previous week's Monday
-    const dNewWeek = new Date();
-    const dayNewWeek = dNewWeek.getDay();
-    const diffNewWeek = dNewWeek.getDate() - dayNewWeek + (dayNewWeek === 0 ? -6 : 1);
-    const mondayNewWeek = new Date(dNewWeek.setDate(diffNewWeek));
-    mondayNewWeek.setHours(0, 0, 0, 0);
-    const mondayStr = mondayNewWeek.toISOString().split('T')[0];
-    
-    const prevMonday = new Date(mondayNewWeek.getTime());
-    prevMonday.setDate(prevMonday.getDate() - 7);
-    const prevMondayStr = prevMonday.toISOString().split('T')[0];
-
-    if (!result.food.pastWheels) result.food.pastWheels = {};
-    if (!result.food.pastBroccoli) result.food.pastBroccoli = {};
-    result.food.pastWheels[prevMondayStr] = result.food.wheel || { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false };
-    result.food.pastBroccoli[prevMondayStr] = result.food.broccoliStep || 0;
-
-    result.food.score = 0;
-    result.food.weeklyBonuses = { organs: false, legumes: false, fast24: false };
-    result.food.wheel = { lemon: false, nuts: false, dairy: false, coffee: false, spices: false, supplements: false };
-    result.food.broccoliStep = 0;
-    result.food.lastWeeklyReset = Date.now();
-
-    if (!result.food.weeklyExtras) result.food.weeklyExtras = {};
-    result.food.weeklyExtras[mondayStr] = 0;
-  }
+  // Weekly food reset removed (transitioned to monthly)
 
   if (!result.weeklyGoals) {
     result.weeklyGoals = {
@@ -680,11 +657,32 @@ const processResets = (parsed: AppData): AppData => {
     result.lastTrainsReset = Date.now();
   }
 
-  const lastFoodDishesResetDate = new Date(result.food.lastMonthlyDishesReset || 0);
-  const resetFoodMonth = lastFoodDishesResetDate.getMonth();
-  const resetFoodYear = lastFoodDishesResetDate.getFullYear();
+  const lastFoodMonthlyResetDate = new Date(result.food.lastMonthlyReset || result.food.lastMonthlyDishesReset || 0);
+  const resetFoodMonth = lastFoodMonthlyResetDate.getMonth();
+  const resetFoodYear = lastFoodMonthlyResetDate.getFullYear();
   if (currentYear > resetFoodYear || (currentYear === resetFoodYear && currentMonth > resetFoodMonth)) {
+    // Save current month data before reset
+    const prevMonthDate = new Date(resetFoodYear, resetFoodMonth, 1);
+    const monthKey = `${prevMonthDate.getFullYear()}-${(prevMonthDate.getMonth() + 1).toString().padStart(2, '0')}`;
+    
+    if (!result.food.monthlyHistory) result.food.monthlyHistory = {};
+    result.food.monthlyHistory[monthKey] = {
+      wheelPlenoCount: result.food.wheelPlenoCount || 0,
+      broccoliPlenoCount: result.food.broccoliPlenoCount || 0,
+      bonuses: result.food.monthlyBonuses || { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
+      dishes: result.food.dishes || {},
+      wheel: result.food.wheel || { drink: false, nuts: false, dairy: false, spices: false, coffee: false },
+      broccoliWheel: result.food.broccoliWheel || { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false }
+    };
+
+    result.food.score = 0;
+    result.food.wheel = { drink: false, nuts: false, dairy: false, spices: false, coffee: false };
+    result.food.broccoliWheel = { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false };
+    result.food.monthlyBonuses = { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] };
+    result.food.wheelPlenoCount = 0;
+    result.food.broccoliPlenoCount = 0;
     result.food.dishes = {};
+    result.food.lastMonthlyReset = Date.now();
     result.food.lastMonthlyDishesReset = Date.now();
   }
 
