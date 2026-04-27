@@ -74,6 +74,7 @@ export interface Friend {
   interactions: FriendInteractions;
   tasks: FriendTask[];
   birthday?: string; // YYYY-MM-DD
+  isSporadic?: boolean;
 }
 
 export interface FoodWheel {

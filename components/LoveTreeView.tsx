@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Friend, FriendInteractions, ReminderEvent } from '../types';
-import { ArrowLeft, Plus, Trash2, Heart, X, Check, BarChart2, Edit2, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Heart, X, Check, BarChart2, Edit2, Save, Clock } from 'lucide-react';
 import { RemindersSection } from './RemindersSection';
 import { useModalHistory } from '../hooks/useModalHistory';
 
@@ -33,7 +33,14 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
   const [editFriendName, setEditFriendName] = useState('');
   const [editBirthday, setEditBirthday] = useState('');
   const [editInteractions, setEditInteractions] = useState<FriendInteractions>({ person: 0, call: 0, gift: 0, photo: 0, message: 0 });
-  const [sortBy, setSortBy] = useState<'interactions' | 'days'>('interactions');
+  const [sortBy, setSortBy] = useState<'interactions' | 'days'>(() => {
+    return (localStorage.getItem('love_tree_sort_by') as 'interactions' | 'days') || 'interactions';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('love_tree_sort_by', sortBy);
+  }, [sortBy]);
+
 
   // Reset delete confirmation when selecting a different friend
   useEffect(() => {
@@ -75,6 +82,9 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
           return daysB - daysA;
       }
   });
+
+  const regularFriends = sortedFriends.filter(f => !f.isSporadic);
+  const sporadicFriends = sortedFriends.filter(f => f.isSporadic);
 
   const addFriend = () => {
     if (!newFriendName.trim()) return;
@@ -136,6 +146,23 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
           onUpdate(updated);
           setIsEditingFriend(false);
       }
+  };
+
+  const toggleSporadic = (friendId: string) => {
+      const updated = friends.map(f => 
+          f.id === friendId ? { ...f, isSporadic: !f.isSporadic } : f
+      );
+      onUpdate(updated);
+  };
+
+  const formatBirthday = (birthdayStr?: string) => {
+      if (!birthdayStr) return 'Sin fecha';
+      const parts = birthdayStr.split('-');
+      if (parts.length !== 3) return 'Sin fecha';
+      const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+      const day = parseInt(parts[2]);
+      const month = parseInt(parts[1]) - 1;
+      return `${day} ${monthNames[month]}`;
   };
 
   const isBirthdayWeek = (birthdayStr?: string) => {
@@ -253,7 +280,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                 <path d="M150,200 L180,170" stroke="#3e2c26" strokeWidth="8" />
                 <path d="M150,240 L190,210" stroke="#3e2c26" strokeWidth="8" />
                 
-                {friends.map((friend, i) => {
+                {regularFriends.map((friend, i) => {
                     const days = getDaysSince(friend.lastInteraction);
                     const pos = getLeafPosition(i, friends.length);
                     return (
@@ -289,7 +316,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                     <option value="days">Orden por días</option>
                 </select>
             </div>
-             {sortedFriends.map(f => {
+             {regularFriends.map(f => {
                  const total = (Object.values(f.interactions) as number[]).reduce((a, b) => a + b, 0);
                  const days = getDaysSince(f.lastInteraction);
                  const textColorClass = getLeafColorClass(days);
@@ -340,6 +367,63 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                     </div>
                  )
              })}
+
+             {sporadicFriends.length > 0 && (
+                <>
+                    <h3 className="font-bold text-stone-500 text-xs uppercase mt-8 mb-3 px-1">Contactos Esporádicos</h3>
+                    {sporadicFriends.map(f => {
+                        const total = (Object.values(f.interactions) as number[]).reduce((a, b) => a + b, 0);
+                        const days = getDaysSince(f.lastInteraction);
+                        const textColorClass = getLeafColorClass(days);
+                        const bgStatusColor = getStatusColor(days);
+                        const isBday = isBirthdayWeek(f.birthday);
+                        
+                        return (
+                            <div 
+                                key={f.id} 
+                                onClick={() => setSelectedFriendId(f.id)} 
+                                className={`flex items-center justify-between p-4 rounded-3xl border cursor-pointer active:scale-95 transition-all shadow-sm ${
+                                    isBday 
+                                        ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 border-yellow-300 shadow-[0_0_20px_rgba(234,179,8,0.4)] text-stone-950' 
+                                        : 'bg-stone-900 border-stone-800 text-stone-100 opacity-60'
+                                }`}
+                            >
+                                <div className="flex items-center gap-4">
+                                    {/* Avatar */}
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl shadow-lg ${
+                                        isBday ? 'bg-stone-950 text-yellow-500' : bgStatusColor + ' text-stone-950'
+                                    }`}>
+                                        {f.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    
+                                    {/* Text Info */}
+                                    <div>
+                                        <h4 className={`font-bold text-lg leading-tight flex items-center gap-2 ${isBday ? 'text-stone-950' : 'text-stone-100'}`}>
+                                            {f.name}
+                                            {isBday && <span>🎂</span>}
+                                        </h4>
+                                        <p className={`text-xs font-bold ${isBday ? 'text-stone-800/80' : 'text-stone-500'}`}>
+                                            {total} brotes
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Counter Badge */}
+                                <div className={`px-3 py-1.5 rounded-xl border flex flex-col items-center justify-center shadow-inner ${
+                                    isBday ? 'bg-stone-950/20 border-yellow-700/30' :
+                                    days <= 7 ? 'bg-emerald-950/30 border-emerald-900/50' :
+                                    days <= 14 ? 'bg-yellow-950/30 border-yellow-900/50' :
+                                    days <= 30 ? 'bg-orange-950/30 border-orange-900/50' :
+                                    'bg-red-950/30 border-red-900/50'
+                                }`}>
+                                    <span className={`text-lg font-black leading-none ${isBday ? 'text-stone-950' : textColorClass}`}>{days}</span>
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isBday ? 'text-stone-900/60' : textColorClass + ' opacity-70'}`}>días</span>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </>
+             )}
              {friends.length === 0 && <p className="text-center text-stone-600 italic py-4">Añade amigos para verlos aquí.</p>}
         </div>
 
@@ -402,8 +486,8 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                                     {isBirthdayWeek(selectedFriend.birthday) && <span className="ml-2">🎂</span>}
                                 </h3>
                             )}
-                            <p className={`text-xs font-bold ${getLeafColorClass(selectedFriendDays)}`}>
-                                {getDaysText(selectedFriendDays)}
+                            <p className="text-xs font-bold text-stone-500 uppercase">
+                                {formatBirthday(selectedFriend.birthday)}
                             </p>
                         </div>
                      </div>
@@ -488,9 +572,18 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-stone-800">
+                    <div className="pt-4 border-t border-stone-800 flex gap-2">
+                        <button 
+                            onClick={() => toggleSporadic(selectedFriend.id)}
+                            className={`w-14 h-14 rounded-xl border flex items-center justify-center transition-colors ${
+                                selectedFriend.isSporadic ? 'bg-pink-900/40 border-pink-500 text-pink-500' : 'bg-stone-950 border-stone-800 text-stone-500 hover:border-stone-600'
+                            }`}
+                        >
+                            <Clock className="w-6 h-6" />
+                        </button>
+                        
                         {showDeleteConfirm ? (
-                           <div className="flex gap-2">
+                           <div className="flex-1 flex gap-2">
                                <button 
                                    onClick={() => setShowDeleteConfirm(false)}
                                    className="flex-1 py-3 rounded-xl border border-stone-700 text-stone-400 hover:bg-stone-800 font-medium"
@@ -499,17 +592,17 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
                                </button>
                                <button 
                                    onClick={() => deleteFriend(selectedFriend.id)}
-                                   className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 shadow-lg shadow-red-900/20"
+                                   className="bg-red-600 text-white px-4 rounded-xl font-bold hover:bg-red-500 shadow-lg shadow-red-900/20"
                                >
-                                   Confirmar
+                                   Borrar
                                </button>
                            </div>
                         ) : (
                            <button 
                                onClick={() => setShowDeleteConfirm(true)}
-                               className="w-full py-3 rounded-xl border border-red-900/30 text-red-600 hover:bg-red-950/20 flex items-center justify-center gap-2 font-medium"
+                               className="flex-1 py-3 rounded-xl border border-red-900/30 text-red-600 hover:bg-red-950/20 flex items-center justify-center gap-2 font-medium"
                            >
-                               <Trash2 className="w-4 h-4" /> Eliminar contacto
+                               <Trash2 className="w-4 h-4" /> Eliminar
                            </button>
                         )}
                     </div>

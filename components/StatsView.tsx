@@ -6,10 +6,13 @@ import { HunosMonthLineChartModal } from './HunosMonthLineChartModal';
 import { CategoryHistoryModal } from './CategoryHistoryModal';
 import { useModalHistory } from '../hooks/useModalHistory';
 
+import { calculateAllDaysTotal } from './FoodBoardView';
+
 interface StatsViewProps {
   data: AppData;
   onUpdate?: React.Dispatch<React.SetStateAction<AppData>>;
   onBack: () => void;
+  onNavigate?: (view: any) => void;
 }
 
 const MushroomIcon = ({ className }: { className?: string }) => (
@@ -18,7 +21,7 @@ const MushroomIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) => {
+export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, onNavigate }) => {
   const { stats, exercise, food, friends, sets, trains, hunos } = data;
 
   const [showHunosModal, setShowHunosModal] = useState(false);
@@ -502,11 +505,46 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
   }
   const energyMax = 10;
 
-  // Logic for 10-week food evolution
-  const currentFoodScore = food.score;
-  const foodHistoryToDisplay = [...(stats.foodHistory || []).slice(-9), currentFoodScore];
-  const paddedFoodHistory = Array(Math.max(0, 10 - foodHistoryToDisplay.length)).fill(0).concat(foodHistoryToDisplay);
-  const foodMax = 50; // Max score is 50
+  // Logic for 6-month food evolution (Monthly)
+  const foodHistoryToDisplay = useMemo(() => {
+    const now = new Date();
+    const result: number[] = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = targetDate.getMonth();
+      const y = targetDate.getFullYear();
+      const mKey = `${y}-${(m + 1).toString().padStart(2, '0')}`;
+      
+      // Base score from daily entries (global)
+      const base = calculateAllDaysTotal(data.food.dailyScores || {}, m, y);
+      
+      // Monthly specific data (from current or history)
+      let plenoCount = 0;
+      let bonusPoints = 0;
+      
+      if (i === 0) {
+        plenoCount = (data.food.wheelPlenoCount || 0) * 3 + (data.food.broccoliPlenoCount || 0) * 1;
+        const bonuses = data.food.monthlyBonuses || {};
+        if (bonuses.organs) bonusPoints += (bonuses.organs as boolean[]).filter(v => v).length * 3;
+        if (bonuses.legumes) bonusPoints += (bonuses.legumes as boolean[]).filter(v => v).length * 3;
+        if (bonuses.fast24) bonusPoints += (bonuses.fast24 as boolean[]).filter(v => v).length * 4;
+      } else {
+        const hist = data.food.monthlyHistory?.[mKey];
+        if (hist) {
+          plenoCount = (hist.wheelPlenoCount || 0) * 3 + (hist.broccoliPlenoCount || 0) * 1;
+          const bonuses = hist.bonuses || {};
+          if (bonuses.organs) bonusPoints += (bonuses.organs as boolean[]).filter(v => v).length * 3;
+          if (bonuses.legumes) bonusPoints += (bonuses.legumes as boolean[]).filter(v => v).length * 3;
+          if (bonuses.fast24) bonusPoints += (bonuses.fast24 as boolean[]).filter(v => v).length * 4;
+        }
+      }
+      
+      result.push(base + plenoCount + bonusPoints);
+    }
+    return result;
+  }, [data.food]);
+  const foodMax = 200;
 
   const getFormattedDateKey = (date: Date) => {
       return date.toDateString();
@@ -987,13 +1025,13 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack }) 
           </div>
 
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Utensils className="w-4 h-4 text-lime-500" /> JUMANGIARE (10 SEM)
-            </h2>
+            <button onClick={() => onNavigate?.('food')} className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2 hover:text-lime-400 transition-colors">
+              <Utensils className="w-4 h-4 text-lime-500" /> JUMANGIARE (6 MESES)
+            </button>
             <div className="h-24 flex gap-1 px-1">
-              {paddedFoodHistory.map((v, i) => (
+              {foodHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, foodMax, 'bg-lime-600', i === 9)}
+                  {renderHistoryBar(v, foodMax, 'bg-lime-600', i === 5)}
                 </React.Fragment>
               ))}
             </div>

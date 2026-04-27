@@ -4,7 +4,7 @@ import { DailyHunos } from './components/DailyHunos';
 import { TrainView } from './components/TrainView';
 import { SetsView } from './components/SetsView';
 import { LoveTreeView } from './components/LoveTreeView';
-import { FoodBoardView } from './components/FoodBoardView';
+import { FoodBoardView, calculateAllDaysTotal } from './components/FoodBoardView';
 import { ResourceTrackerView } from './components/ResourceTrackerView';
 import { ExerciseView } from './components/ExerciseView';
 import { PianoView } from './components/PianoView';
@@ -1182,6 +1182,23 @@ function App() {
     setData(prev => ({ ...prev, trains: newTasks, stats: newStats, trainsPlenoClaimed: newClaimed }));
   };
 
+  const getCurrentMonthlyFoodScore = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const baseScore = calculateAllDaysTotal(data.food.dailyScores || {}, currentMonth, currentYear);
+    const plenoScore = (data.food.wheelPlenoCount || 0) * 3 + (data.food.broccoliPlenoCount || 0) * 1;
+    
+    const bonuses = data.food.monthlyBonuses || {};
+    let bonusScore = 0;
+    if (bonuses.organs) bonusScore += (bonuses.organs as boolean[]).filter(s => s).length * 3;
+    if (bonuses.legumes) bonusScore += (bonuses.legumes as boolean[]).filter(s => s).length * 3;
+    if (bonuses.fast24) bonusScore += (bonuses.fast24 as boolean[]).filter(s => s).length * 4;
+    
+    return baseScore + plenoScore + bonusScore;
+  };
+
   const getTrainProgress = () => {
     if (data.trains.length === 0) return 0;
     return Math.round((data.trains.filter(t => t.completed).length / data.trains.length) * 100);
@@ -1337,13 +1354,14 @@ function App() {
       case 'exercise': return <ExerciseView exercise={data.exercise} onUpdate={ex => setData(prev => ({ ...prev, exercise: ex }))} onBack={() => setView('home')} />;
       case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;
       case 'yunque': return <YunqueView largas={data.yunqueLargas || []} rapidas={data.yunqueRapidas || []} onUpdateLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))} onUpdateRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))} onBack={() => setView('home')} />;
-      case 'stats': return <StatsView data={data} onUpdate={setData} onBack={() => setView('home')} />;
+      case 'stats': return <StatsView data={data} onUpdate={setData} onBack={() => setView('home')} onNavigate={setView} />;
       case 'caminos': return <CaminosView caminos={data.caminos || []} onUpdate={c => setData(prev => ({ ...prev, caminos: c }))} onBack={() => setView('home')} />;
       default:
         const trainProgress = getTrainProgress();
         const isTrainPleno = trainProgress === 100;
         const isSetsPleno = data.sets.length > 0 && data.sets.every(t => t.completed);
-        const isFoodPleno = data.food.score === 50;
+        const currentFoodScore = getCurrentMonthlyFoodScore();
+        const isFoodPleno = currentFoodScore >= 200;
         return (
           <div className="flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative">
             <header className="mb-6 mt-4 flex justify-between items-start">
@@ -1399,21 +1417,24 @@ function App() {
               </button>
               <button
                 onClick={() => setView('food')}
-                className={`aspect-square rounded-xl flex flex-col items-center justify-between p-2 transition-all duration-700 border group relative ${isFoodPleno
-                    ? 'bg-lime-600/30 border-lime-400 shadow-[0_0_30px_rgba(132,204,22,0.4)] ring-2 ring-lime-500/20 scale-[1.05] animate-pulse'
-                    : 'bg-lime-950/30 border-lime-900/50 hover:bg-lime-900/50'
+                className={`aspect-square rounded-xl flex flex-col items-center justify-between p-2 transition-all duration-700 border group relative ${
+                    currentFoodScore < 0 
+                      ? 'bg-red-950/50 border-red-900 animate-blink shadow-[0_0_15px_rgba(239,68,68,0.3)]' 
+                      : isFoodPleno
+                        ? 'bg-lime-600/30 border-lime-400 shadow-[0_0_30px_rgba(132,204,22,0.4)] ring-2 ring-lime-500/20 scale-[1.05] animate-pulse'
+                        : 'bg-lime-950/30 border-lime-900/50 hover:bg-lime-900/50'
                   }`}
               >
                 <div className="flex-1 flex items-center justify-center">
-                  <Utensils className={`w-8 h-8 transition-colors ${isFoodPleno ? 'text-lime-200' :
-                      data.food.score < 0 ? 'text-red-500 animate-blink' : 'text-lime-500 group-hover:text-lime-400'
+                  <Utensils className={`w-8 h-8 transition-colors ${
+                      currentFoodScore < 0 ? 'text-red-500' :
+                      isFoodPleno ? 'text-lime-200' : 'text-lime-500 group-hover:text-lime-400'
                     }`} />
                 </div>
-                <div className="w-full h-1 bg-lime-900/40 rounded-full overflow-hidden">
+                <div className={`w-full h-1 bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
                   <div
-                    className={`h-full transition-all duration-500 ${data.food.score < 0 ? 'bg-red-500 animate-blink' : 'bg-lime-500'
-                      }`}
-                    style={{ width: `${data.food.score < 0 ? 100 : Math.min(100, (data.food.score / 50) * 100)}%` }}
+                    className="h-full bg-lime-500 transition-all duration-500"
+                    style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
                   ></div>
                 </div>
               </button>
