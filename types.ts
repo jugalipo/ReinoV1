@@ -86,8 +86,8 @@ export interface FoodBonuses {
 }
 
 export interface FoodConfig {
-  wheel: { id: string; icon: string }[];
-  broccoli: { id: string; icon: string }[];
+  wheel: { id: string; icon: string; label: string }[];
+  broccoli: { id: string; icon: string; label: string }[];
   bonuses: { id: string; icon: string; label: string; points: number }[];
   meals: { name: string; icon: string; max: number }[];
 }
@@ -271,4 +271,5 @@ export interface AppData {
   yunqueLargas?: Task[];
   yunqueRapidas?: Task[];
   caminos?: Camino[];
+  loveTreeSortBy?: 'interactions' | 'days';
 }

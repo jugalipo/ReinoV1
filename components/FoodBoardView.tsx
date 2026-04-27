@@ -5,19 +5,19 @@ import { FoodConfigEditor } from './FoodConfigEditor';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 const DEFAULT_WHEEL = [
-  { id: 'drink', icon: '🥤' },
-  { id: 'nuts', icon: '🥜' },
-  { id: 'dairy', icon: '🥚' },
-  { id: 'spices', icon: '🌶️' },
-  { id: 'coffee', icon: '☕' }
+  { id: '1', icon: '🥤', label: 'Bebida' },
+  { id: '2', icon: '🥜', label: 'Frutos Secos' },
+  { id: '3', icon: '🥚', label: 'Proteína' },
+  { id: '4', icon: '🌶️', label: 'Especias' },
+  { id: '5', icon: '☕', label: 'Café' }
 ];
 
 const DEFAULT_BROCCOLI = [
-  { id: 'dance', icon: '💃' },
-  { id: 'broccoli', icon: '🥦' },
-  { id: 'tablecloth', icon: '🪑' },
-  { id: 'pushups', icon: '💪' },
-  { id: 'dustpan', icon: '🧹' }
+  { id: '1', icon: '💃', label: 'Baile' },
+  { id: '2', icon: '🥦', label: 'Brócoli' },
+  { id: '3', icon: '🪑', label: 'Silla' },
+  { id: '4', icon: '💪', label: 'Flexiones' },
+  { id: '5', icon: '🧹', label: 'Recogida' }
 ];
 
 const DEFAULT_BONUSES = [
@@ -582,8 +582,8 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             broccoliPlenoCount: 0,
             bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
             dishes: {},
-            wheel: { drink: false, nuts: false, dairy: false, spices: false, coffee: false },
-            broccoliWheel: { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false }
+            wheel: { '1': false, '2': false, '3': false, '4': false, '5': false },
+            broccoliWheel: { '1': false, '2': false, '3': false, '4': false, '5': false }
         };
         
         // Map top-level property names to historical property names if they differ
@@ -605,7 +605,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   const handleBroccoliClick = (id: string) => {
     const isChecking = !currentBroccoliWheel[id];
     const newWheel = { ...currentBroccoliWheel, [id]: isChecking };
-    const allChecked = Object.values(newWheel).every(val => val === true);
+    
+    // Check if all 5 required items are checked
+    const allChecked = ['1', '2', '3', '4', '5'].every(stepId => newWheel[stepId]);
 
     if (allChecked && isChecking) {
       setLastToggledItem(id);
@@ -618,7 +620,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const confirmBroccoliPleno = () => {
-    const emptyBroccoli = { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false };
+    const emptyBroccoli = { '1': false, '2': false, '3': false, '4': false, '5': false };
     updateMonthData({
       score: monthOffset === 0 ? updateScore(1) : score,
       broccoliPlenoCount: effectiveBroccoliPlenoCount + 1,
@@ -686,8 +688,8 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   const effectiveBroccoliPlenoCount = monthOffset === 0 ? (broccoliPlenoCount || 0) : (historicalData?.broccoliPlenoCount || 0);
   const effectiveBonuses = monthOffset === 0 ? monthlyBonuses : (historicalData?.bonuses || {});
   const effectiveDishes = monthOffset === 0 ? dishes : (historicalData?.dishes || {});
-  const effectiveWheel = monthOffset === 0 ? wheel : (historicalData?.wheel || { drink: false, nuts: false, dairy: false, spices: false, coffee: false });
-  const effectiveBroccoliWheel = monthOffset === 0 ? broccoliWheel : (historicalData?.broccoliWheel || { dance: false, broccoli: false, tablecloth: false, pushups: false, dustpan: false });
+  const effectiveWheel = monthOffset === 0 ? wheel : (historicalData?.wheel || { '1': false, '2': false, '3': false, '4': false, '5': false });
+  const effectiveBroccoliWheel = monthOffset === 0 ? broccoliWheel : (historicalData?.broccoliWheel || { '1': false, '2': false, '3': false, '4': false, '5': false });
 
   const currentCalculatedScore = calculateAllDaysTotal(dailyScores, currentMonth, currentYear) + (effectiveWheelPlenoCount * 3) + (effectiveBroccoliPlenoCount * 1);
   // Add bonus points
@@ -884,7 +886,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   const toggleWheelItem = (item: string) => {
       const isChecking = !currentWheel[item];
       const newWheel = { ...currentWheel, [item]: isChecking };
-      const allChecked = Object.values(newWheel).every(val => val === true);
+      
+      // Check if all 5 required items are checked
+      const allChecked = ['1', '2', '3', '4', '5'].every(wheelId => newWheel[wheelId]);
 
       if (allChecked && isChecking) {
           setLastToggledItem(item);
@@ -897,7 +901,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const confirmWheelPleno = () => {
-      const emptyWheel = { drink: false, nuts: false, dairy: false, spices: false, coffee: false };
+      const emptyWheel = { '1': false, '2': false, '3': false, '4': false, '5': false };
       updateMonthData({
           score: monthOffset === 0 ? updateScore(3) : score,
           wheelPlenoCount: effectiveWheelPlenoCount + 1,

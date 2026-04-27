@@ -10,6 +10,8 @@ interface LoveTreeViewProps {
   onBack: () => void;
   reminders?: ReminderEvent[];
   onUpdateReminders?: (reminders: ReminderEvent[]) => void;
+  sortBy?: 'interactions' | 'days';
+  onSortChange?: (sortBy: 'interactions' | 'days') => void;
 }
 
 const DEFAULT_REMINDERS: ReminderEvent[] = [
@@ -23,7 +25,15 @@ const DEFAULT_REMINDERS: ReminderEvent[] = [
   { id: '8', title: 'Cumpleaños Alicia', date: '1993-06-14', notifyYearly: true, notifyMonthly: false, notify100Days: false },
 ];
 
-export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, onBack, reminders, onUpdateReminders }) => {
+export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ 
+  friends, 
+  onUpdate, 
+  onBack, 
+  reminders, 
+  onUpdateReminders,
+  sortBy = 'interactions',
+  onSortChange
+}) => {
   const [newFriendName, setNewFriendName] = useState('');
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [newTaskInput, setNewTaskInput] = useState('');
@@ -33,13 +43,6 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
   const [editFriendName, setEditFriendName] = useState('');
   const [editBirthday, setEditBirthday] = useState('');
   const [editInteractions, setEditInteractions] = useState<FriendInteractions>({ person: 0, call: 0, gift: 0, photo: 0, message: 0 });
-  const [sortBy, setSortBy] = useState<'interactions' | 'days'>(() => {
-    return (localStorage.getItem('love_tree_sort_by') as 'interactions' | 'days') || 'interactions';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('love_tree_sort_by', sortBy);
-  }, [sortBy]);
 
 
   // Reset delete confirmation when selecting a different friend
@@ -309,7 +312,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({ friends, onUpdate, o
             <div className="flex items-center justify-between px-1 mb-2">
                 <select 
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'interactions' | 'days')}
+                    onChange={(e) => onSortChange?.(e.target.value as 'interactions' | 'days')}
                     className="bg-stone-900 text-stone-300 text-sm font-bold border border-stone-800 rounded-lg px-3 py-1.5 focus:outline-none focus:border-pink-900 w-full"
                 >
                     <option value="interactions">Orden por brotes</option>

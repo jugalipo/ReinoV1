@@ -27,40 +27,20 @@ export const FoodConfigEditor: React.FC<FoodConfigEditorProps> = ({ initialConfi
 
   const updateWheel = (index: number, field: string, value: string) => {
     const newWheel = [...config.wheel];
-    newWheel[index] = { ...newWheel[index], [field]: value };
-    setConfig({ ...config, wheel: newWheel });
-  };
-
-  const addWheelItem = () => {
-    setConfig({
-      ...config,
-      wheel: [...config.wheel, { id: `item_${Date.now()}`, icon: '❓' }]
-    });
-  };
-
-  const removeWheelItem = (index: number) => {
-    const newWheel = [...config.wheel];
-    newWheel.splice(index, 1);
-    setConfig({ ...config, wheel: newWheel });
+    while (newWheel.length <= index) {
+      newWheel.push({ id: `${newWheel.length + 1}`, icon: '❓', label: '' });
+    }
+    newWheel[index] = { ...newWheel[index], [field]: value, id: `${index + 1}` };
+    setConfig({ ...config, wheel: newWheel.slice(0, 5) });
   };
 
   const updateBroccoli = (index: number, field: string, value: string) => {
     const newBroccoli = [...config.broccoli];
-    newBroccoli[index] = { ...newBroccoli[index], [field]: value };
-    setConfig({ ...config, broccoli: newBroccoli });
-  };
-
-  const addBroccoliItem = () => {
-    setConfig({
-      ...config,
-      broccoli: [...config.broccoli, { id: `step_${Date.now()}`, icon: '❓' }]
-    });
-  };
-
-  const removeBroccoliItem = (index: number) => {
-    const newBroccoli = [...config.broccoli];
-    newBroccoli.splice(index, 1);
-    setConfig({ ...config, broccoli: newBroccoli });
+    while (newBroccoli.length <= index) {
+      newBroccoli.push({ id: `${newBroccoli.length + 1}`, icon: '❓', label: '' });
+    }
+    newBroccoli[index] = { ...newBroccoli[index], [field]: value, id: `${index + 1}` };
+    setConfig({ ...config, broccoli: newBroccoli.slice(0, 5) });
   };
 
   const updateBonus = (index: number, field: string, value: string | number) => {
@@ -139,50 +119,65 @@ export const FoodConfigEditor: React.FC<FoodConfigEditorProps> = ({ initialConfi
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {activeTab === 'wheel' && (
           <div className="space-y-3">
-            <p className="text-sm text-stone-400 mb-4">Configura los iconos de La Rueda. El ID interno no se puede cambiar para no perder el progreso, pero puedes cambiar el icono.</p>
-            {config.wheel.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-3 bg-stone-900 p-3 rounded-xl border border-stone-800">
-                <input 
-                  type="text" 
-                  value={item.icon} 
-                  onChange={(e) => updateWheel(idx, 'icon', e.target.value)}
-                  className="w-12 h-12 text-center text-2xl bg-stone-950 rounded-lg border border-stone-700 focus:border-lime-500 focus:outline-none"
-                  placeholder="Icon"
-                />
-                <div className="flex-1 text-sm text-stone-500 font-mono">{item.id}</div>
-                <button onClick={() => removeWheelItem(idx)} className="p-2 text-red-500 hover:bg-red-500/20 rounded-lg">
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-            ))}
-            <button onClick={addWheelItem} className="w-full py-3 border-2 border-dashed border-stone-800 text-stone-500 rounded-xl hover:bg-stone-900 hover:text-stone-300 flex items-center justify-center gap-2 font-bold">
-              <Plus className="w-5 h-5" /> Añadir Icono
-            </button>
+            <p className="text-sm text-stone-400 mb-4">Configura los 5 iconos de La Rueda. Ahora se rigen por número (1-5) para mayor estabilidad.</p>
+            {[0, 1, 2, 3, 4].map((idx) => {
+              const item = config.wheel[idx] || { id: `${idx + 1}`, icon: '❓', label: '' };
+              return (
+                <div key={idx} className="flex flex-col gap-2 bg-stone-900 p-3 rounded-xl border border-stone-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 flex items-center justify-center bg-stone-950 rounded-full text-xs font-black text-stone-500 border border-stone-800">
+                      {idx + 1}
+                    </div>
+                    <input 
+                      type="text" 
+                      value={item.icon} 
+                      onChange={(e) => updateWheel(idx, 'icon', e.target.value)}
+                      className="w-12 h-12 text-center text-2xl bg-stone-950 rounded-lg border border-stone-700 focus:border-lime-500 focus:outline-none"
+                      placeholder="Icon"
+                    />
+                    <input 
+                      type="text" 
+                      value={item.label} 
+                      onChange={(e) => updateWheel(idx, 'label', e.target.value)}
+                      className="flex-1 bg-stone-950 px-3 py-2 rounded-lg border border-stone-700 focus:border-lime-500 focus:outline-none text-stone-200 font-bold text-sm"
+                      placeholder="Nombre del icono"
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
         {activeTab === 'broccoli' && (
           <div className="space-y-3">
-            <p className="text-sm text-stone-400 mb-4">Configura los pasos de la rutina Brócoli. El orden aquí es el orden en el que aparecerán.</p>
-            {config.broccoli.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-3 bg-stone-900 p-3 rounded-xl border border-stone-800">
-                <div className="w-6 text-center text-stone-500 font-bold">{idx + 1}.</div>
-                <input 
-                  type="text" 
-                  value={item.icon} 
-                  onChange={(e) => updateBroccoli(idx, 'icon', e.target.value)}
-                  className="w-12 h-12 text-center text-2xl bg-stone-950 rounded-lg border border-stone-700 focus:border-lime-500 focus:outline-none"
-                  placeholder="Icon"
-                />
-                <div className="flex-1 text-sm text-stone-500 font-mono">{item.id}</div>
-                <button onClick={() => removeBroccoliItem(idx)} className="p-2 text-red-500 hover:bg-red-500/20 rounded-lg">
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-            ))}
-            <button onClick={addBroccoliItem} className="w-full py-3 border-2 border-dashed border-stone-800 text-stone-500 rounded-xl hover:bg-stone-900 hover:text-stone-300 flex items-center justify-center gap-2 font-bold">
-              <Plus className="w-5 h-5" /> Añadir Paso
-            </button>
+            <p className="text-sm text-stone-400 mb-4">Configura los 5 pasos de la rutina Brócoli. Se rigen por número (1-5).</p>
+            {[0, 1, 2, 3, 4].map((idx) => {
+              const item = config.broccoli[idx] || { id: `${idx + 1}`, icon: '❓', label: '' };
+              return (
+                <div key={idx} className="flex flex-col gap-2 bg-stone-900 p-3 rounded-xl border border-stone-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 flex items-center justify-center bg-stone-950 rounded-full text-xs font-black text-stone-500 border border-stone-800">
+                      {idx + 1}
+                    </div>
+                    <input 
+                      type="text" 
+                      value={item.icon} 
+                      onChange={(e) => updateBroccoli(idx, 'icon', e.target.value)}
+                      className="w-12 h-12 text-center text-2xl bg-stone-950 rounded-lg border border-stone-700 focus:border-lime-500 focus:outline-none"
+                      placeholder="Icon"
+                    />
+                    <input 
+                      type="text" 
+                      value={item.label} 
+                      onChange={(e) => updateBroccoli(idx, 'label', e.target.value)}
+                      className="flex-1 bg-stone-950 px-3 py-2 rounded-lg border border-stone-700 focus:border-lime-500 focus:outline-none text-stone-200 font-bold text-sm"
+                      placeholder="Nombre del paso"
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
