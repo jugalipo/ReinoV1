@@ -458,10 +458,10 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                     
                     {/* Tick marks */}
                     <div className="absolute inset-0 flex justify-between px-1 items-center pointer-events-none">
-                        {Array.from({ length: 11 }).map((_, i) => (
+                        {Array.from({ length: 10 }).map((_, i) => (
                             <div 
                                 key={i} 
-                                className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${i <= energy ? 'bg-white/20' : 'bg-stone-800'}`} 
+                                className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${(i + 1) <= energy ? 'bg-white/20' : 'bg-stone-800'}`} 
                             />
                         ))}
                     </div>
