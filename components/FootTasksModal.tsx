@@ -61,8 +61,46 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, yu
     return footTasks;
   };
 
+  const stripEmojis = (text: string) => text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F]/gu, '').trim();
+
+  const renderTask = ({ taskId, sub, sourceType, parentName }: { taskId: string, sub: any, sourceType: any, parentName: string }) => (
+    <div
+      key={`${sourceType}-${sub.id}`}
+      className={`flex gap-4 p-3 rounded-2xl border transition-all duration-300 ${
+        sub.completed
+          ? 'bg-stone-950/40 border-emerald-900/20 opacity-60'
+          : 'bg-emerald-950/10 border-emerald-900/30 hover:border-emerald-500/50 shadow-sm'
+      }`}
+      onClick={() => toggleTask(taskId, sub.id, sourceType)}
+    >
+      <div 
+        className={`flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+          sub.completed
+            ? 'bg-emerald-600 border-emerald-600'
+            : 'border-emerald-800 hover:border-emerald-500'
+        }`}
+      >
+        {sub.completed && <Check className="w-4 h-4 text-stone-900" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className={`block font-bold text-base mb-0.5 ${sub.completed ? 'line-through text-emerald-900' : 'text-emerald-100'}`}>
+          {stripEmojis(sub.text)}
+        </span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-800">
+          {stripEmojis(parentName)}
+        </span>
+      </div>
+    </div>
+  );
+
   const allFootTasks = getFootSubtasks();
-  const sortedFootTasks = [...allFootTasks].sort((a, b) => Number(a.sub.completed) - Number(b.sub.completed));
+  
+  const incompleteTasks = allFootTasks.filter(t => !t.sub.completed);
+  const completedTasks = allFootTasks.filter(t => t.sub.completed);
+
+  const setsTasks = incompleteTasks.filter(t => t.sourceType === 'set');
+  const yunqueTasks = incompleteTasks.filter(t => t.sourceType === 'yunqueLarga' || t.sourceType === 'yunqueRapida');
+  const trainsTasks = incompleteTasks.filter(t => t.sourceType === 'train');
 
   const toggleTask = (taskId: string, subId: string, type: 'train' | 'set' | 'yunqueLarga' | 'yunqueRapida') => {
     if (type === 'train') {
@@ -136,7 +174,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, yu
         </div>
         
         <div className="p-4 flex-1 overflow-y-auto space-y-3 bg-stone-900/50">
-          {sortedFootTasks.length === 0 ? (
+          {allFootTasks.length === 0 ? (
             <div className="text-center py-12 px-6">
               <div className="w-16 h-16 bg-stone-800 rounded-full flex items-center justify-center mx-auto mb-4 opacity-50">
                 <Footprints className="w-8 h-8 text-stone-600" />
@@ -144,35 +182,41 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, yu
               <p className="text-stone-500 italic text-sm">No hay subtareas con el emoji 🦶 en tus Trenes, Setas o Yunque.</p>
             </div>
           ) : (
-            sortedFootTasks.map(({ taskId, sub, sourceType, parentName }) => (
-              <div
-                key={`${sourceType}-${sub.id}`}
-                className={`flex gap-4 p-4 rounded-2xl border transition-all duration-300 ${
-                  sub.completed
-                    ? 'bg-stone-950/40 border-emerald-900/20 opacity-60'
-                    : 'bg-emerald-950/10 border-emerald-900/30 hover:border-emerald-500/50 shadow-sm'
-                }`}
-                onClick={() => toggleTask(taskId, sub.id, sourceType)}
-              >
-                <div 
-                  className={`flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
-                    sub.completed
-                      ? 'bg-emerald-600 border-emerald-600'
-                      : 'border-emerald-800 hover:border-emerald-500'
-                  }`}
-                >
-                  {sub.completed && <Check className="w-4 h-4 text-stone-900" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className={`block font-bold text-lg mb-0.5 ${sub.completed ? 'line-through text-emerald-900' : 'text-emerald-100'}`}>
-                    {sub.text}
-                  </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800">
-                    {sourceType === 'train' ? '🚂' : sourceType === 'set' ? '🍄' : '⚔️'} {parentName.split(' ').slice(1).join(' ') || parentName}
-                  </span>
-                </div>
-              </div>
-            ))
+            <div className="space-y-6">
+              {setsTasks.length > 0 && (
+                 <div>
+                    <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-3 px-2">🍄 Setas</h4>
+                    <div className="space-y-2">
+                       {setsTasks.map(renderTask)}
+                    </div>
+                 </div>
+              )}
+              {yunqueTasks.length > 0 && (
+                 <div>
+                    <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-3 px-2">⚔️ Yunque</h4>
+                    <div className="space-y-2">
+                       {yunqueTasks.map(renderTask)}
+                    </div>
+                 </div>
+              )}
+              {trainsTasks.length > 0 && (
+                 <div>
+                    <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-3 px-2">🚂 Trenes</h4>
+                    <div className="space-y-2">
+                       {trainsTasks.map(renderTask)}
+                    </div>
+                 </div>
+              )}
+              
+              {completedTasks.length > 0 && (
+                 <div className="pt-4 border-t border-emerald-900/20">
+                    <h4 className="text-xs font-bold text-stone-600 uppercase tracking-widest mb-3 px-2">Completadas</h4>
+                    <div className="space-y-2">
+                       {completedTasks.map(renderTask)}
+                    </div>
+                 </div>
+              )}
+            </div>
           )}
         </div>
         
