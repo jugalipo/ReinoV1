@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ResourceTask, Task } from '../types';
-import { ArrowLeft, Plus, Minus, Edit2, Save, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Edit2, Save, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple, TreePine, TreeDeciduous } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 interface ResourceTrackerViewProps {
@@ -540,81 +540,49 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
             </div>
         )}
 
-        {/* FORJA WORK LIST (FORJAS ONLY) */}
-        {(title === 'Forjas' || title === 'Roble') && (
-            <div className="w-full bg-stone-900 p-4 rounded-3xl border border-stone-800 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                         {title === 'Roble' ? 'Trabajos de Roble' : 'Trabajos de Forja'}
-                    </h3>
-                    <button 
-                        onClick={() => setIsEditingForjaTasks(!isEditingForjaTasks)}
-                        className={`p-1.5 rounded-full transition-colors ${isEditingForjaTasks ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}
-                    >
-                        {isEditingForjaTasks ? <Save className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-                    </button>
-                </div>
 
-                {isEditingForjaTasks ? (
-                    <div className="space-y-2 animate-in fade-in duration-300">
-                        {forjaTasks.map(task => (
-                            <div key={task.id} className="flex gap-2">
-                                <input 
-                                    value={task.text}
-                                    onChange={(e) => updateForjaTaskText(task.id, e.target.value)}
-                                    className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-200 text-sm focus:outline-none focus:border-orange-500"
-                                />
-                                <button 
-                                    onClick={() => deleteForjaTask(task.id)}
-                                    className="p-1.5 text-red-500 hover:bg-red-900/20 rounded-lg transition-colors"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                        ))}
-                        <div className="flex gap-2 pt-2 border-t border-stone-800">
-                            <input 
-                                value={newForjaTaskText}
-                                onChange={(e) => setNewForjaTaskText(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && addForjaTask()}
-                                placeholder="Nueva tarea..."
-                                className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-200 text-sm focus:outline-none focus:border-orange-500"
-                            />
-                            <button 
-                                onClick={addForjaTask}
-                                className="p-1.5 bg-orange-600 text-stone-950 rounded-lg hover:bg-orange-500 transition-colors"
-                            >
-                                <Plus className="w-4 h-4" />
-                            </button>
+
+        {/* SEASONAL TREE (FORJAS/ROBLE ONLY) */}
+        {(title === 'Forjas' || title === 'Roble') && (
+            <div className="w-full flex justify-center py-6">
+                {(() => {
+                    const month = new Date().getMonth(); // 0-11
+                    let TreeIcon = TreePine;
+                    let colorClass = "text-slate-300";
+                    let seasonName = "Invierno";
+
+                    if (month >= 3 && month <= 5) {
+                        TreeIcon = TreeDeciduous;
+                        colorClass = "text-lime-500 drop-shadow-[0_0_15px_rgba(132,204,22,0.4)]";
+                        seasonName = "Primavera";
+                    } else if (month >= 6 && month <= 8) {
+                        TreeIcon = TreeDeciduous;
+                        colorClass = "text-emerald-700 drop-shadow-[0_0_15px_rgba(4,120,87,0.4)]";
+                        seasonName = "Verano";
+                    } else if (month >= 9 && month <= 11) {
+                        TreeIcon = TreeDeciduous;
+                        colorClass = "text-orange-500 drop-shadow-[0_0_15px_rgba(249,115,22,0.4)]";
+                        seasonName = "Otoño";
+                    } else {
+                        colorClass = "text-slate-300 drop-shadow-[0_0_15px_rgba(203,213,225,0.3)] opacity-80";
+                    }
+
+                    return (
+                        <div className="flex flex-col items-center">
+                            <TreeIcon className={`w-32 h-32 transition-all duration-1000 ${colorClass}`} strokeWidth={1.5} />
+                            <span className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-stone-600">
+                                {seasonName}
+                            </span>
                         </div>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 gap-2">
-                        {forjaTasks.length === 0 && <p className="text-center text-stone-600 italic text-xs py-2">Sin trabajos activos.</p>}
-                        {forjaTasks.map(task => (
-                            <button 
-                                key={task.id}
-                                onClick={() => toggleForjaTask(task.id)}
-                                className="flex items-center gap-3 p-3 bg-stone-950/50 hover:bg-stone-800/50 rounded-2xl border border-stone-800 transition-all text-left group"
-                            >
-                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${task.completed ? 'bg-orange-600 border-orange-600 text-stone-900' : 'border-stone-700 group-hover:border-stone-500'}`}>
-                                    {task.completed && <CheckCircle2 className="w-4 h-4" />}
-                                </div>
-                                <span className={`text-sm font-medium transition-colors ${task.completed ? 'text-stone-500 line-through' : 'text-stone-200'}`}>
-                                    {task.text}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                )}
+                    );
+                })()}
             </div>
         )}
 
-        {/* 2x2 GRID (FORJAS ONLY) */}
+        {/* STACKED BUTTONS (FORJAS/ROBLE ONLY) */}
         {(title === 'Forjas' || title === 'Roble') && quarterlyTasks.length > 0 && (
-            <div className="w-full pt-4 border-t border-stone-800 space-y-4">
-                <h3 className="font-bold text-stone-500 uppercase tracking-widest text-[10px] px-1">Objetivos de Estación</h3>
-                <div className="grid grid-cols-2 gap-4">
+            <div className="w-full pt-4 space-y-3">
+                <div className="flex flex-col gap-3">
                     {quarterlyTasks.map((task, i) => {
                          const colors = getQuarterlyColors(task.id);
                          const qPercent = Math.min(100, (task.current / task.target) * 100);
@@ -624,29 +592,30 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                                 key={task.id}
                                 onClick={() => setSelectedObjectiveId(task.id)}
                                 className={`
-                                    relative flex flex-col items-center justify-center aspect-square rounded-3xl p-4 transition-all duration-300 border-2 overflow-hidden group
-                                    ${colors.bg} ${colors.border} hover:scale-[1.02] active:scale-95 shadow-lg
+                                    relative w-full rounded-2xl py-4 px-5 transition-all duration-300 border border-stone-800 overflow-hidden text-left shadow-sm active:scale-[0.98] group
                                 `}
                             >
-                                <div className="absolute top-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    {getQuarterlyIcon(task.id, "w-12 h-12")}
-                                </div>
+                                {/* Base background */}
+                                <div className="absolute inset-0 bg-stone-900" />
+                                {/* Progress fill */}
+                                <div 
+                                    className={`absolute top-0 left-0 bottom-0 transition-all duration-700 ${colors.bar} opacity-20`}
+                                    style={{ width: `${qPercent}%` }}
+                                />
+                                {/* Hover Effect Outline */}
+                                <div className={`absolute inset-0 border-2 border-transparent group-hover:${colors.border} rounded-2xl transition-colors pointer-events-none`} />
                                 
-                                <div className="relative z-10 flex flex-col items-center text-center space-y-1">
-                                    <h4 className="text-sm font-black text-stone-100 leading-tight line-clamp-2">{task.name}</h4>
-                                    <p className={`text-[10px] font-black ${colors.accent} opacity-90`}>
-                                        {task.current} <span className="text-stone-500">/</span> {task.target} <span className="text-[8px] text-stone-600 uppercase">{task.unit}</span>
-                                    </p>
+                                <div className="relative z-10 flex items-center justify-between w-full">
+                                    <div className="flex items-center gap-3 truncate">
+                                        <h4 className="text-base font-bold text-stone-100 truncate">{task.name}</h4>
+                                        <span className={`text-sm font-black ${colors.accent} whitespace-nowrap`}>
+                                            {task.current} {task.unit}
+                                        </span>
+                                    </div>
+                                    <div className={`flex-shrink-0 ${colors.accent}`}>
+                                        {getQuarterlyIcon(task.id, "w-6 h-6")}
+                                    </div>
                                 </div>
-
-                                {/* Mini Progress line at the bottom */}
-                                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-stone-900/50 overflow-hidden">
-                                    <div 
-                                        className={`h-full transition-all duration-700 ${colors.bar}`}
-                                        style={{ width: `${qPercent}%` }}
-                                    />
-                                </div>
-                                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </button>
                          );
                     })}
