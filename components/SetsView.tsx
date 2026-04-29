@@ -254,18 +254,7 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                             strokeWidth="2.5" 
                         />
 
-                        {/* Current Count inside Stem */}
-                        <text 
-                            x="100" 
-                            y="135" 
-                            textAnchor="middle" 
-                            fontSize="28" 
-                            fontWeight="900" 
-                            fill="#1c1917"
-                            className="font-mono"
-                        >
-                            {tasks.filter(t => t.completed).length}
-                        </text>
+
                     </svg>
                 </div>
             </div>

@@ -1294,47 +1294,98 @@ function App() {
   };
 
   const renderSetsPreview = () => {
+    const createCapSlicePath = (index: number, total: number, radius: number, cx: number, cy: number) => {
+      const span = 180;
+      const startAngle = 180 + (index * span) / total;
+      const endAngle = 180 + ((index + 1) * span) / total;
+      const startRad = startAngle * (Math.PI / 180);
+      const endRad = endAngle * (Math.PI / 180);
+      const x1 = cx + radius * Math.cos(startRad);
+      const y1 = cy + radius * Math.sin(startRad);
+      const x2 = cx + radius * Math.cos(endRad);
+      const y2 = cy + radius * Math.sin(endRad);
+      return `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2} Z`;
+    };
+
+    const stemPath = `
+      M 75 100 
+      L 125 100 
+      Q 130 100 130 110
+      L 130 145
+      A 30 20 0 0 1 70 145
+      L 70 110
+      Q 70 100 75 100
+      Z
+    `;
+
+    const chartTasks = [...data.sets].sort((a, b) => Number(b.completed) - Number(a.completed));
     const total = data.sets.length;
-    if (total === 0) return (<svg width="40" height="40" viewBox="0 0 40 40" className="transform -rotate-90"> <circle cx="20" cy="20" r="16" fill="transparent" stroke="#450a0a" strokeWidth="4" /> </svg>);
-    const radius = 16, cx = 20, cy = 20;
-    const sortedSets = [...data.sets].sort((a, b) => Number(b.completed) - Number(a.completed));
+    const tasksCount = total > 0 ? total : 1;
+    const slices = total > 0 ? chartTasks : [{ id: 'empty', completed: false }];
+
     return (
-      <svg width="40" height="40" viewBox="0 0 40 40" className="transform -rotate-90">
-        <circle cx="20" cy="20" r="16" fill="transparent" stroke="#450a0a" strokeWidth="4" />
-        {sortedSets.map((task, index) => {
-          if (!task.completed) return null;
-          if (total === 1) return <circle key={index} cx={cx} cy={cy} r={radius} fill="#ef4444" />;
-          const sliceAngle = 360 / total;
-          const startRad = (index * sliceAngle) * (Math.PI / 180);
-          const endRad = ((index + 1) * sliceAngle) * (Math.PI / 180);
-          const x1 = cx + radius * Math.cos(startRad), y1 = cy + radius * Math.sin(startRad);
-          const x2 = cx + radius * Math.cos(endRad), y2 = cy + radius * Math.sin(endRad);
-          const largeArcFlag = sliceAngle > 180 ? 1 : 0;
-          return <path key={index} d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`} fill="#ef4444" />;
-        })}
+      <svg width="100%" height="100%" viewBox="0 0 200 160" className="w-full h-full object-contain">
+        {slices.map((task, index) => (
+            <path
+                key={task.id}
+                d={createCapSlicePath(index, tasksCount, 90, 100, 100)}
+                fill={task.completed ? '#ef4444' : '#450a0a'}
+                stroke="#1c1917"
+                strokeWidth="2.5"
+                className="transition-all duration-300 ease-in-out"
+            />
+        ))}
+        <line x1="10" y1="100" x2="190" y2="100" stroke="#1c1917" strokeWidth="3" />
+        <path d={stemPath} fill="#ffffff" stroke="#1c1917" strokeWidth="2.5" />
       </svg>
     );
   };
 
   const renderTrainsPreview = () => {
-    const total = data.trains.length;
-    if (total === 0) return (<svg width="40" height="40" viewBox="0 0 40 40" className="transform -rotate-90"> <circle cx="20" cy="20" r="16" fill="transparent" stroke="#1e3a8a" strokeWidth="4" /> </svg>);
-    const radius = 16, cx = 20, cy = 20;
-    const sortedTrains = [...data.trains].sort((a, b) => Number(b.completed) - Number(a.completed));
+    let completedSubtasksCount = 0;
+    let totalSubtasksCount = 0;
+    
+    data.trains.forEach(task => {
+        const subs = task.subtasks || [];
+        if (subs.length > 0) {
+            totalSubtasksCount += subs.length;
+            completedSubtasksCount += subs.filter(s => s.completed).length;
+        } else {
+            totalSubtasksCount += 1;
+            completedSubtasksCount += task.completed ? 1 : 0;
+        }
+    });
+
+    const progress = totalSubtasksCount === 0 ? 0 : (completedSubtasksCount / totalSubtasksCount) * 100;
+
     return (
-      <svg width="40" height="40" viewBox="0 0 40 40" className="transform -rotate-90">
-        <circle cx="20" cy="20" r="16" fill="transparent" stroke="#1e3a8a" strokeWidth="4" />
-        {sortedTrains.map((task, index) => {
-          if (!task.completed) return null;
-          if (total === 1) return <circle key={index} cx={cx} cy={cy} r={radius} fill="#3b82f6" />;
-          const sliceAngle = 360 / total;
-          const startRad = (index * sliceAngle) * (Math.PI / 180);
-          const endRad = ((index + 1) * sliceAngle) * (Math.PI / 180);
-          const x1 = cx + radius * Math.cos(startRad), y1 = cy + radius * Math.sin(startRad);
-          const x2 = cx + radius * Math.cos(endRad), y2 = cy + radius * Math.sin(endRad);
-          const largeArcFlag = sliceAngle > 180 ? 1 : 0;
-          return <path key={index} d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`} fill="#3b82f6" />;
-        })}
+      <svg width="100%" height="100%" viewBox="0 0 400 120" className="w-full h-full object-contain overflow-visible px-2">
+          <path 
+              d="M 380 60 H 350 V 100 H 300 V 20 H 250 V 100 H 200 V 20 H 150 V 100 H 100 V 20 H 50 V 60 H 20" 
+              fill="none" 
+              stroke="#262626" 
+              strokeWidth="14" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+          />
+          <path 
+              d="M 380 60 H 350 V 100 H 300 V 20 H 250 V 100 H 200 V 20 H 150 V 100 H 100 V 20 H 50 V 60 H 20" 
+              fill="none" 
+              stroke="url(#progressGradientTrain)" 
+              strokeWidth="14" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              strokeDasharray="1000"
+              strokeDashoffset={1000 - (1000 * (progress / 100))}
+              className="transition-all duration-1000 ease-in-out"
+              style={{ filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.4))' }}
+          />
+          <defs>
+              <linearGradient id="progressGradientTrain" x1="100%" y1="0%" x2="0%" y2="0%">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#60a5fa" />
+              </linearGradient>
+          </defs>
       </svg>
     );
   };
@@ -1384,34 +1435,24 @@ function App() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <button
                 onClick={() => setView('trains')}
-                className={`aspect-[4/3] rounded-2xl p-4 flex flex-col justify-between transition-all duration-700 border shadow-sm group ${isTrainPleno
+                className={`aspect-[4/3] rounded-2xl p-4 flex items-center justify-center transition-all duration-700 border shadow-sm group ${isTrainPleno
                     ? 'bg-blue-600/30 border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.4)] ring-2 ring-blue-500/20 scale-[1.02] animate-pulse'
                     : 'bg-blue-950/30 border-blue-900/50 hover:bg-blue-900/50'
                   }`}
               >
-                <div className="flex justify-between items-start w-full">
-                  <Train className={`w-8 h-8 transition-colors ${isTrainPleno ? 'text-blue-300' : 'text-blue-500 group-hover:text-blue-400'}`} />
-                  <div className={`opacity-80 scale-75 origin-top-right ${isTrainPleno ? 'brightness-125 saturate-150' : ''}`}>{renderTrainsPreview()}</div>
-                </div>
-                <div className="text-left">
-                  <span className={`block font-bold text-lg ${isTrainPleno ? 'text-white' : 'text-blue-200'}`}>Trenes</span>
-                  <span className={`text-[10px] font-medium leading-tight ${isTrainPleno ? 'text-blue-200' : 'text-blue-500/80'}`}>{getMonthLabel()}</span>
+                <div className={`w-full h-full flex items-center justify-center transition-all ${isTrainPleno ? 'brightness-125 saturate-150' : ''}`}>
+                  {renderTrainsPreview()}
                 </div>
               </button>
               <button
                 onClick={() => setView('sets')}
-                className={`aspect-[4/3] rounded-2xl p-4 flex flex-col justify-between transition-all duration-700 border shadow-sm group ${isSetsPleno
+                className={`aspect-[4/3] rounded-2xl p-4 flex items-center justify-center transition-all duration-700 border shadow-sm group ${isSetsPleno
                     ? 'bg-red-600/30 border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.4)] ring-2 ring-red-500/20 scale-[1.02] animate-pulse'
                     : 'bg-red-950/30 border-red-900/50 hover:bg-red-900/50'
                   }`}
               >
-                <div className="flex justify-between items-start w-full">
-                  <MushroomIcon className={`w-8 h-8 transition-colors ${isSetsPleno ? 'text-red-300' : 'text-red-400 group-hover:text-red-400'}`} />
-                  <div className={`opacity-80 scale-75 origin-top-right ${isSetsPleno ? 'brightness-125 saturate-150' : ''}`}>{renderSetsPreview()}</div>
-                </div>
-                <div className="text-left">
-                  <span className={`block font-bold text-lg ${isSetsPleno ? 'text-white' : 'text-red-200'}`}>Setas</span>
-                  <span className={`text-[10px] font-medium leading-tight ${isSetsPleno ? 'text-red-200' : 'text-red-500/80'}`}>{getWeekLabel()}</span>
+                <div className={`w-full h-full flex items-center justify-center transition-all ${isSetsPleno ? 'brightness-125 saturate-150' : ''}`}>
+                  {renderSetsPreview()}
                 </div>
               </button>
             </div>
