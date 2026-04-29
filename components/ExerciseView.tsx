@@ -15,6 +15,8 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   // State for Add Minutes Modal
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [customTime, setCustomTime] = useState('');
+  
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
 
   // --- NEW BLOCK-BASED TIMER STATE ---
   const timerBlocks = exercise.timerBlocks || [{ id: 'default', workSecs: 45, restSecs: 15, rounds: 3 }];
@@ -70,6 +72,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   useModalHistory(showTimeModal, () => setShowTimeModal(false));
   useModalHistory(showTimerSettings, () => setShowTimerSettings(false));
   useModalHistory(showSessionConfirmModal, () => setShowSessionConfirmModal(false));
+  useModalHistory(showCompleteModal, () => setShowCompleteModal(false));
   // ---------------------------------------------
 
   useEffect(() => {
@@ -258,7 +261,16 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   const handleAddSeries = () => {
     const next = seriesCurrent + 1;
     if (next >= 9) {
-      // Complete Cycle
+      setShowCompleteModal(true);
+    } else {
+      onUpdate({
+        ...exercise,
+        seriesCurrent: next
+      });
+    }
+  };
+
+  const confirmCompleteCycle = () => {
       const today = new Date().toDateString();
       const currentStats = (exercise.history || {})[today] || { minutes: 0, workouts: 0 };
       
@@ -274,13 +286,24 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
           }
         }
       });
-    } else {
-      // Increment
-      onUpdate({
-        ...exercise,
-        seriesCurrent: next
-      });
-    }
+      setShowCompleteModal(false);
+  };
+
+  const handleAddNineSeries = () => {
+    const today = new Date().toDateString();
+    const currentStats = (exercise.history || {})[today] || { minutes: 0, workouts: 0 };
+    
+    onUpdate({
+      ...exercise,
+      daysTrained: (daysTrained || 0) + 1,
+      history: {
+        ...(exercise.history || {}),
+        [today]: {
+          ...currentStats,
+          workouts: currentStats.workouts + 1
+        }
+      }
+    });
   };
 
   const handleRemoveSeries = () => {
@@ -330,21 +353,34 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
   // Grid for the 9 series visualizer
   const renderGrid = () => {
+    const handleGridClick = (index: number) => {
+        const selectedSeries = index + 1;
+        if (selectedSeries === 9) {
+            setShowCompleteModal(true);
+        } else {
+            onUpdate({
+                ...exercise,
+                seriesCurrent: selectedSeries
+            });
+        }
+    };
+
     return (
       <div className="grid grid-cols-3 gap-3 w-64 mx-auto mb-6">
         {Array.from({ length: 9 }).map((_, i) => {
           const isActive = i < seriesCurrent;
           return (
-            <div
+            <button
               key={i}
-              className={`aspect-square rounded-xl transition-all duration-300 border-2 flex items-center justify-center font-bold text-lg
+              onClick={() => handleGridClick(i)}
+              className={`aspect-square rounded-xl transition-all duration-300 border-2 flex items-center justify-center font-bold text-lg active:scale-95
                 ${isActive 
                   ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)]' 
-                  : 'bg-stone-900 border-stone-800 text-stone-700'
+                  : 'bg-stone-900 border-stone-800 text-stone-700 hover:bg-stone-800 hover:border-stone-700'
                 }`}
             >
               <BicepsFlexed className="w-6 h-6" />
-            </div>
+            </button>
           );
         })}
       </div>
@@ -375,11 +411,11 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
                 <div className="flex items-center justify-center gap-4">
                     <button 
-                        onClick={handleRemoveSeries}
-                        disabled={seriesCurrent === 0}
-                        className="w-12 h-12 rounded-full border border-stone-700 text-stone-500 flex items-center justify-center hover:bg-stone-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                        onClick={handleAddNineSeries}
+                        className="w-12 h-12 rounded-full border border-yellow-700/50 text-yellow-500 flex items-center justify-center hover:bg-yellow-900/30 transition-colors shadow-lg shadow-yellow-900/20"
+                        title="Sumar entrenamiento completo (+9)"
                     >
-                        <RotateCcw className="w-5 h-5" />
+                        <Trophy className="w-5 h-5" />
                     </button>
                     
                     <button 
@@ -646,6 +682,40 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
         </p>
 
       </div>
+
+      {/* Complete Cycle Modal */}
+      {showCompleteModal && (
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowCompleteModal(false)}
+        >
+            <div 
+              className="bg-stone-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl border border-stone-800 flex flex-col items-center text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+                <div className="w-20 h-20 bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
+                    <Trophy className="w-10 h-10 text-emerald-500" />
+                </div>
+                <h2 className="text-2xl font-black text-stone-100 mb-2">¡Entrenamiento Completado!</h2>
+                <p className="text-stone-400 font-bold mb-8">Has alcanzado las 9 series. ¿Añadir 1 entrenamiento de fuerza a tus estadísticas y empezar de cero?</p>
+                
+                <div className="flex gap-4 w-full">
+                    <button 
+                        onClick={() => setShowCompleteModal(false)}
+                        className="flex-1 py-4 bg-stone-800 text-stone-300 font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-stone-700 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        onClick={confirmCompleteCycle}
+                        className="flex-1 py-4 bg-emerald-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-900/30"
+                    >
+                        Completar
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* Add Time Modal */}
       {showTimeModal && (
