@@ -57,7 +57,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
   // Billetes Logic State
   const [showBilletesConfirm, setShowBilletesConfirm] = useState(false);
-  const [lastBilletIndex, setLastBilletIndex] = useState<number | null>(null);
 
   const [showLeonesConfirm, setShowLeonesConfirm] = useState(false);
   const [lastLeonIndex, setLastLeonIndex] = useState<number | null>(null);
@@ -221,17 +220,29 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   };
 
   // --- Billetes Actions ---
-  const toggleBillete = (index: number) => {
+  const handleBilleteClick = (index: number) => {
       if (!onUpdateBilletes) return;
       
-      const newState = [...billetesState];
-      const isActivating = !newState[index];
-      newState[index] = isActivating;
+      const count = index + 1;
+      const newState = Array(20).fill(false).map((_, i) => i < count);
+      
+      if (count === 20) {
+          setShowBilletesConfirm(true);
+      } else {
+          onUpdateBilletes(newState, huchaCount);
+      }
+  };
 
-      // Check if this is the 20th billete being activated
-      const activatedCount = newState.filter(v => v).length;
-      if (isActivating && activatedCount === 20) {
-          setLastBilletIndex(index);
+  const incrementBilletes = () => {
+      if (!onUpdateBilletes) return;
+      const currentCount = billetesState.filter(v => v).length;
+      const newCount = currentCount + 1;
+      
+      if (newCount > 20) return;
+
+      const newState = Array(20).fill(false).map((_, i) => i < newCount);
+
+      if (newCount === 20) {
           setShowBilletesConfirm(true);
       } else {
           onUpdateBilletes(newState, huchaCount);
@@ -242,17 +253,14 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       if (!onUpdateBilletes) return;
       onUpdateBilletes(Array(20).fill(false), huchaCount + 1);
       setShowBilletesConfirm(false);
-      setLastBilletIndex(null);
   };
 
   const cancelBilletesPleno = () => {
-      if (lastBilletIndex !== null && onUpdateBilletes) {
-          const revertedState = [...billetesState];
-          revertedState[lastBilletIndex] = false;
+      if (onUpdateBilletes) {
+          const revertedState = Array(20).fill(false).map((_, i) => i < 19);
           onUpdateBilletes(revertedState, huchaCount);
       }
       setShowBilletesConfirm(false);
-      setLastBilletIndex(null);
   };
 
   // --- Leones Actions ---
@@ -481,21 +489,30 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-5 gap-2">
-                    {billetesState.map((active, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => toggleBillete(idx)}
-                            className={`
-                                aspect-[3/2] rounded-lg flex items-center justify-center transition-all duration-300 border-2
-                                ${active 
-                                    ? 'bg-amber-600 border-amber-400 text-stone-900 shadow-[0_0_8px_rgba(217,119,6,0.3)] scale-105' 
-                                    : 'bg-stone-950 border-stone-800 text-orange-500 opacity-40 hover:opacity-100'}
-                            `}
-                        >
-                            <Banknote className="w-4 h-4" />
-                        </button>
-                    ))}
+                <div className="flex items-center gap-4">
+                    <div className="flex-1 flex gap-1 h-12 bg-stone-950 p-1.5 rounded-xl border border-stone-800">
+                        {Array.from({ length: 20 }).map((_, idx) => {
+                            const active = billetesState[idx];
+                            return (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleBilleteClick(idx)}
+                                    className={`flex-1 rounded-sm transition-all duration-300 ${
+                                        active 
+                                            ? 'bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]' 
+                                            : 'bg-stone-800 hover:bg-stone-700'
+                                    }`}
+                                />
+                            );
+                        })}
+                    </div>
+                    
+                    <button
+                        onClick={incrementBilletes}
+                        className="w-12 h-12 shrink-0 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-900 flex items-center justify-center font-black active:scale-95 transition-all shadow-lg shadow-amber-900/30"
+                    >
+                        <Plus className="w-6 h-6" />
+                    </button>
                 </div>
                 
                 <p className="text-[8px] text-stone-600 text-center font-bold tracking-widest uppercase">
