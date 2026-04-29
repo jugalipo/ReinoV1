@@ -22,7 +22,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   const [editPhase2Text, setEditPhase2Text] = useState('');
   const [editPhase3Text, setEditPhase3Text] = useState('');
   const [editPhase4Text, setEditPhase4Text] = useState('');
-  const [editAnnualText, setEditAnnualText] = useState('');
+  const [editAnnualTasks, setEditAnnualTasks] = useState<Task[]>([]);
   const [activeFilter, setActiveFilter] = useState<'star' | 'foot' | null>(null);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
@@ -96,16 +96,15 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
           const newPhase4 = textToTasks(editPhase4Text, tasks, 'Fase 4');
           
           const newMonthly = [...newPhase1, ...newPhase2, ...newPhase3, ...newPhase4];
-          const newAnnual = textToTasks(editAnnualText, annualTasks);
           onUpdate(newMonthly);
-          onUpdateAnnual(newAnnual);
+          onUpdateAnnual(editAnnualTasks);
           setIsEditing(false);
       } else {
           setEditPhase1Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 1')));
           setEditPhase2Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 2')));
           setEditPhase3Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 3')));
           setEditPhase4Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 4')));
-          setEditAnnualText(tasksToText(annualTasks));
+          setEditAnnualTasks(JSON.parse(JSON.stringify(annualTasks))); // Deep copy
           setIsEditing(true);
       }
   };
@@ -407,13 +406,124 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
       if (isEditing && isAnnual) {
           return (
-              <div className="w-full h-full min-h-[300px]">
-                  <textarea
-                      value={editAnnualText}
-                      onChange={(e) => setEditAnnualText(e.target.value)}
-                      className="w-full h-full min-h-[300px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
-                      placeholder={"Pega aquí tus tareas anuales...\n🌍 Viajar a Japón\nComprar billetes\nReservar hotel"}
-                  />
+              <div className="w-full space-y-4">
+                  {editAnnualTasks.map((task, index) => (
+                      <div key={task.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 flex flex-col gap-4 relative">
+                          <button 
+                              onClick={() => setTaskToDelete({ id: task.id, isAnnual: true })}
+                              className="absolute top-4 right-4 p-2 text-stone-600 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors"
+                          >
+                              <Trash2 className="w-4 h-4" />
+                          </button>
+
+                          <div className="flex-1 pr-12">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1 block">Título</label>
+                              <input 
+                                  value={task.text}
+                                  onChange={(e) => {
+                                      const updated = [...editAnnualTasks];
+                                      updated[index] = { ...updated[index], text: e.target.value };
+                                      setEditAnnualTasks(updated);
+                                  }}
+                                  placeholder="Ej: 🌍 Viajar a Japón"
+                                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 font-bold"
+                              />
+                          </div>
+                          
+                          <div>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-2 block">Repetidor (Meses)</label>
+                              <div className="flex flex-wrap gap-1.5">
+                                  {['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].map((m, mIdx) => {
+                                      const isSelected = task.repeaterMonths?.includes(mIdx);
+                                      return (
+                                          <button
+                                              key={mIdx}
+                                              onClick={() => {
+                                                  const updated = [...editAnnualTasks];
+                                                  const currMonths = task.repeaterMonths || [];
+                                                  if (isSelected) {
+                                                      updated[index] = { ...updated[index], repeaterMonths: currMonths.filter(x => x !== mIdx) };
+                                                  } else {
+                                                      updated[index] = { ...updated[index], repeaterMonths: [...currMonths, mIdx].sort((a,b)=>a-b) };
+                                                  }
+                                                  setEditAnnualTasks(updated);
+                                              }}
+                                              className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all border ${
+                                                  isSelected ? 'bg-blue-600 border-blue-500 text-white' : 'bg-stone-950 border-stone-800 text-stone-500 hover:border-stone-600'
+                                              }`}
+                                          >
+                                              {m}
+                                          </button>
+                                      );
+                                  })}
+                              </div>
+                          </div>
+
+                          <div>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-2 block">Subtareas</label>
+                              <div className="space-y-2">
+                                  {(task.subtasks || []).map((sub, sIdx) => (
+                                      <div key={sub.id} className="flex gap-2 items-center">
+                                          <input 
+                                              value={sub.text}
+                                              onChange={(e) => {
+                                                  const updated = [...editAnnualTasks];
+                                                  const subs = [...(updated[index].subtasks || [])];
+                                                  subs[sIdx] = { ...subs[sIdx], text: e.target.value };
+                                                  updated[index].subtasks = subs;
+                                                  setEditAnnualTasks(updated);
+                                              }}
+                                              className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-300 text-sm focus:outline-none focus:border-blue-500"
+                                          />
+                                          <button 
+                                              onClick={() => {
+                                                  const updated = [...editAnnualTasks];
+                                                  updated[index].subtasks = updated[index].subtasks?.filter(s => s.id !== sub.id);
+                                                  setEditAnnualTasks(updated);
+                                              }}
+                                              className="p-1.5 text-red-500 hover:bg-red-900/20 rounded-lg transition-colors"
+                                          >
+                                              <X className="w-4 h-4" />
+                                          </button>
+                                      </div>
+                                  ))}
+                                  <div className="flex gap-2">
+                                      <input 
+                                          placeholder="Nueva subtarea..."
+                                          onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                  const val = e.currentTarget.value;
+                                                  if (!val.trim()) return;
+                                                  const updated = [...editAnnualTasks];
+                                                  updated[index].subtasks = [...(updated[index].subtasks || []), { id: `new-sub-${Date.now()}-${Math.random()}`, text: val, completed: false, isProvisional: false }];
+                                                  setEditAnnualTasks(updated);
+                                                  e.currentTarget.value = '';
+                                              }
+                                          }}
+                                          className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-400 text-sm focus:outline-none focus:border-blue-500"
+                                      />
+                                  </div>
+                                  <p className="text-[10px] text-stone-600">Añade 🦶 para Passeggiata o ⭐ para Locomotora.</p>
+                              </div>
+                          </div>
+                      </div>
+                  ))}
+                  
+                  <button 
+                      onClick={() => {
+                          setEditAnnualTasks([...editAnnualTasks, {
+                              id: `annual-${Date.now()}`,
+                              text: '🚂 Nuevo Tren',
+                              completed: false,
+                              subtasks: [],
+                              repeaterMonths: []
+                          }]);
+                      }}
+                      className="w-full py-4 border-2 border-dashed border-stone-700 hover:border-blue-500 hover:text-blue-400 text-stone-500 rounded-2xl flex flex-col items-center justify-center gap-2 transition-colors font-bold uppercase tracking-widest text-xs"
+                  >
+                      <Plus className="w-5 h-5" />
+                      Añadir Tren Anual
+                  </button>
               </div>
           );
       }
@@ -837,6 +947,43 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                           onClick={() => {
                               deleteSubtask(subtaskToDelete.id);
                               setSubtaskToDelete(null);
+                          }}
+                          className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20"
+                      >
+                          Eliminar
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Task Delete Confirmation Modal (Annual Trains) */}
+      {taskToDelete && (
+          <div 
+              className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+              onClick={() => setTaskToDelete(null)}
+          >
+              <div 
+                  className="bg-stone-900 border border-stone-800 rounded-2xl p-6 w-full max-w-xs shadow-2xl scale-in-center"
+                  onClick={(e) => e.stopPropagation()}
+              >
+                  <h3 className="text-lg font-bold text-stone-200 mb-2">¿Eliminar Tren Anual?</h3>
+                  <p className="text-stone-400 text-sm mb-6">
+                      Se borrará permanentemente este tren anual y sus subtareas. Esta acción no se puede deshacer.
+                  </p>
+                  <div className="flex gap-3">
+                      <button
+                          onClick={() => setTaskToDelete(null)}
+                          className="flex-1 py-3 rounded-xl bg-stone-800 text-stone-300 font-bold hover:bg-stone-700 transition-colors"
+                      >
+                          Cancelar
+                      </button>
+                      <button
+                          onClick={() => {
+                              if (taskToDelete.isAnnual) {
+                                  setEditAnnualTasks(editAnnualTasks.filter(t => t.id !== taskToDelete.id));
+                              }
+                              setTaskToDelete(null);
                           }}
                           className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20"
                       >

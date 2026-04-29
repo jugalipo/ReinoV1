@@ -654,6 +654,12 @@ const processResets = (parsed: AppData): AppData => {
     if (result.stats.interactionsHistory.length > 12) result.stats.interactionsHistory.shift();
     result.stats.lastTotalInteractions = currentTotalInteractions;
     result.trains = result.trains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.filter(s => !s.isProvisional).map(s => ({ ...s, completed: false })) }));
+    result.annualTrains = result.annualTrains.map(t => {
+      if (currentYear === resetYear && t.repeaterMonths && t.repeaterMonths.includes(currentMonth)) {
+        return { ...t, completed: false, subtasks: t.subtasks?.filter(s => !s.isProvisional).map(s => ({ ...s, completed: false })) };
+      }
+      return t;
+    });
     result.trainsPlenoClaimed = false;
     result.lastTrainsReset = Date.now();
   }

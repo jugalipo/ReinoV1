@@ -10,6 +10,7 @@ export interface Task {
   plenoCompleted?: boolean; // true if completed at least once in the current "pleno" cycle
   phase?: 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4';
   isProvisional?: boolean;
+  repeaterMonths?: number[]; // Array of months (0-11) where this task automatically resets
 }
 
 export interface GympiezaTask {
