@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Camino } from '../types';
-import { ArrowLeft, Plus, Minus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Trash2, X, Edit2, Save } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 interface CaminosViewProps {
@@ -15,9 +15,16 @@ export const CaminosView: React.FC<CaminosViewProps> = ({ caminos, onUpdate, onB
   const [newUnit, setNewUnit] = useState('');
   const [newTarget, setNewTarget] = useState('100');
   const [idToDelete, setIdToDelete] = useState<string | null>(null);
+  const [selectedCaminoId, setSelectedCaminoId] = useState<string | null>(null);
+  const [isEditingCamino, setIsEditingCamino] = useState(false);
+  const [editCaminoData, setEditCaminoData] = useState<Camino | null>(null);
 
   useModalHistory(isAdding, () => setIsAdding(false));
   useModalHistory(!!idToDelete, () => setIdToDelete(null));
+  useModalHistory(!!selectedCaminoId, () => {
+      setSelectedCaminoId(null);
+      setIsEditingCamino(false);
+  });
 
   const addCamino = () => {
     if (!newName.trim()) return;
@@ -81,56 +88,38 @@ export const CaminosView: React.FC<CaminosViewProps> = ({ caminos, onUpdate, onB
             <p className="text-stone-400 font-black uppercase tracking-[0.2em] text-[10px]">Sin rutas trazadas</p>
           </div>
         ) : (
-          sortedCaminos.map((camino, idx) => (
-            <div 
-              key={camino.id} 
-              className="bg-stone-900/40 rounded-2xl p-4 border border-stone-800/50 shadow-lg relative overflow-hidden group hover:border-stone-700 transition-all duration-500"
-              style={{ animationDelay: `${idx * 50}ms` }}
-            >
-              <div className="flex justify-between items-center mb-3 relative z-10">
-                <div className="flex items-center gap-3 overflow-hidden">
-                   <h3 className="text-sm font-black text-stone-100 tracking-tight leading-tight truncate">{camino.name}</h3>
-                   <span className="font-mono font-black text-stone-400 text-[10px] whitespace-nowrap">
-                     {camino.progress} / {camino.target || 100} <span className="opacity-50">{camino.unit || '%'}</span>
-                   </span>
-                </div>
-                <button 
-                  onClick={() => setIdToDelete(camino.id)}
-                  className="p-1.5 text-stone-800 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3 relative z-10">
-                <button 
-                  onClick={() => updateProgress(camino.id, -1)}
-                  className="w-8 h-8 rounded-lg bg-stone-900 border border-stone-800 flex items-center justify-center hover:bg-stone-800 active:scale-90 transition-all shadow-md shrink-0"
-                >
-                  <Minus className="w-4 h-4 text-stone-500" />
-                </button>
-                
-                <div className="flex-1 h-4 bg-stone-950 rounded-full overflow-hidden border border-stone-800/50 p-0.5">
-                  <div 
-                    className="h-full rounded-full bg-gradient-to-r from-stone-700 via-stone-400 to-stone-100 transition-all duration-700 ease-out shadow-[0_0_10px_rgba(255,255,255,0.05)]" 
-                    style={{ width: `${Math.min(100, (camino.progress / (camino.target || 100)) * 100)}%` }}
-                  />
-                </div>
-
-                <button 
-                  onClick={() => updateProgress(camino.id, 1)}
-                  disabled={camino.progress >= (camino.target || 100)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-all shadow-md shrink-0 ${
-                    camino.progress >= (camino.target || 100) 
-                      ? 'bg-stone-800 text-stone-700 cursor-not-allowed' 
-                      : 'bg-stone-200 text-stone-950 hover:bg-white'
-                  }`}
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))
+          sortedCaminos.map((camino, idx) => {
+             const percent = Math.min(100, (camino.progress / (camino.target || 100)) * 100);
+             return (
+               <button 
+                 key={camino.id} 
+                 onClick={() => setSelectedCaminoId(camino.id)}
+                 className="relative w-full rounded-2xl py-4 px-5 transition-all duration-300 border border-stone-800 overflow-hidden text-left shadow-sm active:scale-[0.98] group"
+                 style={{ animationDelay: `${idx * 50}ms` }}
+               >
+                 {/* Base background */}
+                 <div className="absolute inset-0 bg-stone-900" />
+                 
+                 {/* Progress fill */}
+                 <div 
+                     className="absolute top-0 left-0 bottom-0 transition-all duration-700 bg-stone-500 opacity-20"
+                     style={{ width: `${percent}%` }}
+                 />
+                 
+                 {/* Hover Effect Outline */}
+                 <div className="absolute inset-0 border-2 border-transparent group-hover:border-stone-600 rounded-2xl transition-colors pointer-events-none" />
+                 
+                 <div className="relative z-10 flex items-center justify-between w-full">
+                     <div className="flex items-center gap-3 truncate">
+                         <h4 className="text-base font-bold text-stone-100 truncate">{camino.name}</h4>
+                         <span className="text-sm font-black text-stone-400 whitespace-nowrap">
+                             {camino.progress} {camino.unit || '%'}
+                         </span>
+                     </div>
+                 </div>
+               </button>
+             );
+          })
         )}
       </div>
 
@@ -223,6 +212,109 @@ export const CaminosView: React.FC<CaminosViewProps> = ({ caminos, onUpdate, onB
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {selectedCaminoId && (
+        <div 
+          className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300" 
+          onClick={() => { setSelectedCaminoId(null); setIsEditingCamino(false); }}
+        >
+          {(() => {
+             const camino = caminos.find(c => c.id === selectedCaminoId);
+             if (!camino) return null;
+             
+             if (isEditingCamino && editCaminoData) {
+                 return (
+                     <div className="bg-stone-900 w-full max-w-sm rounded-[2.5rem] border border-stone-800 p-8 shadow-2xl flex flex-col relative" onClick={e => e.stopPropagation()}>
+                         <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-black text-stone-100 italic">Editar Camino</h2>
+                            <button onClick={() => setIsEditingCamino(false)} className="p-2 text-stone-600 hover:text-stone-300 transition-colors">
+                              <X className="w-5 h-5" />
+                            </button>
+                         </div>
+                         <div className="space-y-4 mb-8">
+                             <div>
+                                 <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1 ml-1 block">Nombre</label>
+                                 <input value={editCaminoData.name} onChange={e => setEditCaminoData({...editCaminoData, name: e.target.value})} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-200 font-bold focus:border-stone-600 outline-none" />
+                             </div>
+                             <div className="grid grid-cols-2 gap-4">
+                                 <div>
+                                     <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1 ml-1 block">Progreso</label>
+                                     <input type="number" value={editCaminoData.progress === 0 ? '' : editCaminoData.progress} onChange={e => setEditCaminoData({...editCaminoData, progress: parseFloat(e.target.value) || 0})} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-200 font-bold focus:border-stone-600 outline-none" />
+                                 </div>
+                                 <div>
+                                     <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1 ml-1 block">Objetivo</label>
+                                     <input type="number" value={editCaminoData.target} onChange={e => setEditCaminoData({...editCaminoData, target: parseFloat(e.target.value) || 100})} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-200 font-bold focus:border-stone-600 outline-none" />
+                                 </div>
+                             </div>
+                             <div>
+                                 <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1 ml-1 block">Unidades</label>
+                                 <input value={editCaminoData.unit || ''} onChange={e => setEditCaminoData({...editCaminoData, unit: e.target.value})} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-200 font-bold focus:border-stone-600 outline-none" />
+                             </div>
+                         </div>
+                         <button 
+                             onClick={() => {
+                                 onUpdate(caminos.map(c => c.id === editCaminoData.id ? editCaminoData : c));
+                                 setIsEditingCamino(false);
+                             }}
+                             className="w-full py-4 bg-stone-200 text-stone-950 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white transition-all shadow-lg flex items-center justify-center gap-2"
+                         >
+                             <Save className="w-4 h-4" /> Guardar Cambios
+                         </button>
+                     </div>
+                 );
+             }
+
+             return (
+               <div className="bg-stone-900 w-full max-w-sm rounded-[2.5rem] border border-stone-800 p-8 shadow-2xl flex flex-col items-center relative" onClick={e => e.stopPropagation()}>
+                 <div className="flex justify-between items-start w-full mb-6">
+                   <div className="pr-10">
+                     <h2 className="text-xl font-black text-stone-100 leading-tight">{camino.name}</h2>
+                     <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mt-1">
+                       Objetivo: {camino.target || 100} {camino.unit || '%'}
+                     </p>
+                   </div>
+                   <div className="absolute top-8 right-8 flex gap-1">
+                     <button 
+                       onClick={() => { setEditCaminoData(camino); setIsEditingCamino(true); }} 
+                       className="p-2 text-stone-600 hover:text-blue-500 hover:bg-blue-900/20 rounded-full transition-colors"
+                     >
+                       <Edit2 className="w-5 h-5" />
+                     </button>
+                     <button 
+                       onClick={() => { setSelectedCaminoId(null); setIsEditingCamino(false); setIdToDelete(camino.id); }} 
+                       className="p-2 text-stone-600 hover:text-red-500 hover:bg-red-900/20 rounded-full transition-colors"
+                     >
+                       <Trash2 className="w-5 h-5" />
+                     </button>
+                   </div>
+                 </div>
+
+                 <div className="text-5xl font-black text-stone-100 mb-8 tracking-tighter">
+                   {camino.progress} <span className="text-xl text-stone-500 ml-1 uppercase font-bold">{camino.unit || '%'}</span>
+                 </div>
+
+                 <div className="flex items-center gap-6 w-full justify-center mb-6">
+                   <button 
+                     onClick={() => updateProgress(camino.id, -1)}
+                     className="w-16 h-16 rounded-2xl bg-stone-800 border border-stone-700 flex items-center justify-center hover:bg-stone-700 active:scale-90 transition-all shadow-md shrink-0"
+                   >
+                     <Minus className="w-8 h-8 text-stone-400" />
+                   </button>
+                   
+                   <button 
+                     onClick={() => updateProgress(camino.id, 1)}
+                     className={`w-16 h-16 rounded-2xl flex items-center justify-center active:scale-90 transition-all shadow-md shrink-0 bg-stone-200 text-stone-950 hover:bg-white`}
+                   >
+                     <Plus className="w-8 h-8" />
+                   </button>
+                 </div>
+                 
+                 <button onClick={() => { setSelectedCaminoId(null); setIsEditingCamino(false); }} className="mt-4 text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-stone-300">Cerrar</button>
+               </div>
+             );
+          })()}
         </div>
       )}
     </div>
