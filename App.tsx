@@ -1462,7 +1462,7 @@ function App() {
                 </div>
               </button>
             </div>
-            <div className="grid grid-cols-5 gap-2 mb-6">
+            <div className="grid grid-cols-4 gap-2 mb-2">
               <button onClick={() => setView('love')} className="aspect-square bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-900/50 transition-colors border border-pink-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
                   <Heart className={`w-8 h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
@@ -1471,9 +1471,59 @@ function App() {
                   <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
                 </div>
               </button>
+              <button onClick={() => setView('leones')} className="aspect-square bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-900/50 transition-colors border border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
+              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><TreeDeciduous className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
+              <button onClick={() => setView('yunque')} className="aspect-square bg-slate-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-slate-900/50 transition-colors border border-slate-900/50 group relative">
+                <div className="flex-1 flex items-center justify-center">
+                  <Anvil className="w-8 h-8 text-slate-500 group-hover:text-slate-400 transition-colors" />
+                </div>
+                <div className="w-full h-1 bg-slate-900/40 rounded-full overflow-hidden">
+                  <div className="h-full bg-slate-500 transition-all duration-300" style={{ width: `100%` }}></div>
+                </div>
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2 mb-6">
+              {/* Pie (Footprints) Button - 1/4 width */}
+              {(() => {
+                const footTasks = [
+                  ...data.trains.flatMap(t => t.subtasks || []),
+                  ...data.sets.flatMap(s => s.subtasks || []),
+                  ...(data.yunqueLargas || []),
+                  ...(data.yunqueRapidas || [])
+                ].filter(s => s.text.includes('🦶'));
+                const footProgress = footTasks.length > 0 ? (footTasks.filter(s => s.completed).length / footTasks.length) : 0;
+                
+                return (
+                  <button 
+                    onClick={() => setShowFootModal(true)}
+                    className="col-span-1 aspect-square bg-emerald-950/20 rounded-2xl flex flex-col items-center justify-between p-3 border border-emerald-900/40 hover:bg-emerald-900/40 transition-all group relative"
+                  >
+                    <div className="flex-1 flex items-center justify-center">
+                      <Footprints className="w-8 h-8 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                    </div>
+                    <div className="w-full h-1 bg-emerald-900/40 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${footProgress * 100}%` }}></div>
+                    </div>
+                  </button>
+                );
+              })()}
+
+              {/* Sala de Entrenamiento Button - 2/4 width */}
+              <button 
+                onClick={() => setView('exercise')} 
+                className="col-span-2 bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl group transition-colors p-4"
+              >
+                <div className="flex gap-1 h-10 w-full">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < data.exercise.seriesCurrent ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30'}`} />
+                  ))}
+                </div>
+              </button>
+
+              {/* Jumangiare (Food) Button - 1/4 width */}
               <button
                 onClick={() => setView('food')}
-                className={`aspect-square rounded-xl flex flex-col items-center justify-between p-2 transition-all duration-700 border group relative ${
+                className={`col-span-1 aspect-square rounded-2xl flex flex-col items-center justify-between p-2 transition-all duration-700 border group relative ${
                     currentFoodScore < 0 
                       ? 'bg-red-950/50 border-red-900 animate-blink shadow-[0_0_15px_rgba(239,68,68,0.3)]' 
                       : isFoodPleno
@@ -1492,57 +1542,6 @@ function App() {
                     className="h-full bg-lime-500 transition-all duration-500"
                     style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
                   ></div>
-                </div>
-              </button>
-              <button onClick={() => setView('leones')} className="aspect-square bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-900/50 transition-colors border border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
-              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><TreeDeciduous className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
-              <button onClick={() => setView('yunque')} className="aspect-square bg-slate-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-slate-900/50 transition-colors border border-slate-900/50 group relative">
-                <div className="flex-1 flex items-center justify-center">
-                  <Anvil className="w-8 h-8 text-slate-500 group-hover:text-slate-400 transition-colors" />
-                </div>
-                <div className="w-full h-1 bg-slate-900/40 rounded-full overflow-hidden">
-                  <div className="h-full bg-slate-500 transition-all duration-300" style={{ width: `100%` }}></div>
-                </div>
-              </button>
-            </div>
-            <div className="grid grid-cols-4 gap-3 mb-3 h-[88px]">
-              {/* Pie (Footprints) Button - 1/4 width */}
-              {(() => {
-                const footTasks = [
-                  ...data.trains.flatMap(t => t.subtasks || []),
-                  ...data.sets.flatMap(s => s.subtasks || []),
-                  ...(data.yunqueLargas || []),
-                  ...(data.yunqueRapidas || [])
-                ].filter(s => s.text.includes('🦶'));
-                const footProgress = footTasks.length > 0 ? (footTasks.filter(s => s.completed).length / footTasks.length) : 0;
-                
-                return (
-                  <button 
-                    onClick={() => setShowFootModal(true)}
-                    className="col-span-1 bg-emerald-950/20 rounded-2xl flex flex-col items-center justify-between p-3 border border-emerald-900/40 hover:bg-emerald-900/40 transition-all group relative"
-                  >
-                    <div className="flex-1 flex items-center justify-center">
-                      <Footprints className="w-8 h-8 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                    </div>
-                    <div className="w-full h-1 bg-emerald-900/40 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${footProgress * 100}%` }}></div>
-                    </div>
-                  </button>
-                );
-              })()}
-
-              {/* Sala de Entrenamiento Button - 3/4 width */}
-              <button 
-                onClick={() => setView('exercise')} 
-                className="col-span-3 bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl p-4 flex items-center gap-4 group transition-colors"
-              >
-                <div className="p-2 bg-emerald-900/40 rounded-xl flex-shrink-0">
-                  <Dumbbell className="w-6 h-6 text-emerald-500" />
-                </div>
-                <div className="flex-1 flex gap-1 h-10">
-                  {Array.from({ length: 9 }).map((_, i) => (
-                    <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < data.exercise.seriesCurrent ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30'}`} />
-                  ))}
                 </div>
               </button>
             </div>
