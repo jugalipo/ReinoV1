@@ -18,10 +18,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
-  const [editPhase1Text, setEditPhase1Text] = useState('');
-  const [editPhase2Text, setEditPhase2Text] = useState('');
-  const [editPhase3Text, setEditPhase3Text] = useState('');
-  const [editPhase4Text, setEditPhase4Text] = useState('');
+  const [editMonthlyTasks, setEditMonthlyTasks] = useState<Task[]>([]);
   const [editAnnualTasks, setEditAnnualTasks] = useState<Task[]>([]);
   const [activeFilter, setActiveFilter] = useState<'star' | 'foot' | null>(null);
 
@@ -90,21 +87,12 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
   const handleEditToggle = () => {
       if (isEditing) {
-          const newPhase1 = textToTasks(editPhase1Text, tasks, 'Fase 1');
-          const newPhase2 = textToTasks(editPhase2Text, tasks, 'Fase 2');
-          const newPhase3 = textToTasks(editPhase3Text, tasks, 'Fase 3');
-          const newPhase4 = textToTasks(editPhase4Text, tasks, 'Fase 4');
-          
-          const newMonthly = [...newPhase1, ...newPhase2, ...newPhase3, ...newPhase4];
-          onUpdate(newMonthly);
+          onUpdate(editMonthlyTasks);
           onUpdateAnnual(editAnnualTasks);
           setIsEditing(false);
       } else {
-          setEditPhase1Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 1')));
-          setEditPhase2Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 2')));
-          setEditPhase3Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 3')));
-          setEditPhase4Text(tasksToText(tasks.filter(t => (t.phase || 'Fase 1') === 'Fase 4')));
-          setEditAnnualTasks(JSON.parse(JSON.stringify(annualTasks))); // Deep copy
+          setEditMonthlyTasks(JSON.parse(JSON.stringify(tasks))); // Deep copy — IDs stay stable
+          setEditAnnualTasks(JSON.parse(JSON.stringify(annualTasks)));
           setIsEditing(true);
       }
   };
@@ -742,43 +730,161 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
         {/* Task List (Monthly) */}
         <div className="mb-8">
             {isEditing ? (
-                <div className="space-y-6">
-                    <div>
-                        <h3 className="text-sm font-bold text-blue-400 mb-2 uppercase tracking-wider">Fase 1: Arranque</h3>
-                        <textarea
-                            value={editPhase1Text}
-                            onChange={(e) => setEditPhase1Text(e.target.value)}
-                            className="w-full min-h-[120px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
-                            placeholder="Tareas de Arranque..."
-                        />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-blue-400 mb-2 uppercase tracking-wider">Fase 2: Alternancias</h3>
-                        <textarea
-                            value={editPhase2Text}
-                            onChange={(e) => setEditPhase2Text(e.target.value)}
-                            className="w-full min-h-[120px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
-                            placeholder="Tareas de Alternancias..."
-                        />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-blue-400 mb-2 uppercase tracking-wider">Fase 3: Mantenimiento</h3>
-                        <textarea
-                            value={editPhase3Text}
-                            onChange={(e) => setEditPhase3Text(e.target.value)}
-                            className="w-full min-h-[120px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
-                            placeholder="Tareas de Mantenimiento..."
-                        />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-blue-400 mb-2 uppercase tracking-wider">Fase 4: Cierre</h3>
-                        <textarea
-                            value={editPhase4Text}
-                            onChange={(e) => setEditPhase4Text(e.target.value)}
-                            className="w-full min-h-[120px] bg-stone-950 border border-stone-700 rounded-2xl p-4 text-stone-200 focus:outline-none focus:border-blue-500 font-mono text-sm leading-relaxed resize-y"
-                            placeholder="Tareas de Cierre..."
-                        />
-                    </div>
+                <div className="space-y-8">
+                    {(['Fase 1', 'Fase 2', 'Fase 3', 'Fase 4'] as const).map((phase) => {
+                        const phaseLabels: Record<string, string> = {
+                            'Fase 1': 'Arranque',
+                            'Fase 2': 'Alternancias',
+                            'Fase 3': 'Mantenimiento',
+                            'Fase 4': 'Cierre'
+                        };
+                        const phaseTasks = editMonthlyTasks.filter(t => (t.phase || 'Fase 1') === phase);
+                        return (
+                            <div key={phase}>
+                                <h3 className="text-sm font-bold text-blue-400 mb-3 uppercase tracking-wider">{phase}: {phaseLabels[phase]}</h3>
+                                <div className="space-y-3">
+                                    {phaseTasks.map((task) => {
+                                        const taskIdx = editMonthlyTasks.findIndex(t => t.id === task.id);
+                                        const fixedSubtasks = (task.subtasks || []).filter(s => !s.isProvisional);
+                                        const provisionalCount = (task.subtasks || []).filter(s => s.isProvisional).length;
+                                        return (
+                                            <div key={task.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 flex flex-col gap-3 relative">
+                                                <button
+                                                    onClick={() => setTaskToDelete({ id: task.id, isAnnual: false })}
+                                                    className="absolute top-4 right-4 p-2 text-stone-600 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+
+                                                {/* Train name */}
+                                                <div className="pr-12">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1 block">Nombre del Tren</label>
+                                                    <input
+                                                        value={task.text}
+                                                        onChange={(e) => {
+                                                            const updated = [...editMonthlyTasks];
+                                                            updated[taskIdx] = { ...updated[taskIdx], text: e.target.value };
+                                                            setEditMonthlyTasks(updated);
+                                                        }}
+                                                        placeholder="Ej: 🦁 Leones 2h"
+                                                        className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 font-bold"
+                                                    />
+                                                </div>
+
+                                                {/* Phase selector */}
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-2 block">Fase</label>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {(['Fase 1', 'Fase 2', 'Fase 3', 'Fase 4'] as const).map((p) => (
+                                                            <button
+                                                                key={p}
+                                                                onClick={() => {
+                                                                    const updated = [...editMonthlyTasks];
+                                                                    updated[taskIdx] = { ...updated[taskIdx], phase: p };
+                                                                    setEditMonthlyTasks(updated);
+                                                                }}
+                                                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${
+                                                                    (task.phase || 'Fase 1') === p
+                                                                        ? 'bg-blue-600 border-blue-500 text-white'
+                                                                        : 'bg-stone-950 border-stone-800 text-stone-500 hover:border-stone-600'
+                                                                }`}
+                                                            >
+                                                                {p}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Fixed subtasks */}
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-2 block">Subtareas Fijas</label>
+                                                    <div className="space-y-2">
+                                                        {fixedSubtasks.map((sub) => {
+                                                            const subIdx = (editMonthlyTasks[taskIdx].subtasks || []).findIndex(s => s.id === sub.id);
+                                                            return (
+                                                                <div key={sub.id} className="flex gap-2 items-center">
+                                                                    <input
+                                                                        value={sub.text}
+                                                                        onChange={(e) => {
+                                                                            const updated = [...editMonthlyTasks];
+                                                                            const subs = [...(updated[taskIdx].subtasks || [])];
+                                                                            subs[subIdx] = { ...subs[subIdx], text: e.target.value };
+                                                                            updated[taskIdx] = { ...updated[taskIdx], subtasks: subs };
+                                                                            setEditMonthlyTasks(updated);
+                                                                        }}
+                                                                        className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-300 text-sm focus:outline-none focus:border-blue-500"
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const updated = [...editMonthlyTasks];
+                                                                            updated[taskIdx] = {
+                                                                                ...updated[taskIdx],
+                                                                                subtasks: updated[taskIdx].subtasks?.filter(s => s.id !== sub.id)
+                                                                            };
+                                                                            setEditMonthlyTasks(updated);
+                                                                        }}
+                                                                        className="p-1.5 text-red-500 hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
+                                                                    >
+                                                                        <X className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {/* Add fixed subtask */}
+                                                        <input
+                                                            placeholder="Nueva subtarea fija (Enter para añadir)..."
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    const val = e.currentTarget.value.trim();
+                                                                    if (!val) return;
+                                                                    const updated = [...editMonthlyTasks];
+                                                                    updated[taskIdx] = {
+                                                                        ...updated[taskIdx],
+                                                                        subtasks: [...(updated[taskIdx].subtasks || []), {
+                                                                            id: `sub-${Date.now()}-${Math.random()}`,
+                                                                            text: val,
+                                                                            completed: false,
+                                                                            isProvisional: false
+                                                                        }]
+                                                                    };
+                                                                    setEditMonthlyTasks(updated);
+                                                                    e.currentTarget.value = '';
+                                                                }
+                                                            }}
+                                                            className="w-full bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-400 text-sm focus:outline-none focus:border-blue-500"
+                                                        />
+                                                        <p className="text-[10px] text-stone-600">Añade 🦶 para Passeggiata o ⭐ para Locomotora.</p>
+                                                        {provisionalCount > 0 && (
+                                                            <p className="text-[10px] text-indigo-400/70">
+                                                                {provisionalCount} subtarea{provisionalCount > 1 ? 's' : ''} provisional{provisionalCount > 1 ? 'es' : ''} (se borran al resetear el mes).
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Add train to this phase */}
+                                    <button
+                                        onClick={() => {
+                                            setEditMonthlyTasks(prev => [...prev, {
+                                                id: `monthly-${Date.now()}-${Math.random()}`,
+                                                text: '🚂 Nuevo Tren',
+                                                completed: false,
+                                                subtasks: [],
+                                                phase
+                                            }]);
+                                        }}
+                                        className="w-full py-3 border-2 border-dashed border-stone-700 hover:border-blue-500 hover:text-blue-400 text-stone-500 rounded-2xl flex items-center justify-center gap-2 transition-colors font-bold uppercase tracking-widest text-xs"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Añadir Tren a {phase}
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             ) : activeFilter ? (
                 <div className="mb-6">
@@ -967,9 +1073,13 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                   className="bg-stone-900 border border-stone-800 rounded-2xl p-6 w-full max-w-xs shadow-2xl scale-in-center"
                   onClick={(e) => e.stopPropagation()}
               >
-                  <h3 className="text-lg font-bold text-stone-200 mb-2">¿Eliminar Tren Anual?</h3>
+                  <h3 className="text-lg font-bold text-stone-200 mb-2">
+                      {taskToDelete.isAnnual ? '¿Eliminar Tren Anual?' : '¿Eliminar Tren Mensual?'}
+                  </h3>
                   <p className="text-stone-400 text-sm mb-6">
-                      Se borrará permanentemente este tren anual y sus subtareas. Esta acción no se puede deshacer.
+                      {taskToDelete.isAnnual
+                          ? 'Se borrará permanentemente este tren anual y sus subtareas. Esta acción no se puede deshacer.'
+                          : 'Se borrará este tren mensual y sus subtareas fijas. Las subtareas provisionales también desaparecerán.'}
                   </p>
                   <div className="flex gap-3">
                       <button
@@ -982,6 +1092,8 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                           onClick={() => {
                               if (taskToDelete.isAnnual) {
                                   setEditAnnualTasks(editAnnualTasks.filter(t => t.id !== taskToDelete.id));
+                              } else {
+                                  setEditMonthlyTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
                               }
                               setTaskToDelete(null);
                           }}
