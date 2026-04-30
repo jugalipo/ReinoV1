@@ -1403,7 +1403,7 @@ function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'trains': return <TrainView tasks={data.trains} annualTasks={data.annualTrains} onUpdate={handleTrainsUpdate} onUpdateAnnual={(t) => setData(prev => ({ ...prev, annualTrains: t }))} onBack={() => setView('home')} />;
+      case 'trains': return <TrainView tasks={data.trains} annualTasks={data.annualTrains} onUpdate={handleTrainsUpdate} onUpdateAnnual={(t) => setData(prev => ({ ...prev, annualTrains: t }))} onBack={() => setView('home')} reminderDismissedToday={data.lastAnnualTrainReminderDate === new Date().toISOString().split('T')[0]} onDismissReminder={() => setData(prev => ({ ...prev, lastAnnualTrainReminderDate: new Date().toISOString().split('T')[0] }))} />;
       case 'sets': return <SetsView tasks={data.sets} onUpdate={handleSetsUpdate} onBack={() => setView('home')} />;
       case 'love': return <LoveTreeView 
         friends={data.friends} 

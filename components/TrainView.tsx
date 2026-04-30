@@ -9,10 +9,13 @@ interface TrainViewProps {
   onUpdate: (tasks: Task[]) => void;
   onUpdateAnnual: (tasks: Task[]) => void;
   onBack: () => void;
+  reminderDismissedToday: boolean;
+  onDismissReminder: () => void;
 }
 
-export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpdate, onUpdateAnnual, onBack }) => {
+export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpdate, onUpdateAnnual, onBack, reminderDismissedToday, onDismissReminder }) => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [showAnnualReminder, setShowAnnualReminder] = useState(!reminderDismissedToday);
   const [newSubtask, setNewSubtask] = useState('');
   const [subtaskToDelete, setSubtaskToDelete] = useState<{ id: string, text: string } | null>(null);
   
@@ -587,6 +590,48 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
   return (
     <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+
+      {/* Daily Annual Train Reminder Modal */}
+      {showAnnualReminder && (() => {
+        const nextAnnual = [...annualTasks].find(t => !t.completed);
+        if (!nextAnnual) return null;
+        return (
+          <div className="absolute inset-0 z-[200] flex items-center justify-center p-6 bg-black/75 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-stone-900 border border-blue-500/30 rounded-3xl p-6 w-full max-w-sm shadow-2xl flex flex-col gap-5">
+              {/* Icon + title */}
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="w-16 h-16 bg-blue-900/30 rounded-full flex items-center justify-center border border-blue-500/40 shadow-[0_0_24px_rgba(59,130,246,0.2)]">
+                  <span className="text-3xl">🎯</span>
+                </div>
+                <h2 className="text-xl font-black text-stone-100 tracking-tight uppercase italic">Tren Anual del Día</h2>
+                <p className="text-stone-400 text-sm leading-relaxed">Dedica al menos <span className="text-blue-400 font-bold">3 minutos</span> a este tren antes de continuar.</p>
+              </div>
+
+              {/* Annual train card */}
+              <div className="bg-stone-950 border border-stone-800 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <div className="w-2 h-10 bg-stone-200 rounded-full flex-shrink-0" />
+                <span className="text-stone-100 font-bold text-base leading-snug">{nextAnnual.text}</span>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => { onDismissReminder(); setShowAnnualReminder(false); }}
+                  className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black text-base uppercase tracking-wider hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/30 active:scale-95"
+                >
+                  ¡Hecho!
+                </button>
+                <button
+                  onClick={onBack}
+                  className="w-full py-3 rounded-2xl bg-stone-800 text-stone-400 font-bold text-sm hover:bg-stone-700 hover:text-stone-300 transition-all active:scale-95"
+                >
+                  Todavía no
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
         <div className="flex items-center gap-4">
             <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">

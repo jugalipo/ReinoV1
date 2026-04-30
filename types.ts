@@ -273,4 +273,5 @@ export interface AppData {
   yunqueRapidas?: Task[];
   caminos?: Camino[];
   loveTreeSortBy?: 'interactions' | 'days';
+  lastAnnualTrainReminderDate?: string; // YYYY-MM-DD — tracks when the user last dismissed the daily annual train reminder
 }
