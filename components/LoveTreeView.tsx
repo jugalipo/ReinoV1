@@ -289,7 +289,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
                     // Doubled size: 24 instead of 12
                     const path = `M ${pos.x} ${pos.y - 24} Q ${pos.x + 24} ${pos.y} ${pos.x} ${pos.y + 24} Q ${pos.x - 24} ${pos.y} ${pos.x} ${pos.y - 24}`;
                     return (
-                        <g key={friend.id} className="transition-opacity">
+                        <g key={friend.id} className="transition-opacity opacity-80">
                             <path 
                                 d={path}
                                 fill={getLeafColor(days)}
@@ -304,7 +304,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
                     // Doubled size: 12 instead of 6
                     const path = `M ${pos.x} ${pos.y - 12} Q ${pos.x + 12} ${pos.y} ${pos.x} ${pos.y + 12} Q ${pos.x - 12} ${pos.y} ${pos.x} ${pos.y - 12}`;
                     return (
-                        <g key={friend.id} className="transition-opacity opacity-60">
+                        <g key={friend.id} className="transition-opacity opacity-50">
                             <path 
                                 d={path}
                                 fill={getLeafColor(days)}
@@ -388,7 +388,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
 
              {sporadicFriends.length > 0 && (
                 <>
-                    <h3 className="font-bold text-stone-500 text-xs uppercase mt-8 mb-3 px-1">Contactos Esporádicos</h3>
+                    <h3 className="font-bold text-stone-500 text-xs uppercase mt-8 mb-3 px-1">Yemas</h3>
                     <div className="grid grid-cols-2 gap-3 pb-8">
                         {sporadicFriends.map(f => {
                             const days = getDaysSince(f.lastInteraction);
