@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
-import { Sword, CheckCircle2, Edit2, Save, X, Trophy } from 'lucide-react';
+import { Sword, CheckCircle2, Edit2, Save, X, Trophy, Trash2, Plus } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 import { HunosMonthViewModal } from './HunosMonthViewModal';
 
@@ -33,9 +33,13 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
 
   // Edit Mode States
   const [isEditing, setIsEditing] = useState(false);
-  const [text1, setText1] = useState('');
-  const [text2, setText2] = useState('');
-  const [text3, setText3] = useState('');
+  const [editTasks, setEditTasks] = useState<Task[]>([]);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+
+  // Group tasks for display
+  const fantasticosTasks = tasks.filter((t, i) => t.hunoType === 'fantastico' || (!t.hunoType && i < 4));
+  const enanitosTasks = tasks.filter((t, i) => t.hunoType === 'enanito' || (!t.hunoType && i >= 4 && i < 15));
+  const fondoTasks = tasks.filter((t, i) => t.hunoType === 'fondo' || (!t.hunoType && i >= 15));
 
   // Filter out the "GAP" tasks for calculations in View Mode
   const visibleTasks = tasks.filter(t => t.text !== 'GAP');
@@ -77,6 +81,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   useModalHistory(isEditing, () => setIsEditing(false));
   useModalHistory(showMonthView, () => setShowMonthView(false));
   useModalHistory(showConfirmModal, () => setShowConfirmModal(false));
+  useModalHistory(!!taskToDelete, () => setTaskToDelete(null));
   // ---------------------------------------------
 
   // --- VIEW MODE ACTIONS ---
@@ -155,63 +160,58 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
 
   // --- EDIT MODE ACTIONS ---
 
-  const textToTasks = (t1: string, t2: string, t3: string, existingTasks: Task[]): Task[] => {
-      const allText = [t1, t2, t3].join('\n');
-      const lines = allText.split('\n').map(l => l.trim()).filter(l => l);
-      
-      const availableTasks = [...existingTasks];
-      const result: Task[] = Array(lines.length).fill(null);
-      const usedOldIndices = new Set<number>();
-
-      // Step 1: Exact matches (handles reordering)
-      lines.forEach((line, newIdx) => {
-          const oldIdx = availableTasks.findIndex((t, i) => t.text === line && !usedOldIndices.has(i));
-          if (oldIdx !== -1) {
-              result[newIdx] = availableTasks[oldIdx];
-              usedOldIndices.add(oldIdx);
-          }
-      });
-
-      // Step 2: Position-based matching (handles renames)
-      lines.forEach((line, newIdx) => {
-          if (result[newIdx]) return; // Already matched in step 1
-
-          // If there's an unused task at the same relative position, assume it's a rename
-          if (newIdx < availableTasks.length && !usedOldIndices.has(newIdx)) {
-              result[newIdx] = {
-                  ...availableTasks[newIdx],
-                  text: line
-              };
-              usedOldIndices.add(newIdx);
-          }
-      });
-
-      // Step 3: New tasks (remaining lines)
-      return lines.map((line, newIdx) => {
-          if (result[newIdx]) return result[newIdx];
-
-          return {
-              id: Date.now().toString() + Math.random().toString(),
-              text: line,
-              completed: false,
-              plenoCompleted: false,
-              failedYesterday: false,
-              missedDays: 0
-          };
-      });
-  };
-
   const handleEditToggle = () => {
       if (isEditing) {
-          const newTasks = textToTasks(text1, text2, text3, tasks);
-          onUpdate(newTasks, false);
+          onUpdate(editTasks, false);
           setIsEditing(false);
       } else {
-          setText1(tasks.slice(0, 4).map(t => t.text).join('\n'));
-          setText2(tasks.slice(4, 15).map(t => t.text).join('\n'));
-          setText3(tasks.slice(15).map(t => t.text).join('\n'));
+          const initializedTasks = tasks.map((t, i) => {
+              let type = t.hunoType;
+              if (!type) {
+                  if (i < 4) type = 'fantastico';
+                  else if (i < 15) type = 'enanito';
+                  else type = 'fondo';
+              }
+              return { ...t, hunoType: type };
+          });
+          setEditTasks(initializedTasks);
           setIsEditing(true);
       }
+  };
+
+  const updateEditTask = (id: string, text: string) => {
+      setEditTasks(prev => prev.map(t => t.id === id ? { ...t, text } : t));
+  };
+
+  const confirmDelete = () => {
+      if (taskToDelete) {
+          setEditTasks(prev => prev.filter(t => t.id !== taskToDelete));
+          setTaskToDelete(null);
+      }
+  };
+
+  const addEditTask = (hunoType: 'enanito' | 'fondo') => {
+      const newTask: Task = {
+          id: Date.now().toString() + Math.random().toString(),
+          text: '',
+          completed: false,
+          plenoCompleted: false,
+          failedYesterday: false,
+          missedDays: 0,
+          hunoType
+      };
+      
+      setEditTasks(prev => {
+          const arr = [...prev];
+          if (hunoType === 'enanito') {
+              const lastEnanitoIndex = arr.map(t => t.hunoType).lastIndexOf('enanito');
+              const insertIndex = lastEnanitoIndex >= 0 ? lastEnanitoIndex + 1 : arr.filter(t => t.hunoType === 'fantastico').length;
+              arr.splice(insertIndex, 0, newTask);
+          } else {
+              arr.push(newTask);
+          }
+          return arr;
+      });
   };
 
   const getEmoji = (text: string) => {
@@ -308,7 +308,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                         )}
                         
                         <div className="grid grid-cols-4 gap-3 relative z-10">
-                            {tasks.slice(0, 4).map((task, index) => {
+                            {fantasticosTasks.map((task, index) => {
                                 const isFailed = task.failedYesterday && !task.completed;
                                 const missedDays = task.missedDays || 0;
 
@@ -359,20 +359,23 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
 
             {/* 2. Rest of Hunos - Regular Grid */}
             <div className="grid grid-cols-4 gap-3">
-                {tasks.slice(4).map((task, relativeIndex) => {
-                    const index = relativeIndex + 4;
+                {[...enanitosTasks, ...fondoTasks].map((task, index) => {
+                    const isEnanito = enanitosTasks.includes(task);
+                    const isFirstEnanito = isEnanito && index === 0;
+                    const isFirstFondo = !isEnanito && index === enanitosTasks.length;
+
                     const elements = [];
 
-                    if (index === 4) {
+                    if (isFirstEnanito) {
                         elements.push(
                             <div key="sep-1" className="col-span-4 flex items-center gap-4 my-2 px-1">
                                 <div className="h-px bg-stone-800 flex-1"></div>
-                                <span className="text-xs font-medium text-stone-600 uppercase tracking-wider">Los 11 Enanitos</span>
+                                <span className="text-xs font-medium text-stone-600 uppercase tracking-wider">Los {enanitosTasks.length} Enanitos</span>
                                 <div className="h-px bg-stone-800 flex-1"></div>
                             </div>
                         );
                     }
-                    if (index === 15) {
+                    if (isFirstFondo) {
                         elements.push(
                             <div key="sep-2" className="col-span-4 flex items-center gap-4 my-2 px-1">
                                 <div className="h-px bg-stone-800 flex-1"></div>
@@ -385,7 +388,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                     const emoji = getEmoji(task.text);
                     const isFailed = task.failedYesterday && !task.completed;
                     const missedDays = task.missedDays || 0;
-                    const isLastSeven = index >= 15;
+                    const isLastSeven = !isEnanito;
 
                     let fillPercentage = 0;
                     let isBlinkingRed = false;
@@ -500,33 +503,69 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
       {isEditing && (
           <div className="space-y-6">
               <div>
-                  <label className="block text-sm font-medium text-stone-400 mb-2">Los 4 Fantásticos (1 por línea)</label>
-                  <textarea 
-                      value={text1}
-                      onChange={(e) => setText1(e.target.value)}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-xl p-4 text-stone-200 focus:outline-none focus:border-stone-500 min-h-[120px] resize-y"
-                      placeholder="Ej: 🦁 Leones&#10;🏋️ Gimnasia..."
-                  />
+                  <label className="block text-sm font-medium text-stone-400 mb-2">Los 4 Fantásticos</label>
+                  <div className="space-y-2">
+                      {editTasks.filter(t => t.hunoType === 'fantastico').map(task => (
+                          <input 
+                              key={task.id}
+                              type="text"
+                              value={task.text}
+                              onChange={(e) => updateEditTask(task.id, e.target.value)}
+                              className="w-full bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-stone-500"
+                              placeholder="Ej: 🦁 Leones..."
+                          />
+                      ))}
+                  </div>
               </div>
               
               <div>
-                  <label className="block text-sm font-medium text-stone-400 mb-2">Los 11 Enanitos (1 por línea)</label>
-                  <textarea 
-                      value={text2}
-                      onChange={(e) => setText2(e.target.value)}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-xl p-4 text-stone-200 focus:outline-none focus:border-stone-500 min-h-[200px] resize-y"
-                      placeholder="Ej: 💧 Agua&#10;📖 Leer..."
-                  />
+                  <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-stone-400">Los {editTasks.filter(t => t.hunoType === 'enanito').length} Enanitos</label>
+                      <button onClick={() => addEditTask('enanito')} className="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-2 py-1 rounded flex items-center gap-1 transition-colors">
+                          <Plus className="w-3 h-3" /> Añadir
+                      </button>
+                  </div>
+                  <div className="space-y-2">
+                      {editTasks.filter(t => t.hunoType === 'enanito').map(task => (
+                          <div key={task.id} className="flex items-center gap-2">
+                              <input 
+                                  type="text"
+                                  value={task.text}
+                                  onChange={(e) => updateEditTask(task.id, e.target.value)}
+                                  className="flex-1 bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-stone-500"
+                                  placeholder="Ej: 💧 Agua..."
+                              />
+                              <button onClick={() => setTaskToDelete(task.id)} className="p-3 text-stone-500 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors">
+                                  <Trash2 className="w-5 h-5" />
+                              </button>
+                          </div>
+                      ))}
+                  </div>
               </div>
 
               <div>
-                  <label className="block text-sm font-medium text-stone-400 mb-2">Fondo (1 por línea)</label>
-                  <textarea 
-                      value={text3}
-                      onChange={(e) => setText3(e.target.value)}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-xl p-4 text-stone-200 focus:outline-none focus:border-stone-500 min-h-[150px] resize-y"
-                      placeholder="Ej: 🎸 Guitarra&#10;🧘 Meditar..."
-                  />
+                  <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-stone-400">Fondo</label>
+                      <button onClick={() => addEditTask('fondo')} className="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-2 py-1 rounded flex items-center gap-1 transition-colors">
+                          <Plus className="w-3 h-3" /> Añadir
+                      </button>
+                  </div>
+                  <div className="space-y-2">
+                      {editTasks.filter(t => t.hunoType === 'fondo').map(task => (
+                          <div key={task.id} className="flex items-center gap-2">
+                              <input 
+                                  type="text"
+                                  value={task.text}
+                                  onChange={(e) => updateEditTask(task.id, e.target.value)}
+                                  className="flex-1 bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-stone-500"
+                                  placeholder="Ej: 🎸 Guitarra..."
+                              />
+                              <button onClick={() => setTaskToDelete(task.id)} className="p-3 text-stone-500 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors">
+                                  <Trash2 className="w-5 h-5" />
+                              </button>
+                          </div>
+                      ))}
+                  </div>
               </div>
 
               <div className="pt-4 border-t border-stone-800">
@@ -575,6 +614,44 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                             className="py-3 rounded-xl bg-orange-600 text-stone-950 font-bold hover:bg-orange-500 transition-colors shadow-lg shadow-orange-900/20"
                         >
                             ¡Sí, sumar +1!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {taskToDelete && (
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setTaskToDelete(null)}
+        >
+            <div 
+              className="bg-stone-900 w-full max-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-6 flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-600/50">
+                        <Trash2 className="w-10 h-10 text-red-500" />
+                    </div>
+                    <h2 className="text-xl font-bold text-stone-100 mb-2">¿Eliminar este Huno?</h2>
+                    <p className="text-stone-400 mb-6 text-sm">
+                        Esta acción borrará el Huno de la lista. Si ya estaba guardado en el historial, los días pasados no se verán afectados.
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                        <button 
+                            onClick={() => setTaskToDelete(null)}
+                            className="py-3 rounded-xl border border-stone-700 text-stone-400 hover:bg-stone-800 font-bold transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            onClick={confirmDelete}
+                            className="py-3 rounded-xl bg-red-600 text-stone-950 font-bold hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20"
+                        >
+                            Sí, eliminar
                         </button>
                     </div>
                 </div>

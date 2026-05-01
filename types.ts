@@ -11,6 +11,7 @@ export interface Task {
   phase?: 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4';
   isProvisional?: boolean;
   repeaterMonths?: number[]; // Array of months (0-11) where this task automatically resets
+  hunoType?: 'fantastico' | 'enanito' | 'fondo';
 }
 
 export interface GympiezaTask {
