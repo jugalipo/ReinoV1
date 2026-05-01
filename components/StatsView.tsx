@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppData, Friend, ExerciseDayStats } from '../types';
-import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X, ChevronDown, Grid, Activity } from 'lucide-react';
+import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X, ChevronDown, Grid, Activity, Cloud } from 'lucide-react';
 import { HunosYearInPixelsModal } from './HunosYearInPixelsModal';
 import { HunosMonthLineChartModal } from './HunosMonthLineChartModal';
 import { CategoryHistoryModal } from './CategoryHistoryModal';
@@ -948,7 +948,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
               <span className="text-2xl font-black text-white leading-none">{(stats.hunoPlenoCurrent || 0) + ((stats.hunoPlenos || 0) * 50)}</span>
             </button>
             <button onClick={() => setShowProjectsModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
-              <Settings className="w-6 h-6 text-stone-400" />
+              <Cloud className="w-6 h-6 text-stone-400" />
               <span className="text-2xl font-black text-white leading-none">{(stats.projectPlenoCurrent || 0) + ((stats.projectPlenos || 0) * 20)}</span>
             </button>
           </div>
@@ -1341,8 +1341,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
 
       {showProjectsModal && (
         <CategoryHistoryModal
-          title="Estadísticas de Proyectos"
-          icon={<Settings className="w-5 h-5 text-stone-400" />}
+          title="Estadísticas de Nubes"
+          icon={<Cloud className="w-5 h-5 text-stone-400" />}
           colorClass="text-stone-300"
           bgAccentClass="bg-stone-500/10"
           tasks={data.projects}

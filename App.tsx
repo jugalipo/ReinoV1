@@ -13,7 +13,7 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -113,7 +113,7 @@ const TRAIN_TASKS = [
   { text: "🦁 Arroz 15'", subtasks: ["Contar tareas", "Colocar granos de arroz -"] },
   { text: "🦁 Medidas 1h", subtasks: ["Peso Alicia", "Foto", "Peso", "Plicómetro", "Perímetros", "Calcular pasos", "Ver Daylio", "Tensión", "Dominadas", "Flexiones", "Sentadillas", "Abdominales", "Pino", "Contadores ⭐", "Horas de móvil", "Actualizar DTH ⭐", "Nota Cuerpo ⭐"] },
   { text: "🦁 Destrasteo 2h", subtasks: ["Actualizar destrasteos ⭐", "Destrasteo Objetos -", "Destrasteo Habitaciones -", "Destrasteo Limpieza -", "Destrasteo (decoración) -", "Destrasteo (Memorando) -"] },
-  { text: "🦁 Notas 30'", subtasks: ["Activos", "Cuerpo", "Amor", "Proyectos", "Diario"] },
+  { text: "🦁 Notas 30'", subtasks: ["Activos", "Cuerpo", "Amor", "Nubes", "Diario"] },
   { text: "🦁 Papeles 15'", subtasks: ["Seleccionar ⭐", "Leer"] },
   { text: "🦁 Escáner 15'", subtasks: ["Enchufar ⭐", "Escanear"] },
   { text: "🦁 Digital 30'", subtasks: ["Fondos de pantalla ⭐", "Carpetas pc", "Google Fotos", "Móvil", "Navegador", "IAs", "WhatsApp", "Telegram"] },
@@ -294,7 +294,7 @@ const INITIAL_DATA: AppData = {
     { id: 'q1-money', name: 'Dinero', current: 0, target: 1000, unit: '€' },
     { id: 'q2-health', name: 'Salud', current: 0, target: 10, unit: 'kg' },
     { id: 'q3-love', name: 'Amor', current: 0, target: 50, unit: 'pts' },
-    { id: 'q4-proj', name: 'Proyectos', current: 0, target: 100, unit: 'h' }
+    { id: 'q4-proj', name: 'Nubes', current: 0, target: 100, unit: 'h' }
   ],
   leones: [],
   forjaTasks: [],
@@ -468,7 +468,7 @@ const processResets = (parsed: AppData): AppData => {
     { id: 'q1-money', name: 'Dinero', current: 0, target: 1000, unit: '€' },
     { id: 'q2-health', name: 'Salud', current: 0, target: 10, unit: 'kg' },
     { id: 'q3-love', name: 'Amor', current: 0, target: 50, unit: 'pts' },
-    { id: 'q4-proj', name: 'Proyectos', current: 0, target: 100, unit: 'h' }
+    { id: 'q4-proj', name: 'Nubes', current: 0, target: 100, unit: 'h' }
   ];
   if (result.forjas.length < 5) {
     if (result.forjas.length === 0) {
@@ -1682,8 +1682,8 @@ function App() {
             <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <GearIcon className="w-6 h-6 text-stone-400" />
-                  <h2 className="text-xl font-bold text-stone-200">Proyectos</h2>
+                  <Cloud className="w-6 h-6 text-stone-400" />
+                  <h2 className="text-xl font-bold text-stone-200">Nubes</h2>
 
                   <div className="flex items-center gap-2 px-2 py-1 bg-stone-950/50 rounded-full border border-stone-800 ml-1">
                     <div className="flex items-center gap-1.5">
@@ -1725,7 +1725,7 @@ function App() {
               ) : (
                 <>
                   <div className="grid grid-cols-4 gap-3">
-                    {data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin proyectos activos.</p>}
+                    {data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin nubes activas.</p>}
                     {data.projects.map((proj, idx) => (
                       <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'}`}>
                         <span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span>
@@ -1762,11 +1762,11 @@ function App() {
                 <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 bg-stone-800 rounded-full flex items-center justify-center">
-                      <GearIcon className="w-6 h-6 text-stone-400" />
+                      <Cloud className="w-6 h-6 text-stone-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-stone-200">Proyectos</h3>
+                    <h3 className="text-xl font-bold text-stone-200">Nubes</h3>
                   </div>
-                  <p className="text-stone-400 mb-6 font-medium">¿Has cumplido alguno de los 8 proyectos hoy?</p>
+                  <p className="text-stone-400 mb-6 font-medium">¿Has cumplido alguna de las 8 nubes hoy?</p>
                   <div className="flex gap-3">
                     <button
                       onClick={() => setShowProjectPromptModal(false)}
@@ -1795,9 +1795,9 @@ function App() {
                     <div className="w-20 h-20 bg-yellow-600/20 rounded-full flex items-center justify-center mb-6 border border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]">
                       <Trophy className="w-10 h-10 text-yellow-500" />
                     </div>
-                    <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Pleno de Proyectos!</h2>
+                    <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Pleno de Nubes!</h2>
                     <p className="text-stone-400 mb-8 text-sm leading-relaxed">
-                      Has completado todos tus proyectos activos. <br />¿Quieres sumar un **Pleno de Proyecto** y reiniciar la lista?
+                      Has completado todas tus nubes activas. <br />¿Quieres sumar un **Pleno de Nube** y reiniciar la lista?
                     </p>
 
                     <div className="grid grid-cols-2 gap-4 w-full">

@@ -648,7 +648,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                     
                     <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800 mt-1">
                         <div className="flex flex-col">
-                            <span className="font-bold text-stone-200 text-sm">Proyectos</span>
+                            <span className="font-bold text-stone-200 text-sm">Nubes</span>
                             <span className="text-[10px] text-stone-500 uppercase font-black">Trofeos</span>
                         </div>
                         <div className="flex items-center gap-3">
@@ -660,7 +660,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
 
                     <div className="flex items-center justify-between bg-stone-900/40 p-3 rounded-xl border border-stone-800/50 ml-4">
                         <div className="flex flex-col">
-                            <span className="font-bold text-stone-400 text-xs">Progreso Proyectos</span>
+                            <span className="font-bold text-stone-400 text-xs">Progreso Nubes</span>
                             <span className="text-[9px] text-stone-600 uppercase font-black">Actual / 20</span>
                         </div>
                         <div className="flex items-center gap-3">
