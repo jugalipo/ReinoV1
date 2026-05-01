@@ -26,28 +26,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
       return date.toDateString();
   };
 
-  const adjustStat = (key: keyof typeof data.stats, delta: number) => {
-      // @ts-ignore
-      const currentVal = data.stats[key];
-      // Handle potential missing or non-number values safely
-      const safeVal = typeof currentVal === 'number' ? currentVal : 0;
-      const newVal = safeVal + delta;
-      
-      onUpdateData({
-          ...data,
-          stats: {
-              ...data.stats,
-              [key]: Math.max(0, newVal)
-          }
-      });
-  };
 
-  const adjustRootCount = (key: 'leonesCount' | 'huchaCount', delta: number) => {
-      onUpdateData({
-          ...data,
-          [key]: Math.max(0, (data[key] || 0) + delta)
-      });
-  };
 
   const changeDate = (delta: number) => {
       const newDate = new Date(currentDate);
@@ -563,10 +542,10 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                               
                               {/* Ticks */}
                               <div className="absolute inset-0 flex justify-between px-1 items-center pointer-events-none">
-                                  {Array.from({ length: 11 }).map((_, i) => (
+                                  {Array.from({ length: 10 }).map((_, i) => (
                                       <div 
                                           key={i} 
-                                          className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${i <= currentEnergyValue ? 'bg-white/20' : 'bg-stone-800'}`} 
+                                          className={`w-0.5 h-1.5 rounded-full transition-colors duration-500 ${(i + 1) <= currentEnergyValue ? 'bg-white/20' : 'bg-stone-800'}`} 
                                       />
                                   ))}
                               </div>
@@ -584,10 +563,10 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
 
                               {/* Thumb */}
                               <div 
-                                  className="absolute w-8 h-8 rounded-full bg-stone-100 border-4 border-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.6)] pointer-events-none z-10 transition-all duration-300 ease-out"
+                                  className="absolute w-8 h-8 rounded-full bg-stone-100 border-4 border-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.6)] pointer-events-none z-10 transition-all duration-300 ease-out group-active/slider:scale-110"
                                   style={{ 
                                       left: `calc(${(currentEnergyValue - 1) / 9 * 100}% - 16px)`,
-                                      transition: 'left 0.1s ease-out'
+                                      transition: 'left 0.1s ease-out, transform 0.2s ease'
                                   }}
                               >
                                   <div className="absolute inset-0 m-auto w-1 h-3 bg-orange-600/30 rounded-full" />
@@ -599,96 +578,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
 
 
 
-           {/* Stats Adjuster */}
-           <div className="space-y-4 pt-6 border-t border-stone-800">
-               <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider px-2">Plenos</h3>
-               
-               <div className="grid grid-cols-1 gap-3">
-                   <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                       <span className="font-bold text-stone-200 text-sm">Trenes</span>
-                       <div className="flex items-center gap-3">
-                           <button onClick={() => adjustStat('perfectTrainMonths', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                           <span className="font-mono w-8 text-center">{data.stats.perfectTrainMonths}</span>
-                           <button onClick={() => adjustStat('perfectTrainMonths', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                       </div>
-                   </div>
-                   
-                   <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                       <span className="font-bold text-stone-200 text-sm">Setas</span>
-                       <div className="flex items-center gap-3">
-                           <button onClick={() => adjustStat('perfectSetsWeeks', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                           <span className="font-mono w-8 text-center">{data.stats.perfectSetsWeeks}</span>
-                           <button onClick={() => adjustStat('perfectSetsWeeks', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                       </div>
-                   </div>
 
-                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-stone-200 text-sm">Hunos</span>
-                            <span className="text-[10px] text-stone-500 uppercase font-black">Trofeos</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustStat('hunoPlenos', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4 text-stone-400" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{data.stats.hunoPlenos || 0}</span>
-                            <button onClick={() => adjustStat('hunoPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4 text-stone-400" /></button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-stone-900/40 p-3 rounded-xl border border-stone-800/50 ml-4">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-stone-400 text-xs">Progreso Hunos</span>
-                            <span className="text-[9px] text-stone-600 uppercase font-black">Actual / 50</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustStat('hunoPlenoCurrent', -1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Minus className="w-3.5 h-3.5 text-stone-500" /></button>
-                            <span className="font-mono w-8 text-center text-stone-300 text-sm">{data.stats.hunoPlenoCurrent || 0}</span>
-                            <button onClick={() => adjustStat('hunoPlenoCurrent', 1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Plus className="w-3.5 h-3.5 text-stone-500" /></button>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800 mt-1">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-stone-200 text-sm">Nubes</span>
-                            <span className="text-[10px] text-stone-500 uppercase font-black">Trofeos</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustStat('projectPlenos', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4 text-stone-400" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{data.stats.projectPlenos || 0}</span>
-                            <button onClick={() => adjustStat('projectPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4 text-stone-400" /></button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-stone-900/40 p-3 rounded-xl border border-stone-800/50 ml-4">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-stone-400 text-xs">Progreso Nubes</span>
-                            <span className="text-[9px] text-stone-600 uppercase font-black">Actual / 20</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustStat('projectPlenoCurrent', -1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Minus className="w-3.5 h-3.5 text-stone-500" /></button>
-                            <span className="font-mono w-8 text-center text-stone-300 text-sm">{data.stats.projectPlenoCurrent || 0}</span>
-                            <button onClick={() => adjustStat('projectPlenoCurrent', 1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Plus className="w-3.5 h-3.5 text-stone-500" /></button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                        <span className="font-bold text-stone-200 text-sm">Leones (20s)</span>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustRootCount('leonesCount', -1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{data.leonesCount || 0}</span>
-                            <button onClick={() => adjustRootCount('leonesCount', 1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                        <span className="font-bold text-stone-200 text-sm">Billetes (20s)</span>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustRootCount('huchaCount', -1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{data.huchaCount || 0}</span>
-                            <button onClick={() => adjustRootCount('huchaCount', 1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                        </div>
-                    </div>
-               </div>
-           </div>
 
             <div className="pt-6 border-t border-stone-800">
                 <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider mb-3 px-2">Recordatorio</h3>
