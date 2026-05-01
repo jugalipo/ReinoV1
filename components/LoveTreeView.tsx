@@ -286,14 +286,29 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
                 {regularFriends.map((friend, i) => {
                     const days = getDaysSince(friend.lastInteraction);
                     const pos = getLeafPosition(i, friends.length);
+                    // Doubled size: 24 instead of 12
+                    const path = `M ${pos.x} ${pos.y - 24} Q ${pos.x + 24} ${pos.y} ${pos.x} ${pos.y + 24} Q ${pos.x - 24} ${pos.y} ${pos.x} ${pos.y - 24}`;
                     return (
                         <g key={friend.id} className="transition-opacity">
-                            <circle 
-                                cx={pos.x} 
-                                cy={pos.y} 
-                                r={12} 
+                            <path 
+                                d={path}
                                 fill={getLeafColor(days)}
-                                stroke="none"
+                                transform={`rotate(${i * 45}, ${pos.x}, ${pos.y})`}
+                            />
+                        </g>
+                    );
+                })}
+                {sporadicFriends.map((friend, i) => {
+                    const days = getDaysSince(friend.lastInteraction);
+                    const pos = getLeafPosition(regularFriends.length + i, friends.length);
+                    // Doubled size: 12 instead of 6
+                    const path = `M ${pos.x} ${pos.y - 12} Q ${pos.x + 12} ${pos.y} ${pos.x} ${pos.y + 12} Q ${pos.x - 12} ${pos.y} ${pos.x} ${pos.y - 12}`;
+                    return (
+                        <g key={friend.id} className="transition-opacity opacity-60">
+                            <path 
+                                d={path}
+                                fill={getLeafColor(days)}
+                                transform={`rotate(${i * 45 + 20}, ${pos.x}, ${pos.y})`}
                             />
                         </g>
                     );
@@ -374,57 +389,45 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
              {sporadicFriends.length > 0 && (
                 <>
                     <h3 className="font-bold text-stone-500 text-xs uppercase mt-8 mb-3 px-1">Contactos Esporádicos</h3>
-                    {sporadicFriends.map(f => {
-                        const total = (Object.values(f.interactions) as number[]).reduce((a, b) => a + b, 0);
-                        const days = getDaysSince(f.lastInteraction);
-                        const textColorClass = getLeafColorClass(days);
-                        const bgStatusColor = getStatusColor(days);
-                        const isBday = isBirthdayWeek(f.birthday);
-                        
-                        return (
-                            <div 
-                                key={f.id} 
-                                onClick={() => setSelectedFriendId(f.id)} 
-                                className={`flex items-center justify-between p-4 rounded-3xl border cursor-pointer active:scale-95 transition-all shadow-sm ${
-                                    isBday 
-                                        ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 border-yellow-300 shadow-[0_0_20px_rgba(234,179,8,0.4)] text-stone-950' 
-                                        : 'bg-stone-900 border-stone-800 text-stone-100 opacity-60'
-                                }`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    {/* Avatar */}
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl shadow-lg ${
+                    <div className="grid grid-cols-2 gap-3 pb-8">
+                        {sporadicFriends.map(f => {
+                            const days = getDaysSince(f.lastInteraction);
+                            const bgStatusColor = getStatusColor(days);
+                            const textColorClass = getLeafColorClass(days);
+                            const isBday = isBirthdayWeek(f.birthday);
+                            
+                            return (
+                                <button 
+                                    key={f.id} 
+                                    onClick={() => setSelectedFriendId(f.id)} 
+                                    className={`flex items-center justify-between gap-2 p-2 rounded-2xl border cursor-pointer active:scale-95 transition-all shadow-sm ${
+                                        isBday 
+                                            ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.3)] text-stone-950' 
+                                            : 'bg-stone-900 border-stone-800 text-stone-100 opacity-80'
+                                    }`}
+                                >
+                                    {/* Name Bubble (Style of the original avatar circle) */}
+                                    <div className={`flex-1 py-2 px-2 rounded-full flex items-center justify-center font-bold text-xs shadow-md min-w-0 ${
                                         isBday ? 'bg-stone-950 text-yellow-500' : bgStatusColor + ' text-stone-950'
                                     }`}>
-                                        {f.name.charAt(0).toUpperCase()}
+                                        <span className="truncate">{f.name}</span>
                                     </div>
-                                    
-                                    {/* Text Info */}
-                                    <div>
-                                        <h4 className={`font-bold text-lg leading-tight flex items-center gap-2 ${isBday ? 'text-stone-950' : 'text-stone-100'}`}>
-                                            {f.name}
-                                            {isBday && <span>🎂</span>}
-                                        </h4>
-                                        <p className={`text-xs font-bold ${isBday ? 'text-stone-800/80' : 'text-stone-500'}`}>
-                                            {total} brotes
-                                        </p>
-                                    </div>
-                                </div>
 
-                                {/* Counter Badge */}
-                                <div className={`px-3 py-1.5 rounded-xl border flex flex-col items-center justify-center shadow-inner ${
-                                    isBday ? 'bg-stone-950/20 border-yellow-700/30' :
-                                    days <= 7 ? 'bg-emerald-950/30 border-emerald-900/50' :
-                                    days <= 14 ? 'bg-yellow-950/30 border-yellow-900/50' :
-                                    days <= 30 ? 'bg-orange-950/30 border-orange-900/50' :
-                                    'bg-red-950/30 border-red-900/50'
-                                }`}>
-                                    <span className={`text-lg font-black leading-none ${isBday ? 'text-stone-950' : textColorClass}`}>{days}</span>
-                                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isBday ? 'text-stone-900/60' : textColorClass + ' opacity-70'}`}>días</span>
-                                </div>
-                            </div>
-                        )
-                    })}
+                                    {/* Counter Badge (Same format as regular friends) */}
+                                    <div className={`shrink-0 w-12 py-1.5 rounded-xl border flex flex-col items-center justify-center shadow-inner ${
+                                        isBday ? 'bg-stone-950/20 border-yellow-700/30' :
+                                        days <= 7 ? 'bg-emerald-950/30 border-emerald-900/50' :
+                                        days <= 14 ? 'bg-yellow-950/30 border-yellow-900/50' :
+                                        days <= 30 ? 'bg-orange-950/30 border-orange-900/50' :
+                                        'bg-red-950/30 border-red-900/50'
+                                    }`}>
+                                        <span className={`text-lg font-black leading-none ${isBday ? 'text-stone-950' : textColorClass}`}>{days}</span>
+                                        <span className={`text-[8px] font-bold uppercase tracking-wider ${isBday ? 'text-stone-900/60' : textColorClass + ' opacity-70'}`}>días</span>
+                                    </div>
+                                </button>
+                            )
+                        })}
+                    </div>
                 </>
              )}
              {friends.length === 0 && <p className="text-center text-stone-600 italic py-4">Añade amigos para verlos aquí.</p>}
