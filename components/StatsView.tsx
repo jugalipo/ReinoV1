@@ -435,19 +435,19 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
     );
   };
 
-  // Logic for 10-week set evolution
+  // Logic for 20-week set evolution
   const currentSetCount = sets.filter(t => t.completed).length;
-  const setsHistoryToDisplay = [...stats.setsHistory.slice(-9), currentSetCount];
-  const paddedSetsHistory = Array(Math.max(0, 10 - setsHistoryToDisplay.length)).fill(0).concat(setsHistoryToDisplay);
+  const setsHistoryToDisplay = [...stats.setsHistory.slice(-19), currentSetCount];
+  const paddedSetsHistory = Array(Math.max(0, 20 - setsHistoryToDisplay.length)).fill(0).concat(setsHistoryToDisplay);
   const setsMax = sets.length || 8;
 
-  // Logic for 6-month train evolution
+  // Logic for 12-month train evolution
   const currentTrainCount = trains.filter(t => t.completed).length;
-  const trainsHistoryToDisplay = [...stats.trainsHistory.slice(-5), currentTrainCount];
-  const paddedTrainsHistory = Array(Math.max(0, 6 - trainsHistoryToDisplay.length)).fill(0).concat(trainsHistoryToDisplay);
+  const trainsHistoryToDisplay = [...stats.trainsHistory.slice(-11), currentTrainCount];
+  const paddedTrainsHistory = Array(Math.max(0, 12 - trainsHistoryToDisplay.length)).fill(0).concat(trainsHistoryToDisplay);
   const trainsMax = trains.length || 37;
 
-  // Logic for 6-month interaction evolution
+  // Logic for 12-month interaction evolution
   const calculateTotalInteractions = (friendsList: Friend[]) => {
       return friendsList.reduce((acc, friend) => {
           const interactions = (Object.values(friend.interactions || {}) as number[]).reduce((a, b) => a + b, 0);
@@ -456,8 +456,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
   };
   const currentTotal = calculateTotalInteractions(friends);
   const currentMonthInteractions = Math.max(0, currentTotal - (stats.lastTotalInteractions || 0));
-  const interactionsHistoryToDisplay = [...stats.interactionsHistory.slice(-5), currentMonthInteractions];
-  const paddedInteractionsHistory = Array(Math.max(0, 6 - interactionsHistoryToDisplay.length)).fill(0).concat(interactionsHistoryToDisplay);
+  const interactionsHistoryToDisplay = [...stats.interactionsHistory.slice(-11), currentMonthInteractions];
+  const paddedInteractionsHistory = Array(Math.max(0, 12 - interactionsHistoryToDisplay.length)).fill(0).concat(interactionsHistoryToDisplay);
   const interactionsMax = Math.max(...paddedInteractionsHistory, 10); // Floor of 10 for better scaling
 
   const interactionTotals = useMemo(() => {
@@ -471,6 +471,57 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
     });
     return totals;
   }, [friends]);
+
+  // Logic for 20-week Exercise evolution
+  const exerciseHistoryToDisplay = useMemo(() => {
+    const result: number[] = Array(20).fill(0);
+    const now = new Date();
+    const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
+    const startOfCurrentWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+    startOfCurrentWeek.setHours(0,0,0,0);
+
+    Object.entries(exercise.history || {}).forEach(([dateStr, statsData]) => {
+      const stats = statsData as ExerciseDayStats;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return;
+      
+      d.setHours(0,0,0,0);
+      const diffTime = startOfCurrentWeek.getTime() - d.getTime();
+      const diffWeeks = Math.ceil(diffTime / (7 * 24 * 60 * 60 * 1000));
+      const weekIndex = diffTime <= 0 ? 0 : diffWeeks;
+      
+      if (weekIndex >= 0 && weekIndex < 20) {
+        result[19 - weekIndex] += (stats.workouts || 0);
+      }
+    });
+    return result;
+  }, [exercise.history]);
+  const exerciseMax = Math.max(...exerciseHistoryToDisplay, 5);
+
+  // Logic for 20-week Projects (Nubes) evolution
+  const projectsHistoryToDisplay = useMemo(() => {
+    const result: number[] = Array(20).fill(0);
+    const now = new Date();
+    const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
+    const startOfCurrentWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+    startOfCurrentWeek.setHours(0,0,0,0);
+
+    Object.entries(data.projectsHistoryMap || {}).forEach(([dateStr, ids]) => {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return;
+      
+      d.setHours(0,0,0,0);
+      const diffTime = startOfCurrentWeek.getTime() - d.getTime();
+      const diffWeeks = Math.ceil(diffTime / (7 * 24 * 60 * 60 * 1000));
+      const weekIndex = diffTime <= 0 ? 0 : diffWeeks;
+      
+      if (weekIndex >= 0 && weekIndex < 20) {
+        result[19 - weekIndex] += (ids as string[]).length;
+      }
+    });
+    return result;
+  }, [data.projectsHistoryMap]);
+  const projectsMax = Math.max(...projectsHistoryToDisplay, 5);
 
   // Logic for 30-day Hunos evolution
   const hunosHistoryToDisplay: number[] = [];
@@ -505,12 +556,12 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
   }
   const energyMax = 10;
 
-  // Logic for 6-month food evolution (Monthly)
+  // Logic for 12-month food evolution (Monthly)
   const foodHistoryToDisplay = useMemo(() => {
     const now = new Date();
     const result: number[] = [];
     
-    for (let i = 5; i >= 0; i--) {
+    for (let i = 11; i >= 0; i--) {
       const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const m = targetDate.getMonth();
       const y = targetDate.getFullYear();
@@ -929,79 +980,50 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
 
       <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-12">
         
-        {/* LOGROS / PLENOS */}
-        <section>
-          <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Trophy className="w-4 h-4" /> Logros del Reino
-          </h2>
-          <div className="grid grid-cols-4 gap-3">
-            <button onClick={() => setShowTrainsModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-blue-900/30 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
-              <Train className="w-6 h-6 text-blue-500" />
-              <span className="text-2xl font-black text-white leading-none">{stats.perfectTrainMonths}</span>
-            </button>
-            <button onClick={() => setShowSetsModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-red-900/30 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
-              <MushroomIcon className="w-6 h-6 text-red-500" />
-              <span className="text-2xl font-black text-white leading-none">{stats.perfectSetsWeeks}</span>
-            </button>
-            <button onClick={() => setShowHunosModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-orange-900/30 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors w-full">
-              <Sword className="w-6 h-6 text-orange-500" />
-              <span className="text-2xl font-black text-white leading-none">{(stats.hunoPlenoCurrent || 0) + ((stats.hunoPlenos || 0) * 50)}</span>
-            </button>
-            <button onClick={() => setShowProjectsModal(true)} className="bg-stone-900 p-3 rounded-2xl border border-stone-800 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
-              <Cloud className="w-6 h-6 text-stone-400" />
-              <span className="text-2xl font-black text-white leading-none">{(stats.projectPlenoCurrent || 0) + ((stats.projectPlenos || 0) * 20)}</span>
-            </button>
-          </div>
-        </section>
-
-        {/* CUERPO Y ACCION */}
-        <section>
-          <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Dumbbell className="w-4 h-4" /> Cuerpo y Esfuerzo
-          </h2>
-          <button 
-             onClick={() => setShowExerciseModal(true)} 
-             className="w-full bg-stone-900 p-4 rounded-2xl border border-emerald-900/30 flex flex-col items-center justify-center gap-2 hover:bg-stone-800 transition-colors"
-          >
-            <Dumbbell className="w-8 h-8 text-emerald-500 mb-1" />
-            <span className="text-3xl font-black text-white leading-none">
-              {(exercise.daysTrained || 0) + (exercise.sprintCount || 0) + (exercise.stretchCount || 0)}
-            </span>
-          </button>
-        </section>
-
         {/* HISTORICOS (CHARTS) */}
-        <section className="space-y-6">
+        <section className="space-y-10">
           <div>
-            <button onClick={() => setShowTrainsModal(true)} className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2 hover:text-blue-400 transition-colors">
-              <Train className="w-4 h-4 text-blue-500" /> TRENES (6 MESES)
+            <button onClick={() => setShowTrainsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+                <Train className="w-4 h-4 text-blue-500 shrink-0" />
+                <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">TRENES (12 MESES)</span>
+              </div>
+              <span className="text-lg font-black text-white shrink-0">{stats.perfectTrainMonths}</span>
             </button>
             <div className="h-24 flex gap-1 px-1">
               {paddedTrainsHistory.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 5)}
+                  {renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 11)}
                 </React.Fragment>
               ))}
             </div>
           </div>
 
           <div>
-            <button onClick={() => setShowSetsModal(true)} className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2 hover:text-red-400 transition-colors">
-              <MushroomIcon className="w-4 h-4 text-red-500" /> SETAS (10 SEM)
+            <button onClick={() => setShowSetsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+                <MushroomIcon className="w-4 h-4 text-red-500 shrink-0" />
+                <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">SETAS (20 SEM)</span>
+              </div>
+              <span className="text-lg font-black text-white shrink-0">{stats.perfectSetsWeeks}</span>
             </button>
             <div className="h-24 flex gap-1 px-1">
               {paddedSetsHistory.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, setsMax, 'bg-red-600', i === 9)}
+                  {renderHistoryBar(v, setsMax, 'bg-red-600', i === 19)}
                 </React.Fragment>
               ))}
             </div>
           </div>
 
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Sword className="w-4 h-4 text-orange-500" /> HUNOS (30 DÍAS)
-            </h2>
+            <button onClick={() => setShowHunosModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+                <Sword className="w-4 h-4 text-orange-500 shrink-0" />
+                <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">HUNOS (30 DÍAS)</span>
+              </div>
+              <span className="text-lg font-black text-white shrink-0">{(stats.hunoPlenoCurrent || 0) + ((stats.hunoPlenos || 0) * 50)}</span>
+            </button>
             <div className="h-24 flex gap-[2px] px-1">
               {hunosHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
@@ -1012,9 +1034,12 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
           </div>
 
           <div>
-            <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-orange-500" /> ENERGÍA (30 DÍAS)
-            </h2>
+            <div className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 cursor-default text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner">
+                <Activity className="w-4 h-4 text-orange-500 shrink-0" />
+                <span className="text-xs font-black text-stone-400 tracking-widest uppercase truncate">ENERGÍA (30 DÍAS)</span>
+              </div>
+            </div>
             <div className="h-24 flex gap-[2px] px-1">
               {energyHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
@@ -1025,26 +1050,66 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
           </div>
 
           <div>
-            <button onClick={() => onNavigate?.('food')} className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2 hover:text-lime-400 transition-colors">
-              <Utensils className="w-4 h-4 text-lime-500" /> JUMANGIARE (6 MESES)
+            <button onClick={() => setShowExerciseModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+                <Dumbbell className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">ENTRENAMIENTOS (20 SEM)</span>
+              </div>
+              <span className="text-lg font-black text-white shrink-0">{(exercise.daysTrained || 0) + (exercise.sprintCount || 0) + (exercise.stretchCount || 0)}</span>
             </button>
             <div className="h-24 flex gap-1 px-1">
-              {foodHistoryToDisplay.map((v, i) => (
+              {exerciseHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, foodMax, 'bg-lime-600', i === 5)}
+                  {renderHistoryBar(v, exerciseMax, 'bg-emerald-600', i === 19)}
                 </React.Fragment>
               ))}
             </div>
           </div>
 
           <div>
-            <button onClick={() => setShowInteractionsModal(true)} className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2 hover:text-pink-400 transition-colors">
-              <Heart className="w-4 h-4 text-pink-500" /> BROTES (6 MESES)
+            <button onClick={() => onNavigate?.('food')} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
+                <Utensils className="w-4 h-4 text-lime-500 shrink-0" />
+                <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">JUMANGIARE (12 MESES)</span>
+              </div>
+            </button>
+            <div className="h-24 flex gap-1 px-1">
+              {foodHistoryToDisplay.map((v, i) => (
+                <React.Fragment key={i}>
+                  {renderHistoryBar(v, foodMax, 'bg-lime-600', i === 11)}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <button onClick={() => setShowInteractionsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
+                <Heart className="w-4 h-4 text-pink-500 shrink-0" />
+                <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">BROTES (12 MESES)</span>
+              </div>
             </button>
             <div className="h-24 flex gap-1 px-1">
               {paddedInteractionsHistory.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, interactionsMax, 'bg-pink-600', i === 5)}
+                  {renderHistoryBar(v, interactionsMax, 'bg-pink-600', i === 11)}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <button onClick={() => setShowProjectsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+                <Cloud className="w-4 h-4 text-stone-400 shrink-0" />
+                <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">NUBES (20 SEM)</span>
+              </div>
+              <span className="text-lg font-black text-white shrink-0">{(stats.projectPlenoCurrent || 0) + ((stats.projectPlenos || 0) * 20)}</span>
+            </button>
+            <div className="h-24 flex gap-1 px-1">
+              {projectsHistoryToDisplay.map((v, i) => (
+                <React.Fragment key={i}>
+                  {renderHistoryBar(v, projectsMax, 'bg-stone-500', i === 19)}
                 </React.Fragment>
               ))}
             </div>
