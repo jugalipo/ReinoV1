@@ -393,7 +393,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
         <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
           <ArrowLeft className="w-6 h-6 text-emerald-500" />
         </button>
-        <h1 className="text-xl font-bold text-emerald-200">Sala de Entrenamiento</h1>
+        <h1 className="text-xl font-bold text-emerald-200">Bosque</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-12 bg-emerald-950/20">
@@ -413,7 +413,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
                     <button 
                         onClick={handleAddNineSeries}
                         className="w-12 h-12 rounded-full border border-yellow-700/50 text-yellow-500 flex items-center justify-center hover:bg-yellow-900/30 transition-colors shadow-lg shadow-yellow-900/20"
-                        title="Sumar entrenamiento completo (+9)"
+                        title="Sumar Bosque completo (+9)"
                     >
                         <Trophy className="w-5 h-5" />
                     </button>
@@ -528,7 +528,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
         {/* SESSION TIMER (TOTAL WORKOUT) */}
         <div className="bg-stone-900 rounded-2xl p-6 border border-stone-800 shadow-xl relative overflow-hidden mt-6">
             <div className="text-center">
-                <h2 className="text-stone-400 font-bold uppercase tracking-widest text-sm mb-4">Tiempo de Entrenamiento</h2>
+                <h2 className="text-stone-400 font-bold uppercase tracking-widest text-sm mb-4">Tiempo en el Bosque</h2>
                 
                 <div className="text-[4rem] font-black font-mono leading-none text-white mb-6">
                     {formatSessionTime(sessionSeconds)}
@@ -554,7 +554,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
                         <button
                             onClick={() => { setSessionIsRunning(false); setShowSessionConfirmModal(true); }}
                             className="w-14 h-14 rounded-xl font-bold bg-amber-600/20 text-amber-500 border border-amber-900/50 hover:bg-amber-600/30 transition-colors flex items-center justify-center shrink-0"
-                            title="Terminar entrenamiento"
+                            title="Terminar sesión en el Bosque"
                         >
                             <Square className="w-5 h-5 fill-current" />
                         </button>
@@ -696,8 +696,8 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
                 <div className="w-20 h-20 bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
                     <Trophy className="w-10 h-10 text-emerald-500" />
                 </div>
-                <h2 className="text-2xl font-black text-stone-100 mb-2">¡Entrenamiento Completado!</h2>
-                <p className="text-stone-400 font-bold mb-8">Has alcanzado las 9 series. ¿Añadir 1 entrenamiento de fuerza a tus estadísticas y empezar de cero?</p>
+                <h2 className="text-2xl font-black text-stone-100 mb-2">¡Bosque Completado!</h2>
+                <p className="text-stone-400 font-bold mb-8">Has alcanzado las 9 series. ¿Añadir 1 sesión de Bosque a tus estadísticas y empezar de cero?</p>
                 
                 <div className="flex gap-4 w-full">
                     <button 
@@ -735,7 +735,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
                 </div>
                 
                 <div className="p-6">
-                    <p className="text-sm text-stone-400 mb-4 text-center">Selecciona la duración de tu entrenamiento:</p>
+                    <p className="text-sm text-stone-400 mb-4 text-center">Selecciona la duración de tu estancia en el Bosque:</p>
                     
                     <div className="grid grid-cols-3 gap-3 mb-6">
                         {[3, 10, 15, 30, 45, 60].map(mins => (
@@ -894,9 +894,9 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
                   className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 p-6 text-center"
                   onClick={(e) => e.stopPropagation()}
               >
-                  <h3 className="font-bold text-xl text-white mb-2">Fin del Entrenamiento</h3>
-                  <p className="text-stone-400 mb-8">
-                      ¿Añadir <span className="text-indigo-400 font-bold text-lg">{Math.round(sessionSeconds / 60)} minutos</span> al tiempo de entrenamiento total?
+                  <h3 className="font-bold text-xl text-white mb-2">Fin de la estancia en el Bosque</h3>
+                  <p className="text-stone-400 mb-6">
+                      ¿Añadir <span className="text-indigo-400 font-bold text-lg">{Math.round(sessionSeconds / 60)} minutos</span> al tiempo total en el Bosque?
                   </p>
                   
                   <div className="flex gap-4">

@@ -1273,7 +1273,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
             <div className="p-6 grid grid-cols-2 gap-4 bg-stone-900">
               <div className="bg-stone-950 p-4 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-2">
                 <span className="text-4xl font-black text-white">{exerciseStatsForPeriod.workouts}</span>
-                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest text-center mt-1">Entrenamientos</span>
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest text-center mt-1">Sesiones de Bosque</span>
               </div>
               <div className="bg-stone-950 p-4 rounded-xl border border-stone-800 flex flex-col items-center justify-center gap-2">
                 <div className="flex items-baseline gap-1">

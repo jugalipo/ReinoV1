@@ -1508,7 +1508,7 @@ function App() {
                 );
               })()}
 
-              {/* Sala de Entrenamiento Button - 2/4 width */}
+              {/* Bosque Button - 2/4 width */}
               <button 
                 onClick={() => setView('exercise')} 
                 className="col-span-2 bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl group transition-colors p-4"
