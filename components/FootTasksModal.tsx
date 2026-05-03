@@ -166,7 +166,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({ trains, sets, yu
               <Footprints className="w-6 h-6 text-emerald-500" />
               <h3 className="font-bold text-emerald-100 text-xl tracking-tight">Passeggiata</h3>
             </div>
-            <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider mt-1">Sincronizado con Trenes, Setas y Yunque</p>
+            <p className="text-base mt-1">🚂 🍄 ⚔️</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-emerald-900/30 rounded-full transition-colors">
             <X className="w-6 h-6 text-emerald-600" />

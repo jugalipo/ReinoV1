@@ -192,7 +192,7 @@ const HUNOS_TASKS = [
   { text: "T1 🦁🦁🦁 20'", shortcut: 'leones' },
   { text: "Gim 🏋️ 60'", shortcut: 'exercise' },
   { text: "❤️❤️ 20'", shortcut: 'love' },
-  { text: "Leer 📖 30'" },
+  { text: "Leer 📖 30'", shortcut: 'read' },
 
   // Bloque medio
   { text: "Frío ❄️ 15'" },

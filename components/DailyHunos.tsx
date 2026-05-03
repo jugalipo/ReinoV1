@@ -50,10 +50,10 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
     let score = 0;
     tasks.forEach(t => {
       if (t.completed) {
-        if (t.text.includes('Leones') || t.text.includes('🦁')) score += 2;
-        else if (t.text.includes('Gimnasia') || t.text.includes('Gim')) score += 1;
-        else if (t.text.includes('Amor') || t.text.includes('❤️')) score += 1;
-        else if (t.text.includes('Leer')) score += 1;
+        if (t.shortcut === 'leones') score += 2;
+        else if (t.shortcut === 'exercise') score += 1;
+        else if (t.shortcut === 'love') score += 1;
+        else if (t.shortcut === 'read') score += 1;
       }
     });
     return score;
@@ -299,12 +299,12 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                     <div className="relative p-1.5 rounded-full bg-stone-950/40 border border-stone-800/50 overflow-hidden shadow-inner group/capsule">
                         {/* Dynamic Progress Bar Background */}
                         <div 
-                          className="absolute left-0 top-0 h-full bg-emerald-600/75 transition-all duration-1000 ease-out shadow-[0_0_40px_rgba(16,185,129,0.3)]"
+                          className="absolute left-0 top-0 h-full bg-amber-600/75 transition-all duration-1000 ease-out shadow-[0_0_40px_rgba(217,119,6,0.3)]"
                           style={{ width: `${(coreScore / coreTotal) * 100}%` }}
                         />
                         {/* Shimmer effect when full */}
                         {coreScore >= coreTotal && (
-                            <div className="absolute inset-0 bg-emerald-400 animate-pulse opacity-20" />
+                            <div className="absolute inset-0 bg-amber-400 animate-pulse opacity-20" />
                         )}
                         
                         <div className="grid grid-cols-4 gap-3 relative z-10">
