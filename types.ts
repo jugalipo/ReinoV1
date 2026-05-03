@@ -12,6 +12,7 @@ export interface Task {
   isProvisional?: boolean;
   repeaterMonths?: number[]; // Array of months (0-11) where this task automatically resets
   hunoType?: 'fantastico' | 'enanito' | 'fondo';
+  shortcut?: string;
 }
 
 export interface GympiezaTask {

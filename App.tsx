@@ -189,32 +189,32 @@ const ANNUAL_TRAIN_TASKS = [
 
 const HUNOS_TASKS = [
   // Fila 1
-  "T1 🦁🦁🦁 20'",
-  "Gim 🏋️ 60'",
-  "❤️❤️ 20'",
-  "Leer 📖 30'",
+  { text: "T1 🦁🦁🦁 20'", shortcut: 'leones' },
+  { text: "Gim 🏋️ 60'", shortcut: 'exercise' },
+  { text: "❤️❤️ 20'", shortcut: 'love' },
+  { text: "Leer 📖 30'" },
 
   // Bloque medio
-  "Frío ❄️ 15'",
-  "Diana 🎯 15'",
-  "IdiomaS 🏛️ 20'",
-  "T2 🔥 40'",
-  "T3 🚢 20'",
-  "pág 📘 30'",
-  "WH - m 🫁 15'",
-  "🍄🍄 30'",
-  "🚂🚂🚂 110'",
-  "P ⚙️ 44'",
-  "Masajercicio ✋ 20'",
+  { text: "Frío ❄️ 15'" },
+  { text: "Diana 🎯 15'" },
+  { text: "IdiomaS 🏛️ 20'" },
+  { text: "T2 🔥 40'", shortcut: 'forjas' },
+  { text: "T3 🚢 20'", shortcut: 'yunque' },
+  { text: "pág 📘 30'" },
+  { text: "WH - m 🫁 15'" },
+  { text: "🍄🍄 30'", shortcut: 'sets' },
+  { text: "🚂🚂🚂 110'", shortcut: 'trains' },
+  { text: "P ⚙️ 44'", shortcut: 'projects' },
+  { text: "Masajercicio ✋ 20'" },
 
   // Fila 5 (Últimas)
-  "8 ⏰",
-  "10.000 🦶 60'",
-  "Sol ☀️ 15'",
-  "Ayuno 🚫",
-  "Menú 🍴 60'",
-  "1 FAH 🍰",
-  "Sano 🍏"
+  { text: "8 ⏰" },
+  { text: "10.000 🦶 60'" },
+  { text: "Sol ☀️ 15'" },
+  { text: "Ayuno 🚫", shortcut: 'food' },
+  { text: "Menú 🍴 60'", shortcut: 'food' },
+  { text: "1 FAH 🍰" },
+  { text: "Sano 🍏" }
 ];
 
 const PROJECT_DEFINITIONS = [
@@ -248,9 +248,10 @@ const INITIAL_DATA: AppData = {
     interactionsHistory: [],
     lastTotalInteractions: 0
   },
-  hunos: HUNOS_TASKS.map((text, i) => ({
+  hunos: HUNOS_TASKS.map((item, i) => ({
     id: `huno-${i}`,
-    text,
+    text: item.text,
+    shortcut: item.shortcut,
     completed: false,
     failedYesterday: false,
     missedDays: 0,
@@ -435,6 +436,25 @@ const deserializeAppData = (docs: any[]): AppData => {
 
 const processResets = (parsed: AppData): AppData => {
   const result = JSON.parse(JSON.stringify(parsed)) as AppData;
+
+  // Ensure Hunos have stable shortcuts even if user changed their text
+  if (result.hunos) {
+    result.hunos = result.hunos.map((t, i) => {
+      if (!t.shortcut) {
+        // Find the original definition by index (assuming original order was preserved)
+        const originalByIndex = HUNOS_TASKS[i];
+        if (originalByIndex && t.id === `huno-${i}`) {
+          return { ...t, shortcut: originalByIndex.shortcut };
+        }
+        // Fallback: match by original text if the task was moved
+        const originalByText = HUNOS_TASKS.find(ot => ot.text === t.text);
+        if (originalByText) {
+          return { ...t, shortcut: originalByText.shortcut };
+        }
+      }
+      return t;
+    });
+  }
 
   if (!result.stats) { result.stats = { perfectSetsWeeks: 0, hunoPlenos: 0, perfectTrainMonths: 0, projectPlenos: 0, hunoPlenoCurrent: 0, projectPlenoCurrent: 0, hunoReward: "Premio por definir", projectReward: "Premio por definir", setsHistory: [], trainsHistory: [], interactionsHistory: [], lastTotalInteractions: 0 }; }
   if (typeof result.stats.projectPlenos === 'undefined') { result.stats.projectPlenos = 0; }
@@ -991,43 +1011,30 @@ function App() {
   }
 
   const handleHunosUpdate = (newTasks: Task[], incrementPleno: boolean = false) => {
-    const gymTaskNew = newTasks.find(t => t.text.includes('Gim'));
-    const gymTaskOld = data.hunos.find(t => t.id === gymTaskNew?.id);
-    if (gymTaskNew && gymTaskOld && !gymTaskOld.completed && gymTaskNew.completed) setTimeout(() => setView('exercise'), 1200);
+    // Helper to find task by shortcut and trigger view change if just completed
+    const triggerShortcut = (shortcut: string, view: ViewState | (() => void)) => {
+      const tasksNew = newTasks.filter(t => t.shortcut === shortcut);
+      tasksNew.forEach(tNew => {
+        const tOld = data.hunos.find(t => t.id === tNew.id);
+        if (tOld && !tOld.completed && tNew.completed) {
+          if (typeof view === 'function') {
+            setTimeout(view, 1200);
+          } else {
+            setTimeout(() => setView(view), 1200);
+          }
+        }
+      });
+    };
 
-    const loveTaskNew = newTasks.find(t => t.text.includes('❤️❤️'));
-    const loveTaskOld = data.hunos.find(t => t.id === loveTaskNew?.id);
-    if (loveTaskNew && loveTaskOld && !loveTaskOld.completed && loveTaskNew.completed) setTimeout(() => setView('love'), 1200);
-
-    const forjasTaskNew = newTasks.find(t => t.text.includes('🔥'));
-    const forjasTaskOld = data.hunos.find(t => t.id === forjasTaskNew?.id);
-    if (forjasTaskNew && forjasTaskOld && !forjasTaskOld.completed && forjasTaskNew.completed) setTimeout(() => setView('forjas'), 1200);
-
-    const leonesTaskNew = newTasks.find(t => t.text.includes('🦁'));
-    const leonesTaskOld = data.hunos.find(t => t.id === leonesTaskNew?.id);
-    if (leonesTaskNew && leonesTaskOld && !leonesTaskOld.completed && leonesTaskNew.completed) setTimeout(() => setView('leones'), 1200);
-
-    const ayunoTaskNew = newTasks.find(t => t.text.includes('Ayuno'));
-    const ayunoTaskOld = data.hunos.find(t => t.id === ayunoTaskNew?.id);
-    if (ayunoTaskNew && ayunoTaskOld && !ayunoTaskOld.completed && ayunoTaskNew.completed) setTimeout(() => setView('food'), 1200);
-
-    const menuTaskNew = newTasks.find(t => t.text.includes('Menú'));
-    const menuTaskOld = data.hunos.find(t => t.id === menuTaskNew?.id);
-    if (menuTaskNew && menuTaskOld && !menuTaskOld.completed && menuTaskNew.completed) setTimeout(() => setView('food'), 1200);
-
-    const setasTaskNew = newTasks.find(t => t.text.includes('🍄'));
-    const setasTaskOld = data.hunos.find(t => t.id === setasTaskNew?.id);
-    if (setasTaskNew && setasTaskOld && !setasTaskOld.completed && setasTaskNew.completed) setTimeout(() => setView('sets'), 1200);
-
-    const trenesTaskNew = newTasks.find(t => t.text.includes('🚂'));
-    const trenesTaskOld = data.hunos.find(t => t.id === trenesTaskNew?.id);
-    if (trenesTaskNew && trenesTaskOld && !trenesTaskOld.completed && trenesTaskNew.completed) setTimeout(() => setView('trains'), 1200);
-
-    const projTaskNew = newTasks.find(t => t.text.includes('⚙️'));
-    const projTaskOld = data.hunos.find(t => t.id === projTaskNew?.id);
-    if (projTaskNew && projTaskOld && !projTaskOld.completed && projTaskNew.completed) {
-      setShowProjectPromptModal(true);
-    }
+    triggerShortcut('exercise', 'exercise');
+    triggerShortcut('love', 'love');
+    triggerShortcut('forjas', 'forjas');
+    triggerShortcut('yunque', 'yunque');
+    triggerShortcut('leones', 'leones');
+    triggerShortcut('food', 'food');
+    triggerShortcut('sets', 'sets');
+    triggerShortcut('trains', 'trains');
+    triggerShortcut('projects', () => setShowProjectPromptModal(true));
 
     const todayKey = new Date().toDateString();
     const completedIds = newTasks.filter(t => t.completed).map(t => t.id);
