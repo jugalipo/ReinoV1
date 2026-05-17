@@ -925,7 +925,7 @@ function App() {
 
           // Persist to Firebase if user is logged in
           if (user) {
-            const habitsRef = collection(db, 'shared', 'global', 'habits');
+            const habitsRef = collection(db, 'users', user.uid, 'habits');
             const serialized = serializeAppData(updatedData);
             const batch = writeBatch(db);
             serialized.forEach(d => {
@@ -971,7 +971,7 @@ function App() {
       return;
     }
 
-    const habitsRef = collection(db, 'shared', 'global', 'habits');
+    const habitsRef = collection(db, 'users', user.uid, 'habits');
     let unsubscribe: () => void;
 
     const initializeData = async () => {
@@ -998,7 +998,7 @@ function App() {
               serializedDocs.forEach(d => {
                 batch.set(doc(habitsRef, d.id), d.data);
               });
-              await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `shared/global/habits`));
+              await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
             } else {
               isRemoteUpdate.current = true;
             }
@@ -1029,14 +1029,14 @@ function App() {
             docs.forEach(d => {
               batch.set(doc(habitsRef, d.id), d.data);
             });
-            await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `shared/global/habits`));
+            await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
             lastSnapshotData.current = JSON.stringify(INITIAL_DATA);
             setData(INITIAL_DATA);
           }
         }
       } catch (error) {
         console.error("Initialization failed:", error);
-        handleFirestoreError(error, OperationType.GET, `shared/global/habits`);
+        handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
       } finally {
         setIsInitializing(false);
         setLoaded(true);
@@ -1058,7 +1058,7 @@ function App() {
           }
         }, (error) => {
           console.error("Firestore sync error:", error);
-          handleFirestoreError(error, OperationType.GET, `shared/global/habits`);
+          handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
         });
       }
     };
@@ -1091,14 +1091,14 @@ function App() {
       try {
         const batch = writeBatch(db);
         const docs = serializeAppData(data);
-        const habitsRef = collection(db, 'shared', 'global', 'habits');
+        const habitsRef = collection(db, 'users', user.uid, 'habits');
         docs.forEach(d => {
           batch.set(doc(habitsRef, d.id), d.data);
         });
         await batch.commit();
         lastSnapshotData.current = JSON.stringify(data);
       } catch (e) {
-        handleFirestoreError(e, OperationType.WRITE, `shared/global/habits`);
+        handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`);
       } finally {
         pendingWritesTimer.current = null;
       }
