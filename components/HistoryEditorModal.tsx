@@ -8,12 +8,14 @@ interface HistoryEditorModalProps {
   data: AppData;
   onUpdateData: (data: AppData) => void;
   onClose: () => void;
+  initialDate?: Date;
 }
 
-export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, onUpdateData, onClose }) => {
+export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, onUpdateData, onClose, initialDate }) => {
   useModalHistory(true, onClose);
 
   const [currentDate, setCurrentDate] = useState(() => {
+    if (initialDate) return new Date(initialDate);
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d;

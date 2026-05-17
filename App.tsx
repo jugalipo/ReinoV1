@@ -13,7 +13,7 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -258,6 +258,9 @@ const INITIAL_DATA: AppData = {
     plenoCompleted: false
   })),
   hunosHistory: {},
+  streakReviewedDays: {},
+  firewallDay: 0,
+  firewallLastCompletedDate: "",
   trains: TRAIN_TASKS.map((task, i) => ({
     id: `train-${i}`,
     text: task.text,
@@ -377,7 +380,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "" } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -402,6 +405,9 @@ const deserializeAppData = (docs: any[]): AppData => {
   docs.forEach(doc => {
     if (doc.id === 'core') {
       Object.assign(result, doc.data);
+      result.streakReviewedDays = doc.data.streakReviewedDays || {};
+      result.firewallDay = doc.data.firewallDay || 0;
+      result.firewallLastCompletedDate = doc.data.firewallLastCompletedDate || "";
     } else if (doc.id === 'hunos') {
       result.hunos = doc.data.items || INITIAL_DATA.hunos;
     } else if (doc.id === 'trains') {
@@ -722,6 +728,129 @@ function App() {
   const [loaded, setLoaded] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
+  const [historyInitialDate, setHistoryInitialDate] = useState<Date | undefined>(undefined);
+
+  const [showFirewallModal, setShowFirewallModal] = useState(false);
+  const [firewallChecked, setFirewallChecked] = useState({ ducha: false, calle: false, huno: false });
+
+  useEffect(() => {
+    if (!loaded) return;
+
+    const todayStr = new Date().toDateString();
+    const currentFirewallDay = data.firewallDay || 0;
+
+    if (currentFirewallDay > 0 && currentFirewallDay <= 3) {
+      if (data.firewallLastCompletedDate !== todayStr) {
+        setShowFirewallModal(true);
+      } else {
+        setShowFirewallModal(false);
+      }
+    } else {
+      const reviews = data.streakReviewedDays || {};
+      let unreviewedDaysCount = 0;
+      for (let i = 1; i <= 4; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toDateString();
+        if (!reviews[key]) {
+          unreviewedDaysCount++;
+        }
+      }
+
+      if (unreviewedDaysCount === 4) {
+        setData(prev => ({
+          ...prev,
+          firewallDay: 1,
+          firewallLastCompletedDate: ""
+        }));
+        setShowFirewallModal(true);
+      } else {
+        setShowFirewallModal(false);
+      }
+    }
+  }, [loaded, data.firewallDay, data.firewallLastCompletedDate, data.streakReviewedDays]);
+
+  useEffect(() => {
+    setFirewallChecked({ ducha: false, calle: false, huno: false });
+  }, [data.firewallDay, data.firewallLastCompletedDate]);
+
+  const handleCompleteFirewallDay = () => {
+    const todayStr = new Date().toDateString();
+    setData(prev => {
+      const currentDay = prev.firewallDay || 1;
+      const nextDay = currentDay >= 3 ? 0 : currentDay + 1;
+      return {
+        ...prev,
+        firewallDay: nextDay,
+        firewallLastCompletedDate: todayStr
+      };
+    });
+    setShowFirewallModal(false);
+  };
+
+  const getPastFiveDays = () => {
+    const days = [];
+    for (let i = 5; i >= 1; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      days.push(d);
+    }
+    return days;
+  };
+
+  const calculateStreak = () => {
+    const history = data.hunosHistory || {};
+    const todayStr = new Date().toDateString();
+    
+    const isLogged = (dateStr: string) => {
+      if (dateStr === todayStr) {
+        return data.hunos.some(t => t.completed) || (history[todayStr] && history[todayStr].length > 0);
+      }
+      return history[dateStr] && history[dateStr].length > 0;
+    };
+
+    let streak = 0;
+    const checkDate = new Date();
+    
+    if (isLogged(todayStr)) {
+      while (isLogged(checkDate.toDateString())) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+    } else {
+      checkDate.setDate(checkDate.getDate() - 1);
+      if (isLogged(checkDate.toDateString())) {
+        while (isLogged(checkDate.toDateString())) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+      }
+    }
+    
+    return streak;
+  };
+
+  const toggleStreakDayReview = (date: Date) => {
+    const dateKey = date.toDateString();
+    const isCurrentlyMarked = !!data.streakReviewedDays?.[dateKey];
+    const newMarked = !isCurrentlyMarked;
+    
+    setData(prev => ({
+      ...prev,
+      streakReviewedDays: {
+        ...(prev.streakReviewedDays || {}),
+        [dateKey]: newMarked
+      }
+    }));
+
+    if (newMarked) {
+      setTimeout(() => {
+        setHistoryInitialDate(date);
+        setShowHistory(true);
+      }, 400);
+    }
+  };
 
   const [showProjectConfirm, setShowProjectConfirm] = useState(false);
   const [showCongratulations, setShowCongratulations] = useState<{ show: boolean, type: 'hunos' | 'projects', reward: string }>({ show: false, type: 'hunos', reward: '' });
@@ -796,7 +925,7 @@ function App() {
 
           // Persist to Firebase if user is logged in
           if (user) {
-            const habitsRef = collection(db, 'users', user.uid, 'habits');
+            const habitsRef = collection(db, 'shared', 'global', 'habits');
             const serialized = serializeAppData(updatedData);
             const batch = writeBatch(db);
             serialized.forEach(d => {
@@ -842,7 +971,7 @@ function App() {
       return;
     }
 
-    const habitsRef = collection(db, 'users', user.uid, 'habits');
+    const habitsRef = collection(db, 'shared', 'global', 'habits');
     let unsubscribe: () => void;
 
     const initializeData = async () => {
@@ -869,7 +998,7 @@ function App() {
               serializedDocs.forEach(d => {
                 batch.set(doc(habitsRef, d.id), d.data);
               });
-              await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+              await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `shared/global/habits`));
             } else {
               isRemoteUpdate.current = true;
             }
@@ -900,14 +1029,14 @@ function App() {
             docs.forEach(d => {
               batch.set(doc(habitsRef, d.id), d.data);
             });
-            await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`));
+            await batch.commit().catch(e => handleFirestoreError(e, OperationType.WRITE, `shared/global/habits`));
             lastSnapshotData.current = JSON.stringify(INITIAL_DATA);
             setData(INITIAL_DATA);
           }
         }
       } catch (error) {
         console.error("Initialization failed:", error);
-        handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
+        handleFirestoreError(error, OperationType.GET, `shared/global/habits`);
       } finally {
         setIsInitializing(false);
         setLoaded(true);
@@ -929,7 +1058,7 @@ function App() {
           }
         }, (error) => {
           console.error("Firestore sync error:", error);
-          handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
+          handleFirestoreError(error, OperationType.GET, `shared/global/habits`);
         });
       }
     };
@@ -962,14 +1091,14 @@ function App() {
       try {
         const batch = writeBatch(db);
         const docs = serializeAppData(data);
-        const habitsRef = collection(db, 'users', user.uid, 'habits');
+        const habitsRef = collection(db, 'shared', 'global', 'habits');
         docs.forEach(d => {
           batch.set(doc(habitsRef, d.id), d.data);
         });
         await batch.commit();
         lastSnapshotData.current = JSON.stringify(data);
       } catch (e) {
-        handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`);
+        handleFirestoreError(e, OperationType.WRITE, `shared/global/habits`);
       } finally {
         pendingWritesTimer.current = null;
       }
@@ -1553,6 +1682,69 @@ function App() {
               </button>
             </div>
 
+            {/* Small Streak Dial */}
+            <div className="bg-stone-900 rounded-2xl p-4 w-full mb-3 border border-stone-800 flex items-center justify-between relative overflow-hidden">
+              {/* Left Side: 5 circles representing the past 5 days, connected by a line */}
+              <div className="flex-1 flex flex-col justify-center pr-4">
+                <div className="relative flex justify-between items-center w-full px-2">
+                  {/* Connecting Line */}
+                  <div className="absolute top-1/2 -translate-y-1/2 left-[10%] right-[10%] h-[2px] bg-stone-800 -z-0" />
+                  
+                  {(() => {
+                    const pastDays = getPastFiveDays();
+                    return pastDays.map((d, index) => {
+                      const dateKey = d.toDateString();
+                      const isMarked = !!data.streakReviewedDays?.[dateKey];
+                      const dayNumber = d.getDate();
+
+                      return (
+                        <div key={dateKey} className="flex flex-col items-center relative z-10">
+                          {/* Interactive Circle Button */}
+                          <button
+                            onClick={() => toggleStreakDayReview(d)}
+                            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                              isMarked
+                                ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)] scale-105 hover:bg-purple-500'
+                                : 'bg-stone-950 border-stone-800 text-stone-600 hover:border-stone-600 hover:text-stone-400'
+                            }`}
+                            title={`Revisar ${d.toLocaleDateString()}`}
+                          >
+                            {isMarked ? (
+                              <Check className="w-5 h-5 stroke-[3]" />
+                            ) : (
+                              <span className="text-xs font-black">{dayNumber}</span>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Right Side: Speech Bubble showing current Streak */}
+              {(() => {
+                const currentStreak = calculateStreak();
+                return (
+                  <div className="flex flex-col items-center justify-center pl-2 border-l border-stone-800">
+                    <div className="relative">
+                      {/* Speech Bubble / Badge */}
+                      <div className={`bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 text-stone-950 px-4 py-2 rounded-2xl shadow-[0_0_15px_rgba(249,115,22,0.4)] flex flex-col items-center justify-center min-w-[70px] relative ${
+                        currentStreak === 0 ? 'animate-pulse duration-[3000ms]' : ''
+                      }`}>
+                        <span className="text-[8px] font-black uppercase tracking-wider leading-none opacity-80">Racha</span>
+                        <span className="text-2xl font-black tracking-tighter leading-none mt-0.5">
+                          🔥 {currentStreak}
+                        </span>
+                        {/* Tiny speech bubble pointer/arrow */}
+                        <div className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-3 h-3 bg-orange-500 rotate-45" style={{ zIndex: -1 }} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             {(() => {
               const now = new Date();
               const day = now.getDay(); // 0 is Sunday, 6 is Saturday
@@ -1762,7 +1954,17 @@ function App() {
             </button>
 
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
-            {showHistory && <HistoryEditorModal data={data} onUpdateData={setData} onClose={() => setShowHistory(false)} />}
+            {showHistory && (
+              <HistoryEditorModal 
+                data={data} 
+                onUpdateData={setData} 
+                initialDate={historyInitialDate}
+                onClose={() => {
+                  setShowHistory(false);
+                  setHistoryInitialDate(undefined);
+                }} 
+              />
+            )}
 
             {showProjectPromptModal && (
               <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
@@ -1791,6 +1993,77 @@ function App() {
                       Sí
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {showFirewallModal && (
+              <div className="fixed inset-0 bg-stone-950/95 backdrop-blur-md z-[200] flex items-center justify-center p-4 select-none animate-in fade-in duration-300">
+                <div className="bg-stone-900 border border-red-900/60 rounded-3xl p-8 max-w-sm w-full shadow-[0_0_50px_rgba(239,68,68,0.15)] flex flex-col items-center relative overflow-hidden animate-in zoom-in duration-300">
+                  {/* Warning Icon */}
+                  <div className="w-16 h-16 bg-red-950/40 border border-red-500/30 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-pulse">
+                    <ShieldAlert className="w-8 h-8 stroke-[2]" />
+                  </div>
+
+                  {/* Title & Day Indicator */}
+                  <h2 className="text-red-500 font-black tracking-tighter text-2xl uppercase italic animate-pulse">
+                    MODO CORTAFUEGOS
+                  </h2>
+                  <p className="text-stone-400 font-bold tracking-widest text-xs uppercase mt-1 mb-6">
+                    Día {data.firewallDay || 1} de 3
+                  </p>
+
+                  <p className="text-stone-500 text-[10px] text-center uppercase tracking-wider font-bold mb-6 max-w-[280px]">
+                    Has estado inactivo los últimos 4 días. Para desbloquear el reino, completa estas 3 acciones esenciales de supervivencia hoy:
+                  </p>
+
+                  {/* Checklist Buttons */}
+                  <div className="w-full flex flex-col gap-3 mb-8">
+                    {[
+                      { key: 'ducha', label: 'Una ducha', emoji: '🚿' },
+                      { key: 'calle', label: 'Salir a la calle', emoji: '🌳' },
+                      { key: 'huno', label: 'Un huno', emoji: '⚔️' }
+                    ].map(item => {
+                      const isChecked = firewallChecked[item.key as keyof typeof firewallChecked];
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() => setFirewallChecked(prev => ({
+                            ...prev,
+                            [item.key]: !isChecked
+                          }))}
+                          className={`w-full py-3.5 px-5 rounded-2xl border flex items-center justify-between transition-all duration-300 font-bold uppercase tracking-wider text-xs ${
+                            isChecked
+                              ? 'bg-red-950/30 border-red-500 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
+                              : 'bg-stone-950 border-stone-850 text-stone-500 hover:border-stone-700 hover:text-stone-400'
+                          }`}
+                        >
+                          <span className="flex items-center gap-3">
+                            <span className="text-base">{item.emoji}</span>
+                            {item.label}
+                          </span>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            isChecked ? 'border-red-500 bg-red-500 text-stone-950' : 'border-stone-700 bg-transparent'
+                          }`}>
+                            {isChecked && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Complete Button */}
+                  <button
+                    disabled={!Object.values(firewallChecked).every(v => v)}
+                    onClick={handleCompleteFirewallDay}
+                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-500 border ${
+                      Object.values(firewallChecked).every(v => v)
+                        ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white border-red-400 hover:scale-[1.02] shadow-[0_0_20px_rgba(239,68,68,0.3)] cursor-pointer'
+                        : 'bg-stone-950 border-stone-850 text-stone-700 cursor-not-allowed'
+                    }`}
+                  >
+                    Semper Iterum Rudis
+                  </button>
                 </div>
               </div>
             )}

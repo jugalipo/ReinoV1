@@ -31,7 +31,10 @@ export default defineConfig(({ mode }) => {
                 sizes: '512x512',
                 type: 'image/png'
               }
-            ]
+            ],
+            launch_handler: {
+              client_mode: 'focus-existing'
+            }
           }
         })
       ],

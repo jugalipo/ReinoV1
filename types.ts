@@ -276,4 +276,7 @@ export interface AppData {
   caminos?: Camino[];
   loveTreeSortBy?: 'interactions' | 'days';
   lastAnnualTrainReminderDate?: string; // YYYY-MM-DD — tracks when the user last dismissed the daily annual train reminder
+  streakReviewedDays?: Record<string, boolean>; // DateString -> isReviewed
+  firewallDay?: number; // 0, 1, 2, 3
+  firewallLastCompletedDate?: string; // YYYY-MM-DD or toDateString()
 }
