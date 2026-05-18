@@ -261,6 +261,7 @@ const INITIAL_DATA: AppData = {
   streakReviewedDays: {},
   firewallDay: 0,
   firewallLastCompletedDate: "",
+  firewallChecked: { ducha: false, calle: false, huno: false },
   trains: TRAIN_TASKS.map((task, i) => ({
     id: `train-${i}`,
     text: task.text,
@@ -380,7 +381,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "" } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false } } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -408,6 +409,7 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.streakReviewedDays = doc.data.streakReviewedDays || {};
       result.firewallDay = doc.data.firewallDay || 0;
       result.firewallLastCompletedDate = doc.data.firewallLastCompletedDate || "";
+      result.firewallChecked = doc.data.firewallChecked || { ducha: false, calle: false, huno: false };
     } else if (doc.id === 'hunos') {
       result.hunos = doc.data.items || INITIAL_DATA.hunos;
     } else if (doc.id === 'trains') {
@@ -719,6 +721,16 @@ const processResets = (parsed: AppData): AppData => {
     result.food.lastMonthlyDishesReset = Date.now();
   }
 
+  // Special correction for Mon May 18 2026: recover Day 2 of the firewall
+  if (today === "Mon May 18 2026") {
+    if (result.firewallDay === 1 && (!result.firewallLastCompletedDate || result.firewallLastCompletedDate === "")) {
+      result.firewallDay = 2;
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      result.firewallLastCompletedDate = yesterdayDate.toDateString();
+    }
+  }
+
   return result;
 };
 
@@ -731,19 +743,33 @@ function App() {
   const [historyInitialDate, setHistoryInitialDate] = useState<Date | undefined>(undefined);
 
   const [showFirewallModal, setShowFirewallModal] = useState(false);
-  const [firewallChecked, setFirewallChecked] = useState({ ducha: false, calle: false, huno: false });
 
   useEffect(() => {
     if (!loaded) return;
 
     const todayStr = new Date().toDateString();
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = yesterdayDate.toDateString();
     const currentFirewallDay = data.firewallDay || 0;
 
     if (currentFirewallDay > 0 && currentFirewallDay <= 3) {
-      if (data.firewallLastCompletedDate !== todayStr) {
+      if (data.firewallLastCompletedDate === todayStr) {
+        setShowFirewallModal(false);
+      } else if (data.firewallLastCompletedDate === yesterdayStr) {
         setShowFirewallModal(true);
       } else {
-        setShowFirewallModal(false);
+        const currentChecked = data.firewallChecked || { ducha: false, calle: false, huno: false };
+        const hasCheckedItems = currentChecked.ducha || currentChecked.calle || currentChecked.huno;
+        if (data.firewallDay !== 1 || data.firewallLastCompletedDate !== "" || hasCheckedItems) {
+          setData(prev => ({
+            ...prev,
+            firewallDay: 1,
+            firewallLastCompletedDate: "",
+            firewallChecked: { ducha: false, calle: false, huno: false }
+          }));
+        }
+        setShowFirewallModal(true);
       }
     } else {
       const reviews = data.streakReviewedDays || {};
@@ -758,31 +784,39 @@ function App() {
       }
 
       if (unreviewedDaysCount === 4) {
-        setData(prev => ({
-          ...prev,
-          firewallDay: 1,
-          firewallLastCompletedDate: ""
-        }));
+        const currentChecked = data.firewallChecked || { ducha: false, calle: false, huno: false };
+        const hasCheckedItems = currentChecked.ducha || currentChecked.calle || currentChecked.huno;
+        if (data.firewallDay !== 1 || data.firewallLastCompletedDate !== "" || hasCheckedItems) {
+          setData(prev => ({
+            ...prev,
+            firewallDay: 1,
+            firewallLastCompletedDate: "",
+            firewallChecked: { ducha: false, calle: false, huno: false }
+          }));
+        }
         setShowFirewallModal(true);
       } else {
         setShowFirewallModal(false);
       }
     }
-  }, [loaded, data.firewallDay, data.firewallLastCompletedDate, data.streakReviewedDays]);
-
-  useEffect(() => {
-    setFirewallChecked({ ducha: false, calle: false, huno: false });
-  }, [data.firewallDay, data.firewallLastCompletedDate]);
+  }, [loaded, data.firewallDay, data.firewallLastCompletedDate, data.streakReviewedDays, data.firewallChecked]);
 
   const handleCompleteFirewallDay = () => {
     const todayStr = new Date().toDateString();
+    const currentChecked = data.firewallChecked || { ducha: false, calle: false, huno: false };
+    const isFulfilled = Object.values(currentChecked).every(v => v);
+    
     setData(prev => {
       const currentDay = prev.firewallDay || 1;
-      const nextDay = currentDay >= 3 ? 0 : currentDay + 1;
+      let nextDay = 1; // Default to resetting to Day 1 if not fulfilled
+      if (isFulfilled) {
+        nextDay = currentDay >= 3 ? 0 : currentDay + 1;
+      }
       return {
         ...prev,
         firewallDay: nextDay,
-        firewallLastCompletedDate: todayStr
+        firewallLastCompletedDate: todayStr,
+        firewallChecked: { ducha: false, calle: false, huno: false } // Reset checked status upon completion!
       };
     });
     setShowFirewallModal(false);
@@ -2024,14 +2058,23 @@ function App() {
                       { key: 'calle', label: 'Salir a la calle', emoji: '🌳' },
                       { key: 'huno', label: 'Un huno', emoji: '⚔️' }
                     ].map(item => {
-                      const isChecked = firewallChecked[item.key as keyof typeof firewallChecked];
+                      const currentChecked = data.firewallChecked || { ducha: false, calle: false, huno: false };
+                      const isChecked = currentChecked[item.key as keyof typeof currentChecked];
                       return (
                         <button
                           key={item.key}
-                          onClick={() => setFirewallChecked(prev => ({
-                            ...prev,
-                            [item.key]: !isChecked
-                          }))}
+                          onClick={() => {
+                            setData(prev => {
+                              const checked = prev.firewallChecked || { ducha: false, calle: false, huno: false };
+                              return {
+                                ...prev,
+                                firewallChecked: {
+                                  ...checked,
+                                  [item.key]: !isChecked
+                                }
+                              };
+                            });
+                          }}
                           className={`w-full py-3.5 px-5 rounded-2xl border flex items-center justify-between transition-all duration-300 font-bold uppercase tracking-wider text-xs ${
                             isChecked
                               ? 'bg-red-950/30 border-red-500 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
@@ -2054,10 +2097,10 @@ function App() {
 
                   {/* Complete Button */}
                   <button
-                    disabled={!Object.values(firewallChecked).every(v => v)}
+                    disabled={!Object.values(data.firewallChecked || { ducha: false, calle: false, huno: false }).every(v => v)}
                     onClick={handleCompleteFirewallDay}
                     className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-500 border ${
-                      Object.values(firewallChecked).every(v => v)
+                      Object.values(data.firewallChecked || { ducha: false, calle: false, huno: false }).every(v => v)
                         ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white border-red-400 hover:scale-[1.02] shadow-[0_0_20px_rgba(239,68,68,0.3)] cursor-pointer'
                         : 'bg-stone-950 border-stone-850 text-stone-700 cursor-not-allowed'
                     }`}

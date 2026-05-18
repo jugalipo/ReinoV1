@@ -279,4 +279,5 @@ export interface AppData {
   streakReviewedDays?: Record<string, boolean>; // DateString -> isReviewed
   firewallDay?: number; // 0, 1, 2, 3
   firewallLastCompletedDate?: string; // YYYY-MM-DD or toDateString()
+  firewallChecked?: { ducha: boolean; calle: boolean; huno: boolean };
 }
