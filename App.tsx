@@ -15,7 +15,7 @@ import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
-import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer } from 'firebase/firestore';
+import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 enum OperationType {
@@ -1926,6 +1926,12 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
   const [showFootModal, setShowFootModal] = useState(false);
   const [showGympiezaModal, setShowGympiezaModal] = useState(false);
 
+  // Magic Task Interception States
+  const [magicTaskId, setMagicTaskId] = useState<string | null>(() => {
+    return new URLSearchParams(window.location.search).get('magicTask');
+  });
+  const [magicTaskProcessing, setMagicTaskProcessing] = useState<boolean>(!!magicTaskId);
+
   // --- MOBILE BACK BUTTON SUPPORT ---
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -2020,6 +2026,92 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!magicTaskId || !authReady) return;
+
+    if (!user) {
+      setMagicTaskProcessing(false);
+      return;
+    }
+
+    setMagicTaskProcessing(true);
+
+    const executeMagicTask = async () => {
+      try {
+        const hunosDocRef = doc(db, 'users', user.uid, 'habits', 'hunos');
+        const yunqueDocRef = doc(db, 'users', user.uid, 'habits', 'yunque');
+
+        const [hunosSnap, yunqueSnap] = await Promise.all([
+          getDoc(hunosDocRef),
+          getDoc(yunqueDocRef)
+        ]);
+
+        let hunosUpdated = false;
+        let yunqueUpdated = false;
+
+        let hunosItems = [];
+        if (hunosSnap.exists()) {
+          hunosItems = hunosSnap.data()?.items || [];
+        }
+
+        let yunqueLargas = [];
+        let yunqueRapidas = [];
+        if (yunqueSnap.exists()) {
+          yunqueLargas = yunqueSnap.data()?.largas || [];
+          yunqueRapidas = yunqueSnap.data()?.rapidas || [];
+        }
+
+        hunosItems = hunosItems.map((task: any) => {
+          if (task.id === magicTaskId) {
+            hunosUpdated = true;
+            return { ...task, completed: true };
+          }
+          return task;
+        });
+
+        yunqueLargas = yunqueLargas.map((task: any) => {
+          if (task.id === magicTaskId) {
+            yunqueUpdated = true;
+            return { ...task, completed: true };
+          }
+          return task;
+        });
+        yunqueRapidas = yunqueRapidas.map((task: any) => {
+          if (task.id === magicTaskId) {
+            yunqueUpdated = true;
+            return { ...task, completed: true };
+          }
+          return task;
+        });
+
+        if (hunosUpdated || yunqueUpdated) {
+          const batch = writeBatch(db);
+          if (hunosUpdated) {
+            batch.set(hunosDocRef, { items: hunosItems }, { merge: true });
+          }
+          if (yunqueUpdated) {
+            batch.set(yunqueDocRef, { largas: yunqueLargas, rapidas: yunqueRapidas }, { merge: true });
+          }
+          await batch.commit();
+          console.log("Magic task updated successfully in Firestore.");
+        } else {
+          console.log("Magic task not found in hunos or yunque.");
+        }
+      } catch (error) {
+        console.error("Error executing magic task:", error);
+      } finally {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('magicTask');
+        window.history.replaceState(null, '', url.pathname + url.search);
+
+        setMagicTaskId(null);
+        setMagicTaskProcessing(false);
+      }
+    };
+
+    executeMagicTask();
+  }, [authReady, user, magicTaskId]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -2164,6 +2256,16 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     }, 500);
 
   }, [data, loaded, user, isInitializing]);
+
+  if (magicTaskProcessing) {
+    return (
+      <div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative flex items-center justify-center">
+        <div className="text-xl text-stone-400 font-medium tracking-tight">
+          Registrado por Sebastian.
+        </div>
+      </div>
+    );
+  }
 
   if (!loaded || !authReady) return (
     <div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative">
