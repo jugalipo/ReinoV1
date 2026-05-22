@@ -13,6 +13,7 @@ export interface Task {
   repeaterMonths?: number[]; // Array of months (0-11) where this task automatically resets
   hunoType?: 'fantastico' | 'enanito' | 'fondo';
   shortcut?: string;
+  notes?: string; // Additional details for AI recommendations
 }
 
 export interface GympiezaTask {
@@ -280,4 +281,5 @@ export interface AppData {
   firewallDay?: number; // 0, 1, 2, 3
   firewallLastCompletedDate?: string; // YYYY-MM-DD or toDateString()
   firewallChecked?: { ducha: boolean; calle: boolean; huno: boolean };
+  sebastianInstructions?: string; // Custom instructions for the Gemini agent
 }

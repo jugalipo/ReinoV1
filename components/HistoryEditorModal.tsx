@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppData } from '../types';
 import { sanitizeForFirestore } from '../App';
-import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft, Activity, Bell } from 'lucide-react';
+import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft, Activity, Bell, Sparkles } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 interface HistoryEditorModalProps {
@@ -617,6 +617,25 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                     <p className="text-[10px] text-stone-500 text-center italic">
                         Recibirás un aviso cada día a esta hora para no olvidar tus hábitos.
                     </p>
+                </div>
+            </div>
+
+            {/* Directrices para Sebastian (IA) */}
+            <div className="pt-6 border-t border-stone-800">
+                <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider mb-3 px-2 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    Directrices de Sebastian (IA)
+                </h3>
+                <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-3">
+                    <p className="text-xs text-stone-400 leading-relaxed">
+                        Indica reglas generales o preferencias para que tu mayordomo Sebastian las tenga en cuenta al elegir tu tarea diaria de hoy (ej. prioridades según energía, días de la semana, etc.).
+                    </p>
+                    <textarea
+                        value={data.sebastianInstructions || ''}
+                        onChange={(e) => onUpdateData({ ...data, sebastianInstructions: e.target.value })}
+                        placeholder="Ejemplo: Si mi energía es < 5, prioriza las tareas rápidas y evita las de Yunque Largas. Los viernes prefiere tareas creativas..."
+                        className="w-full h-32 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 text-sm focus:outline-none focus:border-amber-500 font-sans resize-none transition-all placeholder:text-stone-600"
+                    />
                 </div>
             </div>
 

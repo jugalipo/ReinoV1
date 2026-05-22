@@ -13,7 +13,7 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -743,6 +743,1031 @@ function App() {
   const [historyInitialDate, setHistoryInitialDate] = useState<Date | undefined>(undefined);
 
   const [showFirewallModal, setShowFirewallModal] = useState(false);
+
+  // Modo Telón (Visual Lock Screen) States
+  const [modoTelonActive, setModoTelonActive] = useState(false);
+  const [telonDismissed, setTelonDismissed] = useState(false);
+  const [selectedEnergy, setSelectedEnergy] = useState<number | null>(null);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [sebastianResponse, setSebastianResponse] = useState<string | null>(null);
+  const [priorityTaskId, setPriorityTaskId] = useState<string | null>(null);
+  const [hasCheckedInitialEnergy, setHasCheckedInitialEnergy] = useState(false);
+
+  // Focus States
+  const [showFocusModal, setShowFocusModal] = useState(false);
+  const [focusLoading, setFocusLoading] = useState(false);
+  const [focusRecommendation, setFocusRecommendation] = useState<string | null>(null);
+  const [focusRecommendedTaskId, setFocusRecommendedTaskId] = useState<string | null>(null);
+
+  // Voice States & Refs
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceLoading, setVoiceLoading] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
+  const [voiceSuccessUpdates, setVoiceSuccessUpdates] = useState<string[] | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<any>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    if (!loaded || isInitializing || hasCheckedInitialEnergy) return;
+
+    const todayStr = new Date().toDateString();
+    const hasTodayEnergy = data.energyHistory && data.energyHistory[todayStr] !== undefined;
+    if (!hasTodayEnergy) {
+      setModoTelonActive(true);
+    }
+    setHasCheckedInitialEnergy(true);
+  }, [loaded, isInitializing, data.energyHistory, hasCheckedInitialEnergy]);
+
+  const fetchGeminiRecommendation = async (energyVal: number) => {
+    const startTime = Date.now();
+    setGeminiLoading(true);
+    setSebastianResponse(null);
+    setPriorityTaskId(null);
+
+    const hunosPending = data.hunos.filter(t => !t.completed);
+    const yunqueLargasPending = (data.yunqueLargas || []).filter(t => !t.completed);
+    const yunqueRapidasPending = (data.yunqueRapidas || []).filter(t => !t.completed);
+    const roblePending = (data.forjaTasks || []).filter(t => !t.completed);
+    const leonesPending = (data.leones || []).filter(t => t.current < t.target);
+
+    const totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length;
+
+    if (totalUncompleted === 0) {
+      setSebastianResponse("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo");
+      setPriorityTaskId("none");
+      setGeminiLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 10000);
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || ((import.meta as any).env && ((import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.GEMINI_API_KEY));
+
+      console.log("Modo Telón - API Key starts with:", apiKey ? apiKey.substring(0, 7) + "..." : "undefined");
+
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is not defined in environment variables.");
+      }
+
+      const promptText = `
+Eres Sebastian, el mayordomo del Reino. Tu señor te ha indicado que hoy tiene un nivel de energía de ${energyVal} sobre 10.
+Analiza la lista de tareas pendientes que tiene acumuladas en sus diferentes backlogs y selecciona una única tarea prioritaria que se adapte mejor a su nivel de energía de hoy.
+Nivel de energía: ${energyVal}/10 (donde 1 es muy baja energía y 10 es energía máxima).
+
+${data.sebastianInstructions ? `Directrices y preferencias de tu señor para hoy:
+${data.sebastianInstructions}
+
+` : ''}Backlogs de tareas pendientes:
+1. Hunos (Tareas Diarias):
+${hunosPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+
+2. Yunque Largas (Tareas Complejas):
+${yunqueLargasPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+
+3. Yunque Rápidas (Tareas Rápidas):
+${yunqueRapidasPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+
+4. Roble (Tareas Trimestrales/Proyectos):
+${roblePending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+
+5. Leones (Objetivos de Recursos):
+${leonesPending.map(t => `- [${t.id}] ${t.name} (${t.current}/${t.target} ${t.unit})`).join('\n')}
+
+Por favor, responde con un objeto JSON que contenga:
+- "text": Dos líneas de texto cortas, firmadas por 'Sebastian, su mayordomo'. La primera línea debe ser un comentario ingenioso, elegante y respetuoso sobre su nivel de energía de hoy. La segunda línea debe recomendar por qué se ha seleccionado esta tarea en particular y terminar con la firma 'Sebastian, su mayordomo'. Usa un salto de línea (\\n) para separarlas.
+- "taskId": El ID de la tarea seleccionada de la lista anterior. Debe coincidir exactamente con el ID proporcionado en el contexto.
+
+Ejemplo de respuesta en "text":
+"Veo que hoy su espíritu brilla con gran intensidad, mi señor. He seleccionado esta tarea porque su alta energía le permitirá conquistarla con soltura. Sebastian, su mayordomo"
+`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              thinkingConfig: {
+                thinkingBudget: 0
+              },
+              responseSchema: {
+                type: 'OBJECT',
+                properties: {
+                  text: {
+                    type: 'STRING',
+                    description: "Two lines of text signed by 'Sebastian, su mayordomo'."
+                  },
+                  taskId: {
+                    type: 'STRING',
+                    description: "The ID of the single priority task selected from the context backlogs."
+                  }
+                },
+                required: ['text', 'taskId']
+              }
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const json = await response.json();
+      const contentText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!contentText) {
+        throw new Error("Invalid response format from Gemini API");
+      }
+
+      const parsedData = JSON.parse(contentText);
+      if (parsedData.text && parsedData.taskId) {
+        setSebastianResponse(parsedData.text);
+        setPriorityTaskId(parsedData.taskId);
+      } else {
+        throw new Error("Missing required fields in Gemini response");
+      }
+    } catch (e: any) {
+      const elapsed = Date.now() - startTime;
+      if (e.name === 'AbortError') {
+        console.error(`Gemini API call timed out/aborted after ${elapsed}ms.`);
+      } else {
+        console.error(`Failed to fetch recommendation from Gemini API after ${elapsed}ms:`, e);
+      }
+      applyFallback(hunosPending, yunqueLargasPending, yunqueRapidasPending, roblePending, leonesPending);
+    } finally {
+      clearTimeout(timeoutId);
+      setGeminiLoading(false);
+    }
+  };
+
+  const applyFallback = (
+    hunosPending: any[],
+    yunqueLargasPending: any[],
+    yunqueRapidasPending: any[],
+    roblePending: any[],
+    leonesPending: any[]
+  ) => {
+    let selected = null;
+    if (hunosPending.length > 0) selected = hunosPending[0];
+    else if (yunqueRapidasPending.length > 0) selected = yunqueRapidasPending[0];
+    else if (yunqueLargasPending.length > 0) selected = yunqueLargasPending[0];
+    else if (roblePending.length > 0) selected = roblePending[0];
+    else if (leonesPending.length > 0) selected = leonesPending[0];
+
+    if (selected) {
+      setSebastianResponse(`Mi señor, no he podido contactar con el oráculo de Gemini, pero os sugiero esta tarea para hoy.\nEspero que vuestra jornada sea provechosa. Sebastian, su mayordomo`);
+      setPriorityTaskId(selected.id);
+    } else {
+      setSebastianResponse(`Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo`);
+      setPriorityTaskId("none");
+    }
+  };
+
+  // Focus & Voice Hooks
+  useEffect(() => {
+    if (voiceSuccessUpdates || voiceError) {
+      const timer = setTimeout(() => {
+        if (!isRecording && !voiceLoading) {
+          setVoiceSuccessUpdates(null);
+          setVoiceError(null);
+          setVoiceStatus(null);
+        }
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [voiceSuccessUpdates, voiceError, isRecording, voiceLoading]);
+
+  const fetchFocusRecommendation = async () => {
+    const startTime = Date.now();
+    setFocusLoading(true);
+    setFocusRecommendation(null);
+    setFocusRecommendedTaskId(null);
+    setShowFocusModal(true);
+
+    const hunosPending = data.hunos.filter(t => !t.completed);
+    const yunqueLargasPending = (data.yunqueLargas || []).filter(t => !t.completed);
+    const yunqueRapidasPending = (data.yunqueRapidas || []).filter(t => !t.completed);
+    const roblePending = (data.forjaTasks || []).filter(t => !t.completed);
+    const leonesPending = (data.leones || []).filter(t => t.current < t.target);
+
+    const totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length;
+
+    if (totalUncompleted === 0) {
+      setFocusRecommendation("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo");
+      setFocusRecommendedTaskId("none");
+      setFocusLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 10000);
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || ((import.meta as any).env && ((import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.GEMINI_API_KEY));
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is not defined.");
+      }
+
+      const promptText = `
+Eres Sebastian, el mayordomo del Reino. Tu señor te ha pedido una recomendación rápida ("Enfoque") para retomar el hilo del día.
+Analiza la lista de tareas pendientes en sus backlogs y selecciona una única tarea prioritaria para retomar el rumbo de forma inmediata.
+
+${data.sebastianInstructions ? `Directrices y preferencias de tu señor:
+${data.sebastianInstructions}
+
+` : ''}Backlogs de tareas pendientes:
+1. Hunos (Tareas Diarias):
+${hunosPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+
+2. Yunque Largas (Tareas Complejas):
+${yunqueLargasPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+
+3. Yunque Rápidas (Tareas Rápidas):
+${yunqueRapidasPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+
+4. Roble (Tareas Trimestrales/Proyectos):
+${roblePending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+
+5. Leones (Objetivos de Recursos):
+${leonesPending.map(t => `- [${t.id}] ${t.name} (${t.current}/${t.target} ${t.unit})`).join('\n')}
+
+Por favor, responde con un objeto JSON que contenga:
+- "text": Dos líneas de texto cortas, firmadas por 'Sebastian, su mayordomo'. La primera línea debe ser un comentario ingenioso, elegante y respetuoso para motivar a su señor. La segunda línea debe recomendar la tarea seleccionada y terminar con 'Sebastian, su mayordomo'. Usa un salto de línea (\\n) para separarlas.
+- "taskId": El ID de la tarea seleccionada de la lista anterior. Debe coincidir exactamente con el ID proporcionado en el contexto.
+
+Ejemplo de respuesta en "text":
+"Es momento de retomar vuestra gran jornada, mi señor. Os sugiero avanzar con esta tarea para despejar el camino de hoy. Sebastian, su mayordomo"
+`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              thinkingConfig: {
+                thinkingBudget: 0
+              },
+              responseSchema: {
+                type: 'OBJECT',
+                properties: {
+                  text: {
+                    type: 'STRING',
+                    description: "Two lines of text signed by 'Sebastian, su mayordomo'."
+                  },
+                  taskId: {
+                    type: 'STRING',
+                    description: "The ID of the single priority task selected from the context backlogs."
+                  }
+                },
+                required: ['text', 'taskId']
+              }
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const json = await response.json();
+      const contentText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!contentText) {
+        throw new Error("Invalid response format from Gemini API");
+      }
+
+      const parsedData = JSON.parse(contentText);
+      if (parsedData.text && parsedData.taskId) {
+        setFocusRecommendation(parsedData.text);
+        setFocusRecommendedTaskId(parsedData.taskId);
+      } else {
+        throw new Error("Missing required fields");
+      }
+    } catch (e) {
+      console.error("Error in focus recommendation:", e);
+      applyFocusFallback(hunosPending, yunqueLargasPending, yunqueRapidasPending, roblePending, leonesPending);
+    } finally {
+      clearTimeout(timeoutId);
+      setFocusLoading(false);
+    }
+  };
+
+  const applyFocusFallback = (
+    hunosPending: any[],
+    yunqueLargasPending: any[],
+    yunqueRapidasPending: any[],
+    roblePending: any[],
+    leonesPending: any[]
+  ) => {
+    let selected = null;
+    if (hunosPending.length > 0) selected = hunosPending[0];
+    else if (yunqueRapidasPending.length > 0) selected = yunqueRapidasPending[0];
+    else if (yunqueLargasPending.length > 0) selected = yunqueLargasPending[0];
+    else if (roblePending.length > 0) selected = roblePending[0];
+    else if (leonesPending.length > 0) selected = leonesPending[0];
+
+    if (selected) {
+      setFocusRecommendation("Mi señor, no he podido contactar con el oráculo de Gemini, pero os sugiero esta tarea para hoy.\nEspero que vuestra jornada sea provechosa. Sebastian, su mayordomo");
+      setFocusRecommendedTaskId(selected.id);
+    } else {
+      setFocusRecommendation("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo");
+      setFocusRecommendedTaskId("none");
+    }
+  };
+
+  const getFocusRecommendedTask = (): { text: string; completed: boolean; typeName: string } | null => {
+    if (!focusRecommendedTaskId || focusRecommendedTaskId === 'none') return null;
+    
+    const huno = data.hunos.find(t => t.id === focusRecommendedTaskId);
+    if (huno) return { text: huno.text, completed: huno.completed, typeName: "Diaria" };
+
+    const yl = (data.yunqueLargas || []).find(t => t.id === focusRecommendedTaskId);
+    if (yl) return { text: yl.text, completed: yl.completed, typeName: "Compleja (Yunque)" };
+
+    const yr = (data.yunqueRapidas || []).find(t => t.id === focusRecommendedTaskId);
+    if (yr) return { text: yr.text, completed: yr.completed, typeName: "Rápida (Yunque)" };
+
+    const ft = (data.forjaTasks || []).find(t => t.id === focusRecommendedTaskId);
+    if (ft) return { text: ft.text, completed: ft.completed, typeName: "Roble" };
+
+    const lion = (data.leones || []).find(t => t.id === focusRecommendedTaskId);
+    if (lion) return { text: lion.name, completed: lion.current >= lion.target, typeName: "Recurso (Leones)" };
+
+    return null;
+  };
+
+  const startRecording = async () => {
+    audioChunksRef.current = [];
+    setVoiceStatus("Escuchando a su señor...");
+    setVoiceError(null);
+    setVoiceSuccessUpdates(null);
+    setIsRecording(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let options = {};
+      if (MediaRecorder.isTypeSupported('audio/webm')) {
+        options = { mimeType: 'audio/webm' };
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        options = { mimeType: 'audio/mp4' };
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          const base64Content = base64data.split(',')[1];
+          processVoiceCommand(base64Content, mimeType);
+        };
+      };
+
+      mediaRecorder.start();
+    } catch (e: any) {
+      console.error("Error accessing microphone:", e);
+      setVoiceError("No se pudo acceder al micrófono. Por favor, verificad los permisos.");
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const processVoiceCommand = async (base64Audio: string, mimeType: string) => {
+    setVoiceLoading(true);
+    setVoiceStatus("Sebastian está interpretando vuestras palabras...");
+    setVoiceError(null);
+    setVoiceSuccessUpdates(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 15000);
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || ((import.meta as any).env && ((import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.GEMINI_API_KEY));
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is not defined.");
+      }
+
+      const promptText = `
+Analiza la grabación de voz de tu señor (en el audio adjunto) donde describe las acciones o actualizaciones realizadas hoy en el Reino.
+Interpreta sus palabras y genera un JSON con las modificaciones estructuradas que deben aplicarse al estado de Firestore.
+
+El JSON de salida debe seguir estrictamente este esquema:
+{
+  "updates": {
+    "tasks": [
+      { "id": "ID_DE_LA_TAREA", "completed": true }
+    ],
+    "friends": [
+      { "friendId": "ID_DEL_AMIGO", "interaction": "call" | "gift" | "photo" | "message" | "person", "delta": 1 }
+    ],
+    "energy": 8, // Opcional: un número del 1 al 10 si menciona su energía de hoy
+    "exercise": {
+      "pushDelta": 0, // Opcional: número de series de empuje (pushCount)
+      "pullDelta": 0, // Opcional: número de series de tirón (pullCount)
+      "legsDelta": 0, // Opcional: número de series de pierna (legsCount)
+      "minutesDelta": 0 // Opcional: minutos adicionales entrenados (totalMinutes)
+    }
+  },
+  "explanation": "Breve frase descriptiva en español de lo que has interpretado (ej: 'Completada la meditación y registrado mensaje a Juan')."
+}
+
+Si el audio no menciona cambios para alguna categoría, no la incluyas o déjala vacía.
+
+A continuación tienes el contexto del Reino con los IDs correctos que debes utilizar:
+
+--- TAREAS DE HOY (Hunos, Yunque, Roble, Leones) ---
+${data.hunos.map(t => `- [Hunos] ID: "${t.id}" - "${t.text}" (Completada: ${t.completed})`).join('\n')}
+${(data.yunqueLargas || []).map(t => `- [Yunque Larga] ID: "${t.id}" - "${t.text}" (Completada: ${t.completed})`).join('\n')}
+${(data.yunqueRapidas || []).map(t => `- [Yunque Rápida] ID: "${t.id}" - "${t.text}" (Completada: ${t.completed})`).join('\n')}
+${(data.forjaTasks || []).map(t => `- [Roble] ID: "${t.id}" - "${t.text}" (Completada: ${t.completed})`).join('\n')}
+${(data.leones || []).map(t => `- [Leones] ID: "${t.id}" - "${t.name}" (Progreso: ${t.current}/${t.target})`).join('\n')}
+
+--- AMIGOS (LoveTree) ---
+${data.friends.map(f => `- ID: "${f.id}" - Nombre: "${f.name}"`).join('\n')}
+
+Por favor, procesa el audio y genera el JSON según el esquema indicado.
+`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: mimeType,
+                      data: base64Audio
+                    }
+                  },
+                  {
+                    text: promptText
+                  }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              thinkingConfig: {
+                thinkingBudget: 0
+              },
+              responseSchema: {
+                type: 'OBJECT',
+                properties: {
+                  updates: {
+                    type: 'OBJECT',
+                    properties: {
+                      tasks: {
+                        type: 'ARRAY',
+                        items: {
+                          type: 'OBJECT',
+                          properties: {
+                            id: { type: 'STRING' },
+                            completed: { type: 'BOOLEAN' }
+                          },
+                          required: ['id', 'completed']
+                        }
+                      },
+                      friends: {
+                        type: 'ARRAY',
+                        items: {
+                          type: 'OBJECT',
+                          properties: {
+                            friendId: { type: 'STRING' },
+                            interaction: { type: 'STRING', enum: ['call', 'gift', 'photo', 'message', 'person'] },
+                            delta: { type: 'INTEGER' }
+                          },
+                          required: ['friendId', 'interaction', 'delta']
+                        }
+                      },
+                      energy: { type: 'INTEGER' },
+                      exercise: {
+                        type: 'OBJECT',
+                        properties: {
+                          pushDelta: { type: 'INTEGER' },
+                          pullDelta: { type: 'INTEGER' },
+                          legsDelta: { type: 'INTEGER' },
+                          minutesDelta: { type: 'INTEGER' }
+                        }
+                      }
+                    }
+                  },
+                  explanation: { type: 'STRING' }
+                },
+                required: ['updates', 'explanation']
+              }
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP status: ${response.status}`);
+      }
+
+      const json = await response.json();
+      const contentText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!contentText) {
+        throw new Error("Respuesta vacía de Gemini");
+      }
+
+      const parsedData = JSON.parse(contentText);
+      if (parsedData.updates) {
+        applyVoiceUpdates(parsedData.updates);
+        setVoiceStatus(parsedData.explanation || "Instrucciones de voz procesadas.");
+      } else {
+        throw new Error("No se encontraron actualizaciones en la respuesta.");
+      }
+    } catch (e: any) {
+      console.error("Error processing voice with Gemini:", e);
+      if (e.name === 'AbortError') {
+        setVoiceError("El oráculo de Gemini ha tardado demasiado en responder.");
+      } else {
+        setVoiceError(`Error: ${e.message || e}`);
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      setVoiceLoading(false);
+    }
+  };
+
+  const applyVoiceUpdates = (updates: any) => {
+    let successMsgs: string[] = [];
+
+    setData(prev => {
+      let updatedData = { ...prev };
+
+      // 1. Tasks
+      if (updates.tasks && Array.isArray(updates.tasks)) {
+        updates.tasks.forEach((taskUpdate: { id: string; completed: boolean }) => {
+          const { id, completed } = taskUpdate;
+
+          // Hunos
+          const hunoIndex = updatedData.hunos.findIndex(t => t.id === id);
+          if (hunoIndex !== -1) {
+            const oldHuno = updatedData.hunos[hunoIndex];
+            if (oldHuno.completed !== completed) {
+              const updatedHunos = [...updatedData.hunos];
+              updatedHunos[hunoIndex] = { ...oldHuno, completed };
+              updatedData.hunos = updatedHunos;
+              successMsgs.push(`¡Diaria "${oldHuno.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+            }
+            return;
+          }
+
+          // Yunque Largas
+          const ylIndex = (updatedData.yunqueLargas || []).findIndex(t => t.id === id);
+          if (ylIndex !== -1) {
+            const oldYL = (updatedData.yunqueLargas || [])[ylIndex];
+            if (oldYL.completed !== completed) {
+              const updatedYL = [...(updatedData.yunqueLargas || [])];
+              updatedYL[ylIndex] = { ...oldYL, completed };
+              updatedData.yunqueLargas = updatedYL;
+              successMsgs.push(`¡Yunque Larga "${oldYL.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+            }
+            return;
+          }
+
+          // Yunque Rápidas
+          const yrIndex = (updatedData.yunqueRapidas || []).findIndex(t => t.id === id);
+          if (yrIndex !== -1) {
+            const oldYR = (updatedData.yunqueRapidas || [])[yrIndex];
+            if (oldYR.completed !== completed) {
+              const updatedYR = [...(updatedData.yunqueRapidas || [])];
+              updatedYR[yrIndex] = { ...oldYR, completed };
+              updatedData.yunqueRapidas = updatedYR;
+              successMsgs.push(`¡Yunque Rápida "${oldYR.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+            }
+            return;
+          }
+
+          // Roble (ForjaTasks)
+          const ftIndex = (updatedData.forjaTasks || []).findIndex(t => t.id === id);
+          if (ftIndex !== -1) {
+            const oldFT = (updatedData.forjaTasks || [])[ftIndex];
+            if (oldFT.completed !== completed) {
+              const updatedFT = [...(updatedData.forjaTasks || [])];
+              updatedFT[ftIndex] = { ...oldFT, completed };
+              updatedData.forjaTasks = updatedFT;
+              successMsgs.push(`¡Roble "${oldFT.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+            }
+            return;
+          }
+
+          // Leones
+          const lionIndex = (updatedData.leones || []).findIndex(t => t.id === id);
+          if (lionIndex !== -1) {
+            const oldLion = (updatedData.leones || [])[lionIndex];
+            const targetVal = oldLion.target;
+            const newVal = completed ? targetVal : 0;
+            if (oldLion.current !== newVal) {
+              const updatedLeones = [...(updatedData.leones || [])];
+              updatedLeones[lionIndex] = { ...oldLion, current: newVal };
+              updatedData.leones = updatedLeones;
+              successMsgs.push(`¡León "${oldLion.name}" actualizado a ${newVal}/${targetVal}!`);
+            }
+            return;
+          }
+        });
+      }
+
+      // 2. Friends
+      if (updates.friends && Array.isArray(updates.friends)) {
+        updates.friends.forEach((friendUpdate: { friendId: string; interaction: string; delta: number }) => {
+          const { friendId, interaction, delta } = friendUpdate;
+          const friendIndex = updatedData.friends.findIndex(f => f.id === friendId);
+          if (friendIndex !== -1) {
+            const friend = updatedData.friends[friendIndex];
+            const interactions = { ...friend.interactions };
+            
+            if (interaction in interactions) {
+              const typedField = interaction as keyof typeof interactions;
+              interactions[typedField] = (interactions[typedField] || 0) + delta;
+              
+              const updatedFriends = [...updatedData.friends];
+              updatedFriends[friendIndex] = {
+                ...friend,
+                interactions,
+                lastInteraction: Date.now()
+              };
+              updatedData.friends = updatedFriends;
+              successMsgs.push(`¡Amistad con ${friend.name} (${interaction} +${delta}) registrada!`);
+            }
+          }
+        });
+      }
+
+      // 3. Energy
+      if (typeof updates.energy === 'number') {
+        const val = Math.max(1, Math.min(10, updates.energy));
+        if (updatedData.energy !== val) {
+          updatedData.energy = val;
+          const todayStr = new Date().toDateString();
+          updatedData.energyHistory = {
+            ...(updatedData.energyHistory || {}),
+            [todayStr]: val
+          };
+          successMsgs.push(`¡Energía de hoy establecida en ${val}/10!`);
+        }
+      }
+
+      // 4. Exercise
+      if (updates.exercise) {
+        const { pushDelta, pullDelta, legsDelta, minutesDelta } = updates.exercise;
+        let exerciseUpdated = false;
+        const nextExercise = { ...(updatedData.exercise || { seriesCurrent: 0, daysTrained: 0, totalMinutes: 0, sprintCount: 0, stretchCount: 0 }) };
+
+        if (pushDelta) {
+          nextExercise.pushCount = (nextExercise.pushCount || 0) + pushDelta;
+          successMsgs.push(`¡Pecho (Empuje) +${pushDelta} series!`);
+          exerciseUpdated = true;
+        }
+        if (pullDelta) {
+          nextExercise.pullCount = (nextExercise.pullCount || 0) + pullDelta;
+          successMsgs.push(`¡Espalda (Tirón) +${pullDelta} series!`);
+          exerciseUpdated = true;
+        }
+        if (legsDelta) {
+          nextExercise.legsCount = (nextExercise.legsCount || 0) + legsDelta;
+          successMsgs.push(`¡Piernas +${legsDelta} series!`);
+          exerciseUpdated = true;
+        }
+        if (minutesDelta) {
+          nextExercise.totalMinutes = (nextExercise.totalMinutes || 0) + minutesDelta;
+          const today = new Date().toDateString();
+          const currentStats = (nextExercise.history || {})[today] || { minutes: 0, workouts: 0 };
+          nextExercise.history = {
+            ...(nextExercise.history || {}),
+            [today]: {
+              ...currentStats,
+              minutes: currentStats.minutes + minutesDelta
+            }
+          };
+          successMsgs.push(`¡Entrenamiento +${minutesDelta} minutos!`);
+          exerciseUpdated = true;
+        }
+
+        if (exerciseUpdated) {
+          updatedData.exercise = nextExercise;
+        }
+      }
+
+      return updatedData;
+    });
+
+    if (successMsgs.length > 0) {
+      setVoiceSuccessUpdates(successMsgs);
+    } else {
+      setVoiceSuccessUpdates(["No se registraron cambios específicos."]);
+    }
+  };
+
+  const handleRegisterEnergy = async (val: number) => {
+    setSelectedEnergy(val);
+    const todayStr = new Date().toDateString();
+    
+    setData(prev => ({
+      ...prev,
+      energy: val,
+      energyHistory: {
+        ...(prev.energyHistory || {}),
+        [todayStr]: val
+      }
+    }));
+
+    await fetchGeminiRecommendation(val);
+  };
+
+  const isPriorityTaskCompleted = (taskId: string | null): boolean => {
+    if (!taskId || taskId === 'none') return false;
+    
+    const huno = data.hunos.find(t => t.id === taskId);
+    if (huno) return huno.completed;
+
+    const yl = (data.yunqueLargas || []).find(t => t.id === taskId);
+    if (yl) return yl.completed;
+
+    const yr = (data.yunqueRapidas || []).find(t => t.id === taskId);
+    if (yr) return yr.completed;
+
+    const ft = (data.forjaTasks || []).find(t => t.id === taskId);
+    if (ft) return ft.completed;
+
+    const lt = (data.leones || []).find(t => t.id === taskId);
+    if (lt) return lt.current >= lt.target;
+
+    return false;
+  };
+
+  const getPriorityTaskText = (taskId: string | null): string => {
+    if (!taskId || taskId === 'none') return "";
+
+    const huno = data.hunos.find(t => t.id === taskId);
+    if (huno) return huno.text;
+
+    const yl = (data.yunqueLargas || []).find(t => t.id === taskId);
+    if (yl) return yl.text;
+
+    const yr = (data.yunqueRapidas || []).find(t => t.id === taskId);
+    if (yr) return yr.text;
+
+    const ft = (data.forjaTasks || []).find(t => t.id === taskId);
+    if (ft) return ft.text;
+
+    const lt = (data.leones || []).find(t => t.id === taskId);
+    if (lt) return lt.name;
+
+    return "Tarea desconocida";
+  };
+
+  const getPriorityTaskType = (taskId: string | null): string => {
+    if (!taskId || taskId === 'none') return "";
+
+    if (data.hunos.some(t => t.id === taskId)) return "Hunos";
+    if ((data.yunqueLargas || []).some(t => t.id === taskId)) return "Yunque (Larga)";
+    if ((data.yunqueRapidas || []).some(t => t.id === taskId)) return "Yunque (Rápida)";
+    if ((data.forjaTasks || []).some(t => t.id === taskId)) return "Roble";
+    if ((data.leones || []).some(t => t.id === taskId)) return "Leones";
+
+    return "Desconocido";
+  };
+
+  const handlePriorityTaskToggle = (taskId: string | null) => {
+    if (!taskId || taskId === 'none') return;
+
+    const isCompleted = isPriorityTaskCompleted(taskId);
+
+    if (data.hunos.some(t => t.id === taskId)) {
+      const nextHunos = data.hunos.map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
+      handleHunosUpdate(nextHunos);
+      return;
+    }
+
+    setData(prev => {
+      if ((prev.yunqueLargas || []).some(t => t.id === taskId)) {
+        const nextYL = (prev.yunqueLargas || []).map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
+        return {
+          ...prev,
+          yunqueLargas: nextYL
+        };
+      }
+
+      if ((prev.yunqueRapidas || []).some(t => t.id === taskId)) {
+        const nextYR = (prev.yunqueRapidas || []).map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
+        return {
+          ...prev,
+          yunqueRapidas: nextYR
+        };
+      }
+
+      if ((prev.forjaTasks || []).some(t => t.id === taskId)) {
+        const nextFT = (prev.forjaTasks || []).map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
+        return {
+          ...prev,
+          forjaTasks: nextFT
+        };
+      }
+
+      if ((prev.leones || []).some(t => t.id === taskId)) {
+        const nextL = (prev.leones || []).map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              current: isCompleted ? 0 : t.target
+            };
+          }
+          return t;
+        });
+        return {
+          ...prev,
+          leones: nextL
+        };
+      }
+
+      return prev;
+    });
+  };
+
+  const renderModoTelon = () => {
+    const isCompleted = isPriorityTaskCompleted(priorityTaskId);
+    const taskText = getPriorityTaskText(priorityTaskId);
+    const taskType = getPriorityTaskType(priorityTaskId);
+
+    return (
+      <div className="flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-amber-500/5 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-yellow-500/5 blur-3xl rounded-full pointer-events-none" />
+
+        <header className="flex justify-between items-center z-10 mb-8 mt-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+            <h2 className="text-xs font-black tracking-[0.2em] text-stone-400 uppercase">Modo Telón</h2>
+          </div>
+          <button
+            onClick={() => {
+              setModoTelonActive(false);
+              setTelonDismissed(true);
+            }}
+            className="text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors py-1.5 px-3 rounded-full border border-stone-850 hover:bg-stone-900/50"
+          >
+            Saltar a la App
+          </button>
+        </header>
+
+        <div className="flex-1 flex flex-col justify-center items-center z-10 max-w-sm mx-auto w-full">
+          {selectedEnergy === null ? (
+            <div className="w-full text-center space-y-8 animate-in fade-in duration-500">
+              <div className="space-y-3">
+                <h1 className="text-3xl font-black text-stone-100 tracking-tighter uppercase italic">
+                  Nivel de Energía
+                </h1>
+                <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
+                  Defina su nivel de energía para la jornada de hoy. Sebastian preparará sus deberes correspondientes.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-5 gap-3 max-w-xs mx-auto">
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const val = i + 1;
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => handleRegisterEnergy(val)}
+                      className="aspect-square rounded-full border-2 border-amber-900/40 bg-stone-900 text-amber-200 hover:border-amber-500 hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.05)] hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                    >
+                      {val}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="w-full space-y-6 animate-in fade-in zoom-in-95 duration-500">
+              {geminiLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse" />
+                    <div className="w-16 h-16 border-2 border-stone-800 border-t-amber-500 rounded-full animate-spin relative z-10" />
+                  </div>
+                  <p className="text-stone-400 text-xs font-black uppercase tracking-widest animate-pulse">
+                    Consultando a Sebastian...
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {sebastianResponse && (
+                    <div className="bg-stone-900/40 backdrop-blur-md border border-stone-850 rounded-3xl p-6 relative overflow-hidden shadow-xl">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+                      <div className="text-stone-300 italic text-sm leading-relaxed space-y-3">
+                        {sebastianResponse.split('\n').map((line, idx) => (
+                          <p key={idx} className={idx === 1 ? "font-medium" : ""}>
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {priorityTaskId && priorityTaskId !== 'none' && (
+                    <div className="bg-stone-900/70 backdrop-blur-md border border-stone-800 rounded-3xl p-6 shadow-xl flex flex-col items-center text-center space-y-4">
+                      <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                        Tarea Prioritaria · {taskType}
+                      </span>
+                      
+                      <h3 className={`text-xl font-black tracking-tight leading-tight max-w-[280px] ${isCompleted ? 'text-stone-500 line-through opacity-70' : 'text-stone-100'}`}>
+                        {taskText}
+                      </h3>
+
+                      <button
+                        onClick={() => handlePriorityTaskToggle(priorityTaskId)}
+                        className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
+                          isCompleted
+                            ? 'bg-amber-600 border-amber-500 text-stone-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] scale-105 hover:bg-amber-500'
+                            : 'border-stone-700 text-stone-400 bg-stone-950/50 hover:border-amber-500 hover:text-amber-200'
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <Check className="w-8 h-8 stroke-[4]" />
+                        ) : (
+                          <div className="w-3 h-3 rounded-full bg-stone-800" />
+                        )}
+                      </button>
+
+                      <p className="text-[9px] text-stone-500 font-bold uppercase tracking-wider">
+                        {isCompleted ? '¡Tarea Completada!' : 'Marcar como Completada'}
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setModoTelonActive(false);
+                      setTelonDismissed(true);
+                    }}
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 font-black text-sm uppercase tracking-widest italic hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-amber-950/20"
+                  >
+                    Entrar al Reino
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <footer className="mt-12 text-center text-stone-800 text-[10px] font-bold tracking-widest uppercase z-10 shrink-0">
+          Sebastian · Reino de la Voluntad
+        </footer>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (!loaded) return;
@@ -1572,6 +2597,9 @@ function App() {
   };
 
   const renderView = () => {
+    if (modoTelonActive) {
+      return renderModoTelon();
+    }
     switch (view) {
       case 'trains': return <TrainView tasks={data.trains} annualTasks={data.annualTrains} onUpdate={handleTrainsUpdate} onUpdateAnnual={(t) => setData(prev => ({ ...prev, annualTrains: t }))} onBack={() => setView('home')} reminderDismissedToday={data.lastAnnualTrainReminderDate === new Date().toISOString().split('T')[0]} onDismissReminder={() => setData(prev => ({ ...prev, lastAnnualTrainReminderDate: new Date().toISOString().split('T')[0] }))} />;
       case 'sets': return <SetsView tasks={data.sets} onUpdate={handleSetsUpdate} onBack={() => setView('home')} />;
@@ -1600,9 +2628,31 @@ function App() {
         const isFoodPleno = currentFoodScore >= 200;
         return (
           <div className="flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative">
-            <header className="mb-6 mt-4 flex justify-between items-start">
+            <header className="mb-6 mt-4 flex justify-between items-center">
               <h1 className="text-4xl font-black text-stone-100 tracking-tighter">EL REINO</h1>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {/* Botones de Enfoque y Voz */}
+                <div className="flex bg-stone-900/80 backdrop-blur-md rounded-xl border border-stone-800 p-0.5 shadow-lg shadow-black/30">
+                  <button 
+                    onClick={fetchFocusRecommendation} 
+                    className="p-2 hover:bg-stone-800 rounded-lg transition-colors flex items-center justify-center text-amber-500 hover:text-amber-400"
+                    title="Enfoque"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={isRecording ? stopRecording : startRecording} 
+                    className={`p-2 rounded-lg transition-all flex items-center justify-center relative ${
+                      isRecording 
+                        ? 'bg-red-500/20 text-red-500 ring-1 ring-red-500/50 animate-pulse' 
+                        : 'hover:bg-stone-800 text-stone-400'
+                    }`}
+                    title="Micrófono"
+                  >
+                    {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  </button>
+                </div>
+
                 <button onClick={() => setShowHistory(true)} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><CalendarClock className="w-6 h-6 text-stone-500" /></button>
                 <button onClick={() => setView('stats')} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><BarChart3 className="w-6 h-6 text-stone-500" /></button>
                 <button onClick={() => { if (isGuest) setIsGuest(false); else logout(); }} title="Cerrar Sesión" className="p-2 bg-stone-900 rounded-xl hover:bg-red-900/50 transition-colors border border-stone-800"><LogOut className="w-6 h-6 text-stone-500 hover:text-red-400" /></button>
@@ -1909,7 +2959,17 @@ function App() {
               onUpdate={handleHunosUpdate}
               onUpdateReward={(reward) => setData(prev => ({ ...prev, stats: { ...prev.stats, hunoReward: reward } }))}
               energy={data.energy || 1}
-              onUpdateEnergy={(val) => setData(prev => ({ ...prev, energy: val }))}
+              onUpdateEnergy={(val) => {
+                const todayStr = new Date().toDateString();
+                setData(prev => ({
+                  ...prev,
+                  energy: val,
+                  energyHistory: {
+                    ...(prev.energyHistory || {}),
+                    [todayStr]: val
+                  }
+                }));
+              }}
             />
 
             <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300">
@@ -2274,6 +3334,192 @@ function App() {
                   }
                 }}
               />
+            )}
+
+            {showFocusModal && (
+              <div className="fixed inset-0 max-w-md mx-auto z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-stone-900 w-full max-w-sm rounded-[2rem] shadow-2xl border border-amber-500/30 overflow-hidden relative p-6 space-y-6">
+                  
+                  <div className="flex justify-between items-center border-b border-stone-850 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+                      <h3 className="font-black text-amber-500 text-xs uppercase tracking-widest">Enfoque del Mayordomo</h3>
+                    </div>
+                    {!focusLoading && (
+                      <button 
+                        onClick={() => setShowFocusModal(false)} 
+                        className="p-1.5 hover:bg-stone-800 rounded-full transition-colors"
+                      >
+                        <X className="w-5 h-5 text-stone-500 hover:text-stone-300" />
+                      </button>
+                    )}
+                  </div>
+
+                  {focusLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse" />
+                        <div className="w-12 h-12 border-2 border-stone-800 border-t-amber-500 rounded-full animate-spin relative z-10" />
+                      </div>
+                      <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest animate-pulse">
+                        Sebastian está analizando sus deberes...
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="relative bg-stone-950/80 rounded-2xl p-4 border border-stone-800 shadow-inner">
+                        <p className="text-stone-300 text-sm leading-relaxed whitespace-pre-wrap italic">
+                          {focusRecommendation || "Vuestras tareas requieren vuestra atención, mi señor."}
+                        </p>
+                        <div className="absolute -bottom-2 left-6 w-4 h-4 bg-stone-950 border-r border-b border-stone-800 transform rotate-45"></div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                          <Sparkles className="w-5 h-5 text-amber-500" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-amber-500 uppercase tracking-widest">Sebastian</p>
+                          <p className="text-[10px] text-stone-500">Mayordomo del Reino</p>
+                        </div>
+                      </div>
+
+                      {(() => {
+                        const recTask = getFocusRecommendedTask();
+                        if (!recTask) return null;
+                        return (
+                          <div className="space-y-2 pt-2 border-t border-stone-850">
+                            <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Acometer de Inmediato</p>
+                            <div 
+                              onClick={() => {
+                                handlePriorityTaskToggle(focusRecommendedTaskId);
+                                setTimeout(() => {
+                                  setShowFocusModal(false);
+                                }, 300);
+                              }}
+                              className={`w-full text-left p-4 rounded-2xl border transition-all duration-300 cursor-pointer flex items-center justify-between gap-3 group ${
+                                recTask.completed 
+                                  ? 'bg-emerald-950/20 border-emerald-900/50 hover:bg-emerald-900/20' 
+                                  : 'bg-stone-950 border-stone-800 hover:border-amber-500/50 hover:bg-stone-900'
+                              }`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <span className="text-[9px] font-bold text-amber-500/70 uppercase tracking-widest block mb-1">
+                                  {recTask.typeName}
+                                </span>
+                                <p className={`text-sm font-bold truncate ${recTask.completed ? 'line-through text-stone-500' : 'text-stone-200'}`}>
+                                  {recTask.text}
+                                </p>
+                              </div>
+                              <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                                recTask.completed 
+                                  ? 'bg-emerald-900/30 border-emerald-500 text-emerald-400' 
+                                  : 'bg-stone-900 border-stone-850 text-stone-500 group-hover:border-amber-500/50 group-hover:text-amber-500'
+                              }`}>
+                                {recTask.completed ? <CheckCircle2 className="w-5 h-5" /> : <Check className="w-4 h-4" />}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <button
+                        onClick={() => setShowFocusModal(false)}
+                        className="w-full mt-2 py-3 rounded-xl border border-stone-800 hover:bg-stone-800 text-stone-400 font-bold transition-all text-xs uppercase tracking-widest"
+                      >
+                        Entendido
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
+
+            {(isRecording || voiceLoading || voiceStatus || voiceSuccessUpdates || voiceError) && (
+              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-sm z-[250] bg-stone-900/95 backdrop-blur-md rounded-2xl border border-stone-800 p-4 shadow-2xl space-y-3 animate-in slide-in-from-bottom duration-300">
+                <div className="flex items-center justify-between border-b border-stone-850 pb-2">
+                  <div className="flex items-center gap-2">
+                    {isRecording ? (
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                    ) : voiceLoading ? (
+                      <div className="w-3 h-3 border border-stone-800 border-t-amber-500 rounded-full animate-spin" />
+                    ) : voiceError ? (
+                      <ShieldAlert className="w-4 h-4 text-red-500" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    )}
+                    <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+                      {isRecording ? 'Grabando Audio' : voiceLoading ? 'Procesando Voz' : voiceError ? 'Error de Sebastian' : 'Actualización Realizada'}
+                    </span>
+                  </div>
+                  {!isRecording && !voiceLoading && (
+                    <button 
+                      onClick={() => {
+                        setVoiceStatus(null);
+                        setVoiceSuccessUpdates(null);
+                        setVoiceError(null);
+                      }} 
+                      className="p-1 hover:bg-stone-800 rounded-full transition-colors"
+                    >
+                      <X className="w-4 h-4 text-stone-500 hover:text-stone-300" />
+                    </button>
+                  )}
+                </div>
+
+                {isRecording && (
+                  <div className="flex flex-col items-center py-2 space-y-2">
+                    <div className="flex gap-1 items-end h-6">
+                      <span className="w-1 bg-red-500 rounded-full animate-[pulse_1s_infinite_100ms] h-3"></span>
+                      <span className="w-1 bg-red-500 rounded-full animate-[pulse_1s_infinite_300ms] h-5"></span>
+                      <span className="w-1 bg-red-500 rounded-full animate-[pulse_1s_infinite_200ms] h-4"></span>
+                      <span className="w-1 bg-red-500 rounded-full animate-[pulse_1s_infinite_400ms] h-6"></span>
+                      <span className="w-1 bg-red-500 rounded-full animate-[pulse_1s_infinite_200ms] h-3"></span>
+                    </div>
+                    <p className="text-xs text-stone-300 font-medium">Hable ahora, mi señor. Sebastian escucha.</p>
+                    <button 
+                      onClick={stopRecording}
+                      className="mt-1 px-3 py-1 bg-red-950/50 hover:bg-red-900/40 border border-red-500/30 rounded-full text-[9px] font-black text-red-400 uppercase tracking-widest transition-all"
+                    >
+                      Detener Grabación
+                    </button>
+                  </div>
+                )}
+
+                {voiceLoading && (
+                  <div className="py-2 text-center space-y-1">
+                    <p className="text-xs text-stone-300 animate-pulse">{voiceStatus}</p>
+                    <p className="text-[10px] text-stone-500">Analizando con el oráculo de Gemini...</p>
+                  </div>
+                )}
+
+                {voiceError && (
+                  <div className="py-2 text-xs text-red-400 leading-relaxed">
+                    {voiceError}
+                  </div>
+                )}
+
+                {voiceSuccessUpdates && !voiceLoading && !isRecording && (
+                  <div className="space-y-2">
+                    {voiceStatus && (
+                      <p className="text-xs text-stone-300 italic border-l-2 border-amber-500/50 pl-2 py-0.5">
+                        "{voiceStatus}"
+                      </p>
+                    )}
+                    <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                      {voiceSuccessUpdates.map((msg, i) => (
+                        <div key={i} className="flex items-center gap-1.5 text-xs text-stone-400">
+                          <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span>{msg}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         );

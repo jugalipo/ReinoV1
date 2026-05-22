@@ -696,7 +696,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   const bonusScore = Object.entries(effectiveBonuses).reduce((acc, [id, squares]) => {
     const bonusConfig = activeConfig.bonuses.find(b => b.id === id);
     if (!bonusConfig) return acc;
-    const checkedCount = squares.filter(s => s).length;
+    const checkedCount = (squares as any[]).filter(s => s).length;
     return acc + (checkedCount * bonusConfig.points);
   }, 0);
   
