@@ -22,6 +22,9 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
   });
   const [importData, setImportData] = useState<AppData | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [showSebastianModal, setShowSebastianModal] = useState(false);
+  const [tempInstructions, setTempInstructions] = useState(data.sebastianInstructions || '');
+  const [showSavedNotification, setShowSavedNotification] = useState(false);
 
   // Helper to get formatted key for storage (YYYY-MM-DD) which matches toDateString format used in App.tsx
   const getFormattedDateKey = (date: Date) => {
@@ -309,9 +312,9 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
         rows.push(['PROJECT', t.text, t.completed ? 'COMPLETED' : 'PENDING', '', '']);
     });
 
-    // --- RESOURCES (FORJAS & LEONES) ---
+    // --- RESOURCES (ROBLE & LEONES) ---
     data.forjas.forEach(t => {
-        rows.push(['FORJA', t.name, t.current, `Target: ${t.target} ${t.unit}`, '']);
+        rows.push(['ROBLE', t.name, t.current, `Target: ${t.target} ${t.unit}`, '']);
     });
     data.leones.forEach(t => {
         rows.push(['LEON', t.name, t.current, `Target: ${t.target} ${t.unit}`, '']);
@@ -626,16 +629,29 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                     <Sparkles className="w-4 h-4 text-amber-400" />
                     Directrices de Sebastian (IA)
                 </h3>
-                <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-3">
+                <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-4">
                     <p className="text-xs text-stone-400 leading-relaxed">
-                        Indica reglas generales o preferencias para que tu mayordomo Sebastian las tenga en cuenta al elegir tu tarea diaria de hoy (ej. prioridades según energía, días de la semana, etc.).
+                        Indica reglas generales o preferencias para que tu mayordomo las tenga en cuenta al elegir tu tarea según tu energía.
                     </p>
-                    <textarea
-                        value={data.sebastianInstructions || ''}
-                        onChange={(e) => onUpdateData({ ...data, sebastianInstructions: e.target.value })}
-                        placeholder="Ejemplo: Si mi energía es < 5, prioriza las tareas rápidas y evita las de Yunque Largas. Los viernes prefiere tareas creativas..."
-                        className="w-full h-32 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 text-sm focus:outline-none focus:border-amber-500 font-sans resize-none transition-all placeholder:text-stone-600"
-                    />
+                    
+                    {data.sebastianInstructions ? (
+                        <div className="text-xs text-stone-300 bg-stone-950 p-3.5 rounded-xl border border-stone-850 italic max-h-20 overflow-y-auto leading-relaxed">
+                            "{data.sebastianInstructions}"
+                        </div>
+                    ) : (
+                        <p className="text-xs text-stone-500 italic px-1">No hay directrices configuradas aún.</p>
+                    )}
+
+                    <button 
+                        onClick={() => {
+                            setTempInstructions(data.sebastianInstructions || '');
+                            setShowSebastianModal(true);
+                        }}
+                        className="w-full py-3 bg-amber-950/20 border border-amber-900/40 text-amber-400 rounded-xl hover:bg-amber-900/30 font-bold transition-all text-sm uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98"
+                    >
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        Editar Directrices
+                    </button>
                 </div>
             </div>
 
@@ -692,7 +708,66 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                </div>
            </div>
 
-       </div>
-    </div>
+        </div>
+
+        {/* Modal a pantalla completa para editar directrices de Sebastian */}
+        {showSebastianModal && (
+            <div className="fixed inset-0 z-[60] bg-stone-950 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200">
+                {/* Cabecera */}
+                <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800">
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => setShowSebastianModal(false)} 
+                            className="p-2 hover:bg-stone-800 rounded-full transition-colors"
+                        >
+                            <ArrowLeft className="w-6 h-6 text-amber-400" />
+                        </button>
+                        <h2 className="text-lg font-bold text-stone-200 flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-amber-400" />
+                            Directrices de Sebastian
+                        </h2>
+                    </div>
+                    
+                    {/* Confirmación visual */}
+                    {showSavedNotification && (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-green-400 bg-green-950/50 border border-green-500/30 px-3 py-1.5 rounded-full animate-pulse">
+                            ¡Guardado!
+                        </span>
+                    )}
+                </div>
+
+                {/* Contenido / Textarea */}
+                <div className="flex-1 flex flex-col p-5 space-y-4 overflow-hidden">
+                    <p className="text-xs text-stone-400 leading-relaxed shrink-0">
+                        Indica reglas generales o preferencias para tu mayordomo Sebastian. Las tendrá en cuenta al elegir tu tarea diaria según tu energía.
+                    </p>
+                    
+                    <textarea
+                        value={tempInstructions}
+                        onChange={(e) => setTempInstructions(e.target.value)}
+                        placeholder="Ejemplo: Si mi energía es < 5, prioriza las tareas rápidas y evita las de Yunque Largas. Los viernes prefiere tareas creativas..."
+                        className="flex-1 w-full bg-stone-900/60 border border-stone-800 rounded-2xl p-4 text-stone-100 text-base focus:outline-none focus:border-amber-500 font-sans resize-none transition-all placeholder:text-stone-600 shadow-inner leading-relaxed"
+                    />
+                    
+                    <button
+                        onClick={() => {
+                            onUpdateData({
+                                ...data,
+                                sebastianInstructions: tempInstructions
+                            });
+                            setShowSavedNotification(true);
+                            setTimeout(() => {
+                                setShowSavedNotification(false);
+                                setShowSebastianModal(false);
+                            }, 1200);
+                        }}
+                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 font-black text-sm uppercase tracking-widest italic hover:scale-[1.01] active:scale-95 transition-all shadow-lg shadow-amber-950/20 shrink-0"
+                    >
+                        Guardar Directrices
+                    </button>
+                </div>
+            </div>
+        )}
+     </div>
   );
 };

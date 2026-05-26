@@ -192,7 +192,7 @@ export const CaminosView: React.FC<CaminosViewProps> = ({ caminos, onUpdate, onB
               <Trash2 className="w-10 h-10 text-red-500" />
             </div>
             <h2 className="text-xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¿Eliminar Camino?</h2>
-            <p className="text-stone-400 mb-8 text-sm font-medium">Esta acción no se puede deshacer y perderás todo el progreso de este proyecto.</p>
+            <p className="text-stone-400 mb-8 text-sm font-medium">Esta acción no se puede deshacer y perderás todo el progreso de este camino.</p>
             
             <div className="flex gap-4">
               <button 

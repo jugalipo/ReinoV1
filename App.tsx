@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppData, ViewState, Friend, Task, ResourceTask, WeeklyTask, GympiezaState } from './types';
+import { AppData, ViewState, Friend, Task, ResourceTask, WeeklyTask, GympiezaState, DailyFoodScore } from './types';
 import { DailyHunos } from './components/DailyHunos';
 import { TrainView } from './components/TrainView';
 import { SetsView } from './components/SetsView';
@@ -13,7 +13,7 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -232,6 +232,7 @@ const INITIAL_DATA: AppData = {
   lastDate: new Date().toDateString(),
   lastSetsReset: Date.now(),
   lastTrainsReset: Date.now(),
+  lastFoodEntryClick: 0,
   setsPlenoClaimed: false,
   trainsPlenoClaimed: false,
   stats: {
@@ -360,6 +361,59 @@ const getWeekLabel = () => {
   return `Semana ${weekNum} · ${sunday.getDate()} ${monthNames[sunday.getMonth()]}`;
 };
 
+const shouldJumangiareBounce = (
+  lastClick: number,
+  dailyScores: Record<string, DailyFoodScore> = {}
+): boolean => {
+  const now = new Date();
+  
+  // 1. Check past days (e.g., yesterday and 2 days ago)
+  for (let i = 1; i <= 3; i++) {
+    const checkDate = new Date(now);
+    checkDate.setDate(now.getDate() - i);
+    const dateStr = checkDate.toDateString();
+    const score = dailyScores[dateStr];
+    
+    const lunchLogged = score ? (score.lunch || score.fasting) : false;
+    const dinnerLogged = score ? (score.dinner || score.fasting) : false;
+    
+    if (!lunchLogged || !dinnerLogged) {
+      return true; // Bounce because a past meal is missing!
+    }
+  }
+
+  // 2. Check today's meals
+  const todayStr = now.toDateString();
+  const todayScore = dailyScores[todayStr];
+  const currentHour = now.getHours();
+
+  // Today's Lunch (due from 15:00 onwards)
+  if (currentHour >= 15) {
+    const lunchLogged = todayScore ? (todayScore.lunch || todayScore.fasting) : false;
+    if (!lunchLogged) {
+      const limit15 = new Date(now);
+      limit15.setHours(15, 0, 0, 0);
+      if (lastClick < limit15.getTime()) {
+        return true;
+      }
+    }
+  }
+
+  // Today's Dinner (due from 22:00 onwards)
+  if (currentHour >= 22) {
+    const dinnerLogged = todayScore ? (todayScore.dinner || todayScore.fasting) : false;
+    if (!dinnerLogged) {
+      const limit22 = new Date(now);
+      limit22.setHours(22, 0, 0, 0);
+      if (lastClick < limit22.getTime()) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
 export const sanitizeForFirestore = (obj: any): any => {
   if (obj === undefined) return null;
   if (obj === null) return null;
@@ -381,7 +435,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false } } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0 } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -481,6 +535,7 @@ const processResets = (parsed: AppData): AppData => {
   if (!result.food.dishes) { result.food.dishes = {}; }
   if (!result.food.lastMonthlyDishesReset) { result.food.lastMonthlyDishesReset = Date.now(); }
   if (typeof result.loveTreeSortBy === 'undefined') { result.loveTreeSortBy = 'interactions'; }
+  if (typeof result.lastFoodEntryClick === 'undefined') { result.lastFoodEntryClick = 0; }
 
   const calculateTotalInteractions = (friendsList: Friend[]) => {
     return friendsList.reduce((acc, friend) => {
@@ -765,6 +820,8 @@ function App() {
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
   const [voiceSuccessUpdates, setVoiceSuccessUpdates] = useState<string[] | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [pendingVoiceUpdates, setPendingVoiceUpdates] = useState<any | null>(null);
+  const [pendingVoiceMsgs, setPendingVoiceMsgs] = useState<string[] | null>(null);
 
   const mediaRecorderRef = useRef<any>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -779,6 +836,12 @@ function App() {
     }
     setHasCheckedInitialEnergy(true);
   }, [loaded, isInitializing, data.energyHistory, hasCheckedInitialEnergy]);
+
+  useEffect(() => {
+    if (view === 'food') {
+      setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
+    }
+  }, [view]);
 
   const fetchGeminiRecommendation = async (energyVal: number) => {
     const startTime = Date.now();
@@ -1321,8 +1384,15 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
       const parsedData = JSON.parse(contentText);
       if (parsedData.updates) {
-        applyVoiceUpdates(parsedData.updates);
-        setVoiceStatus(parsedData.explanation || "Instrucciones de voz procesadas.");
+        const msgs = getVoiceChangeMessages(parsedData.updates, data);
+        if (msgs.length > 0) {
+          setPendingVoiceUpdates(parsedData.updates);
+          setPendingVoiceMsgs(msgs);
+          setVoiceStatus(parsedData.explanation || "Sebastian ha interpretado estas acciones.");
+        } else {
+          setVoiceStatus(parsedData.explanation || "No se detectaron cambios.");
+          setVoiceSuccessUpdates(["No se registraron cambios específicos."]);
+        }
       } else {
         throw new Error("No se encontraron actualizaciones en la respuesta.");
       }
@@ -1337,6 +1407,138 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       clearTimeout(timeoutId);
       setVoiceLoading(false);
     }
+  };
+
+  const getVoiceChangeMessages = (updates: any, currentData: any): string[] => {
+    let successMsgs: string[] = [];
+
+    // 1. Tasks
+    if (updates.tasks && Array.isArray(updates.tasks)) {
+      updates.tasks.forEach((taskUpdate: { id: string; completed: boolean }) => {
+        const { id, completed } = taskUpdate;
+
+        // Hunos
+        const oldHuno = currentData.hunos.find((t: any) => t.id === id);
+        if (oldHuno) {
+          if (oldHuno.completed !== completed) {
+            successMsgs.push(`¡Diaria "${oldHuno.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+          }
+          return;
+        }
+
+        // Yunque Largas
+        const oldYL = (currentData.yunqueLargas || []).find((t: any) => t.id === id);
+        if (oldYL) {
+          if (oldYL.completed !== completed) {
+            successMsgs.push(`¡Yunque Larga "${oldYL.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+          }
+          return;
+        }
+
+        // Yunque Rápidas
+        const oldYR = (currentData.yunqueRapidas || []).find((t: any) => t.id === id);
+        if (oldYR) {
+          if (oldYR.completed !== completed) {
+            successMsgs.push(`¡Yunque Rápida "${oldYR.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+          }
+          return;
+        }
+
+        // Roble (ForjaTasks)
+        const oldFT = (currentData.forjaTasks || []).find((t: any) => t.id === id);
+        if (oldFT) {
+          if (oldFT.completed !== completed) {
+            successMsgs.push(`¡Roble "${oldFT.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+          }
+          return;
+        }
+
+        // Leones
+        const oldLion = (currentData.leones || []).find((t: any) => t.id === id);
+        if (oldLion) {
+          const targetVal = oldLion.target;
+          const newVal = completed ? targetVal : 0;
+          if (oldLion.current !== newVal) {
+            successMsgs.push(`¡León "${oldLion.name}" actualizado a ${newVal}/${targetVal}!`);
+          }
+          return;
+        }
+
+        // Sets (Semanales)
+        const oldSet = (currentData.sets || []).find((t: any) => t.id === id);
+        if (oldSet) {
+          if (oldSet.completed !== completed) {
+            successMsgs.push(`¡Seta "${oldSet.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+          }
+          return;
+        }
+
+        // Trains (Mensuales)
+        const oldTrain = (currentData.trains || []).find((t: any) => t.id === id);
+        if (oldTrain) {
+          if (oldTrain.completed !== completed) {
+            successMsgs.push(`¡Tren "${oldTrain.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+          }
+          return;
+        }
+
+        // Annual Trains (Anuales)
+        const oldAT = (currentData.annualTrains || []).find((t: any) => t.id === id);
+        if (oldAT) {
+          if (oldAT.completed !== completed) {
+            successMsgs.push(`¡Tren anual "${oldAT.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+          }
+          return;
+        }
+
+        // Nubes (Proyectos)
+        const oldProj = (currentData.projects || []).find((t: any) => t.id === id);
+        if (oldProj) {
+          if (oldProj.completed !== completed) {
+            successMsgs.push(`¡Nube "${oldProj.text}" ${completed ? 'completada' : 'desmarcada'}!`);
+          }
+          return;
+        }
+      });
+    }
+
+    // 2. Friends
+    if (updates.friends && Array.isArray(updates.friends)) {
+      updates.friends.forEach((friendUpdate: { friendId: string; interaction: string; delta: number }) => {
+        const { friendId, interaction, delta } = friendUpdate;
+        const friend = currentData.friends.find((f: any) => f.id === friendId);
+        if (friend) {
+          successMsgs.push(`¡Amistad con ${friend.name} (${interaction} +${delta}) registrada!`);
+        }
+      });
+    }
+
+    // 3. Energy
+    if (typeof updates.energy === 'number') {
+      const val = Math.max(1, Math.min(10, updates.energy));
+      if (currentData.energy !== val) {
+        successMsgs.push(`¡Energía de hoy establecida en ${val}/10!`);
+      }
+    }
+
+    // 4. Exercise
+    if (updates.exercise) {
+      const { pushDelta, pullDelta, legsDelta, minutesDelta } = updates.exercise;
+      if (pushDelta) {
+        successMsgs.push(`¡Pecho (Empuje) +${pushDelta} series!`);
+      }
+      if (pullDelta) {
+        successMsgs.push(`¡Espalda (Tirón) +${pullDelta} series!`);
+      }
+      if (legsDelta) {
+        successMsgs.push(`¡Piernas +${legsDelta} series!`);
+      }
+      if (minutesDelta) {
+        successMsgs.push(`¡Entrenamiento +${minutesDelta} minutos!`);
+      }
+    }
+
+    return successMsgs;
   };
 
   const applyVoiceUpdates = (updates: any) => {
@@ -1544,6 +1746,30 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     const lt = (data.leones || []).find(t => t.id === taskId);
     if (lt) return lt.current >= lt.target;
 
+    // For weekly tasks (Setas), link completion status to the corresponding daily Huno containing "seta"
+    if ((data.sets || []).some(t => t.id === taskId)) {
+      const setaHuno = data.hunos.find(h => h.text.toLowerCase().includes('seta'));
+      return setaHuno ? setaHuno.completed : false;
+    }
+
+    // For monthly/annual tasks (Trenes), link completion status to the corresponding daily Huno containing "tren"
+    if ((data.trains || []).some(t => t.id === taskId) || (data.annualTrains || []).some(t => t.id === taskId)) {
+      const trenHuno = data.hunos.find(h => h.text.toLowerCase().includes('tren'));
+      return trenHuno ? trenHuno.completed : false;
+    }
+
+    // For Nubes (proyectos), link completion status to the corresponding daily Huno containing "nube" or "proyecto"
+    if ((data.projects || []).some(t => t.id === taskId)) {
+      const nubeHuno = data.hunos.find(h => h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto'));
+      return nubeHuno ? nubeHuno.completed : false;
+    }
+
+    // For Leones (resources), link completion status to the corresponding daily Huno containing "león" or "leon" or "leones"
+    if ((data.leones || []).some(t => t.id === taskId)) {
+      const leonesHuno = data.hunos.find(h => h.text.toLowerCase().includes('león') || h.text.toLowerCase().includes('leon') || h.text.toLowerCase().includes('leones'));
+      return leonesHuno ? leonesHuno.completed : false;
+    }
+
     return false;
   };
 
@@ -1565,6 +1791,18 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     const lt = (data.leones || []).find(t => t.id === taskId);
     if (lt) return lt.name;
 
+    const st = (data.sets || []).find(t => t.id === taskId);
+    if (st) return st.text;
+
+    const tr = (data.trains || []).find(t => t.id === taskId);
+    if (tr) return tr.text;
+
+    const atr = (data.annualTrains || []).find(t => t.id === taskId);
+    if (atr) return atr.text;
+
+    const projectTask = (data.projects || []).find(t => t.id === taskId);
+    if (projectTask) return projectTask.text;
+
     return "Tarea desconocida";
   };
 
@@ -1576,6 +1814,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     if ((data.yunqueRapidas || []).some(t => t.id === taskId)) return "Yunque (Rápida)";
     if ((data.forjaTasks || []).some(t => t.id === taskId)) return "Roble";
     if ((data.leones || []).some(t => t.id === taskId)) return "Leones";
+    if ((data.sets || []).some(t => t.id === taskId)) return "Setas (Semanales)";
+    if ((data.trains || []).some(t => t.id === taskId)) return "Trenes (Mensuales)";
+    if ((data.annualTrains || []).some(t => t.id === taskId)) return "Trenes Anuales";
+    if ((data.projects || []).some(t => t.id === taskId)) return "Nubes (Proyectos)";
 
     return "Desconocido";
   };
@@ -1591,49 +1833,45 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       return;
     }
 
-    setData(prev => {
-      if ((prev.yunqueLargas || []).some(t => t.id === taskId)) {
-        const nextYL = (prev.yunqueLargas || []).map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
-        return {
-          ...prev,
-          yunqueLargas: nextYL
-        };
+    // For weekly tasks (Setas), toggle the daily Huno instead of the specific weekly task
+    if ((data.sets || []).some(t => t.id === taskId)) {
+      const setaHuno = data.hunos.find(h => h.text.toLowerCase().includes('seta'));
+      if (setaHuno) {
+        const nextHunos = data.hunos.map(t => t.id === setaHuno.id ? { ...t, completed: !isCompleted } : t);
+        handleHunosUpdate(nextHunos);
       }
+      return;
+    }
 
-      if ((prev.yunqueRapidas || []).some(t => t.id === taskId)) {
-        const nextYR = (prev.yunqueRapidas || []).map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
-        return {
-          ...prev,
-          yunqueRapidas: nextYR
-        };
+    // For monthly/annual tasks (Trenes), toggle the daily Huno instead of the specific monthly/annual task
+    if ((data.trains || []).some(t => t.id === taskId) || (data.annualTrains || []).some(t => t.id === taskId)) {
+      const trenHuno = data.hunos.find(h => h.text.toLowerCase().includes('tren'));
+      if (trenHuno) {
+        const nextHunos = data.hunos.map(t => t.id === trenHuno.id ? { ...t, completed: !isCompleted } : t);
+        handleHunosUpdate(nextHunos);
       }
+      return;
+    }
 
-      if ((prev.forjaTasks || []).some(t => t.id === taskId)) {
-        const nextFT = (prev.forjaTasks || []).map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
-        return {
-          ...prev,
-          forjaTasks: nextFT
-        };
+    // For Nubes (proyectos), toggle the daily Huno instead of the specific Nube task
+    if ((data.projects || []).some(t => t.id === taskId)) {
+      const nubeHuno = data.hunos.find(h => h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto'));
+      if (nubeHuno) {
+        const nextHunos = data.hunos.map(t => t.id === nubeHuno.id ? { ...t, completed: !isCompleted } : t);
+        handleHunosUpdate(nextHunos);
       }
+      return;
+    }
 
-      if ((prev.leones || []).some(t => t.id === taskId)) {
-        const nextL = (prev.leones || []).map(t => {
-          if (t.id === taskId) {
-            return {
-              ...t,
-              current: isCompleted ? 0 : t.target
-            };
-          }
-          return t;
-        });
-        return {
-          ...prev,
-          leones: nextL
-        };
+    // For Leones (resources), toggle the daily Huno instead of the specific resource task
+    if ((data.leones || []).some(t => t.id === taskId)) {
+      const leonesHuno = data.hunos.find(h => h.text.toLowerCase().includes('león') || h.text.toLowerCase().includes('leon') || h.text.toLowerCase().includes('leones'));
+      if (leonesHuno) {
+        const nextHunos = data.hunos.map(t => t.id === leonesHuno.id ? { ...t, completed: !isCompleted } : t);
+        handleHunosUpdate(nextHunos);
       }
-
-      return prev;
-    });
+      return;
+    }
   };
 
   const renderModoTelon = () => {
@@ -1920,6 +2158,9 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [newProjectText, setNewProjectText] = useState('');
   const [showProjectPromptModal, setShowProjectPromptModal] = useState(false);
+  const [isNubesCollapsed, setIsNubesCollapsed] = useState(true);
+  const [noteEditingProjectId, setNoteEditingProjectId] = useState<string | null>(null);
+  const [tempProjectNoteText, setTempProjectNoteText] = useState('');
 
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
@@ -2421,6 +2662,13 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     }));
   };
 
+  const handleProjectNotesChange = (id: string, newNotes: string) => {
+    setData(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => p.id === id ? { ...p, notes: newNotes } : p)
+    }));
+  };
+
   const initiateAddProject = () => { setIsAddingProject(true); setNewProjectText(''); };
   const confirmAddProject = () => {
     if (!newProjectText.trim()) return;
@@ -2733,27 +2981,6 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
             <header className="mb-6 mt-4 flex justify-between items-center">
               <h1 className="text-4xl font-black text-stone-100 tracking-tighter">EL REINO</h1>
               <div className="flex items-center gap-2">
-                {/* Botones de Enfoque y Voz */}
-                <div className="flex bg-stone-900/80 backdrop-blur-md rounded-xl border border-stone-800 p-0.5 shadow-lg shadow-black/30">
-                  <button 
-                    onClick={fetchFocusRecommendation} 
-                    className="p-2 hover:bg-stone-800 rounded-lg transition-colors flex items-center justify-center text-amber-500 hover:text-amber-400"
-                    title="Enfoque"
-                  >
-                    <Sparkles className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={isRecording ? stopRecording : startRecording} 
-                    className={`p-2 rounded-lg transition-all flex items-center justify-center relative ${
-                      isRecording 
-                        ? 'bg-red-500/20 text-red-500 ring-1 ring-red-500/50 animate-pulse' 
-                        : 'hover:bg-stone-800 text-stone-400'
-                    }`}
-                    title="Micrófono"
-                  >
-                    {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                  </button>
-                </div>
 
                 <button onClick={() => setShowHistory(true)} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><CalendarClock className="w-6 h-6 text-stone-500" /></button>
                 <button onClick={() => setView('stats')} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><BarChart3 className="w-6 h-6 text-stone-500" /></button>
@@ -2812,7 +3039,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   ...data.sets.flatMap(s => s.subtasks || []),
                   ...(data.yunqueLargas || []),
                   ...(data.yunqueRapidas || [])
-                ].filter(s => s.text.includes('🦶'));
+                ].filter(s => s && s.text && s.text.includes('🦶'));
                 const footProgress = footTasks.length > 0 ? (footTasks.filter(s => s.completed).length / footTasks.length) : 0;
                 
                 return (
@@ -2844,7 +3071,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
               {/* Jumangiare (Food) Button - 1/4 width */}
               <button
-                onClick={() => setView('food')}
+                onClick={() => {
+                  setView('food');
+                  setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
+                }}
                 className={`col-span-1 aspect-square rounded-2xl flex flex-col items-center justify-between p-2 transition-all duration-700 border group relative ${
                     currentFoodScore < 0 
                       ? 'bg-red-950/50 border-red-900 animate-blink shadow-[0_0_15px_rgba(239,68,68,0.3)]' 
@@ -2855,6 +3085,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               >
                 <div className="flex-1 flex items-center justify-center">
                   <Utensils className={`w-8 h-8 transition-colors ${
+                      shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {}) ? 'animate-cutlery-bounce text-lime-400' :
                       currentFoodScore < 0 ? 'text-red-500' :
                       isFoodPleno ? 'text-lime-200' : 'text-lime-500 group-hover:text-lime-400'
                     }`} />
@@ -3055,6 +3286,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
             <DailyHunos
               tasks={data.hunos}
               hunosHistory={data.hunosHistory || {}}
+              pendingHunoIds={pendingVoiceUpdates?.tasks?.map((t: any) => t.id) || []}
               hunoPlenoCurrent={data.stats.hunoPlenoCurrent || 0}
               hunoPlenos={data.stats.hunoPlenos || 0}
               hunoReward={data.stats.hunoReward || "Premio por definir"}
@@ -3075,12 +3307,15 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
             />
 
             <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
+              <div 
+                onClick={() => setIsNubesCollapsed(!isNubesCollapsed)}
+                className="flex items-center justify-between cursor-pointer select-none"
+              >
                 <div className="flex items-center gap-2">
                   <Cloud className="w-6 h-6 text-stone-400" />
                   <h2 className="text-xl font-bold text-stone-200">Nubes</h2>
 
-                  <div className="flex items-center gap-2 px-2 py-1 bg-stone-950/50 rounded-full border border-stone-800 ml-1">
+                  <div className="flex items-center gap-2 px-2 py-1 bg-stone-950/50 rounded-full border border-stone-800 ml-1" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
                       <div className="relative">
                         <Trophy className="w-5 h-5 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]" />
@@ -3094,48 +3329,101 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     </span>
                   </div>
                 </div>
-                <button onClick={() => setIsEditingProjects(!isEditingProjects)} className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}>{isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}</button>
-              </div>
-              {isEditingProjects ? (
-                <div className="space-y-3 animate-in fade-in duration-300">
-                  {data.projects.map(proj => (
-                    <div key={proj.id} className="flex gap-2">
-                      <DebouncedInput type="text" value={proj.text} onChange={(val: string) => handleProjectTextChange(proj.id, val)} className="flex-1 min-w-0 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" />
-                      <button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button>
-                    </div>
-                  ))}
-                  <button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button>
 
-                  <div className="pt-4 mt-2 border-t border-stone-800">
-                    <label className="block text-xs font-black text-stone-600 uppercase tracking-widest mb-2">Premio Objetivo 20 Plenos</label>
-                    <input
-                      type="text"
-                      value={data.stats.projectReward || ''}
-                      onChange={(e) => setData(prev => ({ ...prev, stats: { ...prev.stats, projectReward: e.target.value } }))}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-yellow-500 font-bold"
-                      placeholder="Escribe tu premio aquí..."
-                    />
-                  </div>
+                {!isNubesCollapsed && (
+                  <button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setIsEditingProjects(!isEditingProjects); 
+                    }} 
+                    className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}
+                  >
+                    {isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
+                  </button>
+                )}
+              </div>
+
+              {isNubesCollapsed && (data.projects || []).length > 0 && (
+                <div 
+                  className="grid w-full mt-3 gap-1 animate-in fade-in duration-300 cursor-pointer"
+                  style={{ gridTemplateColumns: `repeat(${(data.projects || []).length}, minmax(0, 1fr))` }}
+                  onClick={() => setIsNubesCollapsed(false)}
+                >
+                  {(data.projects || []).map((proj, idx) => {
+                    const completedCount = (data.projects || []).filter(p => p.completed).length;
+                    const isFilled = idx < completedCount;
+                    return (
+                      <div 
+                        key={proj.id}
+                        className={`w-2.5 h-2.5 max-w-full aspect-square mx-auto rounded-full transition-all duration-300 ${
+                          isFilled 
+                            ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)] animate-pulse' 
+                            : 'bg-stone-950 border border-stone-800'
+                        }`}
+                      />
+                    );
+                  })}
                 </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-4 gap-3">
-                    {data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin nubes activas.</p>}
-                    {data.projects.map((proj, idx) => (
-                      <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'}`}>
-                        <span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span>
+              )}
+
+              {!isNubesCollapsed && (
+                <div className="mt-4 animate-in fade-in duration-300">
+                  {isEditingProjects ? (
+                    <div className="space-y-3">
+                      {data.projects.map(proj => (
+                        <div key={proj.id} className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setNoteEditingProjectId(proj.id);
+                              setTempProjectNoteText(proj.notes || '');
+                            }}
+                            className={`p-2.5 rounded-lg border transition-all active:scale-95 flex items-center justify-center shrink-0 ${
+                              proj.notes 
+                                ? 'bg-amber-950/25 border-amber-900/40 text-amber-400' 
+                                : 'bg-stone-950 border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-600'
+                            }`}
+                            title="Editar Notas de Sebastian"
+                          >
+                            <Info className="w-5 h-5" />
+                          </button>
+                          <DebouncedInput type="text" value={proj.text} onChange={(val: string) => handleProjectTextChange(proj.id, val)} className="flex-1 min-w-0 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" />
+                          <button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                        </div>
+                      ))}
+                      <button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button>
+
+                      <div className="pt-4 mt-2 border-t border-stone-800">
+                        <label className="block text-xs font-black text-stone-600 uppercase tracking-widest mb-2">Premio Objetivo 20 Plenos</label>
+                        <input
+                          type="text"
+                          value={data.stats.projectReward || ''}
+                          onChange={(e) => setData(prev => ({ ...prev, stats: { ...prev.stats, projectReward: e.target.value } }))}
+                          className="w-full bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-yellow-500 font-bold"
+                          placeholder="Escribe tu premio aquí..."
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-4 gap-3">
+                        {data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin nubes activas.</p>}
+                        {data.projects.map((proj, idx) => (
+                          <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'}`}>
+                            <span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all">
+                        <Music className="w-5 h-5" />
+                        <span className="font-bold">Profundizar en Piano</span>
                       </button>
-                    ))}
-                  </div>
-                  <button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all">
-                    <Music className="w-5 h-5" />
-                    <span className="font-bold">Profundizar en Piano</span>
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); setShowGympiezaModal(true); }} className="w-full mt-3 py-3 bg-emerald-950/30 border border-emerald-900/50 rounded-xl flex items-center justify-center gap-2 text-emerald-400 hover:bg-emerald-900/50 hover:text-emerald-300 transition-all">
-                    <Sparkles className="w-5 h-5" />
-                    <span className="font-bold">Gympieza</span>
-                  </button>
-                </>
+                      <button onClick={(e) => { e.stopPropagation(); setShowGympiezaModal(true); }} className="w-full mt-3 py-3 bg-emerald-950/30 border border-emerald-900/50 rounded-xl flex items-center justify-center gap-2 text-emerald-400 hover:bg-emerald-900/50 hover:text-emerald-300 transition-all">
+                        <Sparkles className="w-5 h-5" />
+                        <span className="font-bold">Gympieza</span>
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
@@ -3182,6 +3470,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     <button
                       onClick={() => {
                         setShowProjectPromptModal(false);
+                        setIsNubesCollapsed(false);
                         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                       }}
                       className="flex-1 py-3 rounded-xl font-bold bg-lime-600 text-stone-950 hover:bg-lime-500 transition-colors shadow-lg shadow-lime-900/20"
@@ -3375,6 +3664,53 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               </div>
             )}
 
+            {noteEditingProjectId && (
+              <div 
+                className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={() => setNoteEditingProjectId(null)}
+              >
+                <div 
+                  className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="p-6 flex flex-col space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-stone-850">
+                      <Info className="w-5 h-5 text-amber-500" />
+                      <h3 className="text-base font-bold text-stone-200">
+                        Notas para: "{data.projects.find(p => p.id === noteEditingProjectId)?.text || 'Nube'}"
+                      </h3>
+                    </div>
+                    <p className="text-xs text-stone-400 leading-relaxed">
+                      Estas notas le servirán a Sebastian para sugerirte esta nube/proyecto según tu nivel de energía y directrices del día.
+                    </p>
+                    <textarea
+                      value={tempProjectNoteText}
+                      onChange={(e) => setTempProjectNoteText(e.target.value)}
+                      placeholder="Ej: Si mi energía es alta, enfocarme en programar. O: Tareas rápidas para días cansados..."
+                      className="w-full h-32 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 text-sm focus:outline-none focus:border-amber-500 font-sans resize-none placeholder:text-stone-600 leading-relaxed"
+                    />
+                    <div className="grid grid-cols-2 gap-3 w-full pt-2">
+                      <button 
+                        onClick={() => setNoteEditingProjectId(null)}
+                        className="py-3 rounded-xl border border-stone-750 text-stone-400 hover:bg-stone-800 font-bold transition-colors text-sm"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        onClick={() => {
+                          handleProjectNotesChange(noteEditingProjectId, tempProjectNoteText);
+                          setNoteEditingProjectId(null);
+                        }}
+                        className="py-3 rounded-xl bg-amber-600 text-stone-950 font-bold hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20 text-sm"
+                      >
+                        Guardar Notas
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {showCongratulations.show && (
               <div className="fixed inset-0 max-w-md mx-auto z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-500">
                 <div className="bg-stone-900 w-full max-w-sm rounded-[3rem] shadow-2xl border border-yellow-500/30 overflow-hidden relative">
@@ -3538,7 +3874,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               </div>
             )}
 
-            {(isRecording || voiceLoading || voiceStatus || voiceSuccessUpdates || voiceError) && (
+            {(isRecording || voiceLoading || voiceStatus || voiceSuccessUpdates || voiceError || pendingVoiceUpdates) && (
               <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-sm z-[250] bg-stone-900/95 backdrop-blur-md rounded-2xl border border-stone-800 p-4 shadow-2xl space-y-3 animate-in slide-in-from-bottom duration-300">
                 <div className="flex items-center justify-between border-b border-stone-850 pb-2">
                   <div className="flex items-center gap-2">
@@ -3551,14 +3887,16 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       <div className="w-3 h-3 border border-stone-800 border-t-amber-500 rounded-full animate-spin" />
                     ) : voiceError ? (
                       <ShieldAlert className="w-4 h-4 text-red-500" />
+                    ) : pendingVoiceUpdates ? (
+                      <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
                     ) : (
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                     )}
                     <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
-                      {isRecording ? 'Grabando Audio' : voiceLoading ? 'Procesando Voz' : voiceError ? 'Error de Sebastian' : 'Actualización Realizada'}
+                      {isRecording ? 'Grabando Audio' : voiceLoading ? 'Procesando Voz' : voiceError ? 'Error de Sebastian' : pendingVoiceUpdates ? 'Confirmar Acciones' : 'Actualización Realizada'}
                     </span>
                   </div>
-                  {!isRecording && !voiceLoading && (
+                  {!isRecording && !voiceLoading && !pendingVoiceUpdates && (
                     <button 
                       onClick={() => {
                         setVoiceStatus(null);
@@ -3604,7 +3942,54 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   </div>
                 )}
 
-                {voiceSuccessUpdates && !voiceLoading && !isRecording && (
+                {pendingVoiceUpdates && !voiceLoading && !isRecording && (
+                  <div className="space-y-3">
+                    {voiceStatus && (
+                      <p className="text-xs text-stone-300 italic border-l-2 border-amber-500/50 pl-2 py-0.5">
+                        "{voiceStatus}"
+                      </p>
+                    )}
+                    <div className="bg-stone-950/60 rounded-xl p-3 border border-stone-850 space-y-2">
+                      <p className="text-[10px] font-black text-amber-500 uppercase tracking-wider">Cambios propuestos:</p>
+                      <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                        {pendingVoiceMsgs && pendingVoiceMsgs.map((msg, i) => (
+                          <div key={i} className="flex items-start gap-1.5 text-xs text-stone-300">
+                            <Check className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                            <span>{msg}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (pendingVoiceUpdates) {
+                            applyVoiceUpdates(pendingVoiceUpdates);
+                            setPendingVoiceUpdates(null);
+                            setPendingVoiceMsgs(null);
+                          }
+                        }}
+                        className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] transition-all rounded-xl text-stone-950 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5"
+                      >
+                        <Check className="w-4 h-4" />
+                        Autorizar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPendingVoiceUpdates(null);
+                          setPendingVoiceMsgs(null);
+                          setVoiceStatus(null);
+                        }}
+                        className="flex-1 py-2 bg-stone-850 hover:bg-stone-800 active:scale-[0.98] transition-all rounded-xl text-stone-400 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 border border-stone-700"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {voiceSuccessUpdates && !voiceLoading && !isRecording && !pendingVoiceUpdates && (
                   <div className="space-y-2">
                     {voiceStatus && (
                       <p className="text-xs text-stone-300 italic border-l-2 border-amber-500/50 pl-2 py-0.5">
@@ -3628,7 +4013,43 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     }
   };
 
-  return (<div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative"> <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900">{renderView()}</div> </div>);
+  const hideFloatingButtons = modoTelonActive || showHistory || showFirewallModal || showProjectPromptModal || showProjectConfirm || showFootModal || showGympiezaModal || showCongratulations.show || showFocusModal || voiceLoading;
+
+  return (
+    <div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative">
+      <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900">
+        {renderView()}
+
+        {/* Floating Focus and Voice Buttons */}
+        {!hideFloatingButtons && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none z-[90]">
+            <div className="flex justify-end px-6 pointer-events-auto">
+              <div className="flex bg-stone-900/90 backdrop-blur-md rounded-2xl border border-stone-800 p-1 shadow-2xl shadow-black/50 gap-1">
+                <button 
+                  onClick={fetchFocusRecommendation} 
+                  className="p-3 hover:bg-stone-850 active:scale-95 rounded-xl transition-all flex items-center justify-center text-amber-500 hover:text-amber-400 shadow-sm"
+                  title="Enfoque"
+                >
+                  <Sparkles className="w-6 h-6" />
+                </button>
+                <button 
+                  onClick={isRecording ? stopRecording : startRecording} 
+                  className={`p-3 rounded-xl active:scale-95 transition-all flex items-center justify-center relative ${
+                    isRecording 
+                      ? 'bg-red-500/20 text-red-500 ring-1 ring-red-500/50 animate-pulse' 
+                      : 'hover:bg-stone-850 text-stone-400'
+                  }`}
+                  title="Micrófono"
+                >
+                  {isRecording ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const GympiezaModal = ({ gympieza, onUpdate, onClose, onCompleteAll }: { gympieza: GympiezaState, onUpdate: (g: GympiezaState) => void, onClose: () => void, onCompleteAll: () => void }) => {

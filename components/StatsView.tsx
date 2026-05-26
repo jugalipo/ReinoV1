@@ -64,6 +64,44 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
       }));
   };
 
+  const adjustHunoTrophies = (delta: number) => {
+      if (!onUpdate) return;
+      const currentPlenos = data.stats.hunoPlenos || 0;
+      const currentTrophies = Math.floor(currentPlenos / 50);
+      const remainder = data.stats.hunoPlenoCurrent || 0;
+      
+      const newTrophies = Math.max(0, currentTrophies + delta);
+      const newPlenos = newTrophies * 50 + remainder;
+      
+      onUpdate(prev => ({
+          ...prev,
+          stats: {
+              ...prev.stats,
+              hunoPlenos: newPlenos,
+              hunoPlenoCurrent: remainder
+          }
+      }));
+  };
+
+  const adjustHunoCurrent = (delta: number) => {
+      if (!onUpdate) return;
+      const currentPlenos = data.stats.hunoPlenos || 0;
+      const currentTrophies = Math.floor(currentPlenos / 50);
+      const remainder = data.stats.hunoPlenoCurrent || 0;
+      
+      const newRemainder = Math.max(0, Math.min(49, remainder + delta));
+      const newPlenos = currentTrophies * 50 + newRemainder;
+      
+      onUpdate(prev => ({
+          ...prev,
+          stats: {
+              ...prev.stats,
+              hunoPlenos: newPlenos,
+              hunoPlenoCurrent: newRemainder
+          }
+      }));
+  };
+
   const adjustRootCount = (key: 'leonesCount' | 'huchaCount', delta: number) => {
       if (!onUpdate) return;
       onUpdate(prev => ({
@@ -1039,9 +1077,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
                             <span className="text-[10px] text-stone-500 uppercase font-black">Trofeos</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button onClick={() => adjustStat('hunoPlenos', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4 text-stone-400" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{data.stats.hunoPlenos || 0}</span>
-                            <button onClick={() => adjustStat('hunoPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4 text-stone-400" /></button>
+                            <button onClick={() => adjustHunoTrophies(-1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4 text-stone-400" /></button>
+                            <span className="font-mono w-8 text-center text-stone-100">{Math.floor((data.stats.hunoPlenos || 0) / 50)}</span>
+                            <button onClick={() => adjustHunoTrophies(1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4 text-stone-400" /></button>
                         </div>
                     </div>
 
@@ -1051,9 +1089,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
                             <span className="text-[9px] text-stone-600 uppercase font-black">Actual / 50</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button onClick={() => adjustStat('hunoPlenoCurrent', -1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Minus className="w-3.5 h-3.5 text-stone-500" /></button>
+                            <button onClick={() => adjustHunoCurrent(-1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Minus className="w-3.5 h-3.5 text-stone-500" /></button>
                             <span className="font-mono w-8 text-center text-stone-300 text-sm">{data.stats.hunoPlenoCurrent || 0}</span>
-                            <button onClick={() => adjustStat('hunoPlenoCurrent', 1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Plus className="w-3.5 h-3.5 text-stone-500" /></button>
+                            <button onClick={() => adjustHunoCurrent(1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Plus className="w-3.5 h-3.5 text-stone-500" /></button>
                         </div>
                     </div>
                     
@@ -1144,7 +1182,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
                 <Sword className="w-4 h-4 text-orange-500 shrink-0" />
                 <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">HUNOS (30 DÍAS)</span>
               </div>
-              <span className="text-lg font-black text-white shrink-0">{(stats.hunoPlenoCurrent || 0) + ((stats.hunoPlenos || 0) * 50)}</span>
+              <span className="text-lg font-black text-white shrink-0">{stats.hunoPlenos || 0}</span>
             </button>
             <div className="h-24 flex gap-[2px] px-1">
               {hunosHistoryToDisplay.map((v, i) => (

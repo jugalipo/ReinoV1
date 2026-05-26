@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExerciseState } from '../types';
-import { ArrowLeft, Dumbbell, Trophy, Move, Wind, RotateCcw, Timer, Plus, X, BicepsFlexed, Play, Pause, Settings2, Square, Zap, Flame, Activity } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Trophy, Move, Wind, RotateCcw, Timer, Plus, X, BicepsFlexed, Play, Pause, Settings2, Square, Zap, Flame, Activity, Info } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 interface ExerciseViewProps {
@@ -17,6 +17,8 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   const [customTime, setCustomTime] = useState('');
   
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [tempNotesText, setTempNotesText] = useState(exercise.notes || '');
 
   // --- NEW BLOCK-BASED TIMER STATE ---
   const timerBlocks = exercise.timerBlocks || [{ id: 'default', workSecs: 45, restSecs: 15, rounds: 3 }];
@@ -73,6 +75,13 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
   useModalHistory(showTimerSettings, () => setShowTimerSettings(false));
   useModalHistory(showSessionConfirmModal, () => setShowSessionConfirmModal(false));
   useModalHistory(showCompleteModal, () => setShowCompleteModal(false));
+  useModalHistory(showNotesModal, () => setShowNotesModal(false));
+
+  useEffect(() => {
+    if (showNotesModal) {
+      setTempNotesText(exercise.notes || '');
+    }
+  }, [showNotesModal, exercise.notes]);
   // ---------------------------------------------
 
   useEffect(() => {
@@ -389,11 +398,24 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
 
   return (
     <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
-      <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800 shrink-0">
-        <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
-          <ArrowLeft className="w-6 h-6 text-emerald-500" />
+      <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
+            <ArrowLeft className="w-6 h-6 text-emerald-500" />
+          </button>
+          <h1 className="text-xl font-bold text-emerald-200">Bosque</h1>
+        </div>
+        <button
+          onClick={() => setShowNotesModal(true)}
+          className={`p-2 rounded-xl border transition-all active:scale-95 ${
+            exercise.notes
+              ? 'bg-amber-950/25 border-amber-900/40 text-amber-400'
+              : 'bg-stone-900 border-stone-850 text-stone-500 hover:text-stone-300 hover:border-stone-700'
+          }`}
+          title="Notas para Sebastian"
+        >
+          <Info className="w-5 h-5" />
         </button>
-        <h1 className="text-xl font-bold text-emerald-200">Bosque</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-12 bg-emerald-950/20">
@@ -929,6 +951,60 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, onUpdate, 
                   </div>
               </div>
           </div>
+      )}
+
+      {/* Modal to edit Sebastian notes for Bosque */}
+      {showNotesModal && (
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowNotesModal(false)}
+        >
+            <div 
+              className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-6 flex flex-col space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-stone-850">
+                        <Info className="w-5 h-5 text-amber-500" />
+                        <h3 className="text-base font-bold text-stone-200">
+                            Notas de Bosque para Sebastian
+                        </h3>
+                    </div>
+                    
+                    <p className="text-xs text-stone-400 leading-relaxed">
+                        Estas notas le servirán a Sebastian para sugerirte entrenamientos según tu nivel de energía e histórico.
+                    </p>
+                    
+                    <textarea
+                        value={tempNotesText}
+                        onChange={(e) => setTempNotesText(e.target.value)}
+                        placeholder="Ej: Si mi energía es < 4, priorizar estiramientos en vez de series de fuerza..."
+                        className="w-full h-32 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 text-sm focus:outline-none focus:border-amber-500 font-sans resize-none placeholder:text-stone-600 leading-relaxed"
+                    />
+                    
+                    <div className="grid grid-cols-2 gap-3 w-full pt-2">
+                        <button 
+                            onClick={() => setShowNotesModal(false)}
+                            className="py-3 rounded-xl border border-stone-750 text-stone-400 hover:bg-stone-800 font-bold transition-colors text-sm"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            onClick={() => {
+                                onUpdate({
+                                    ...exercise,
+                                    notes: tempNotesText
+                                });
+                                setShowNotesModal(false);
+                            }}
+                            className="py-3 rounded-xl bg-amber-600 text-stone-950 font-bold hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20 text-sm"
+                        >
+                            Guardar Notas
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
       )}
 
     </div>

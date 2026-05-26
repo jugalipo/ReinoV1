@@ -120,6 +120,11 @@ const DailyFoodScoreModal = ({
   const [score, setScore] = useState<DailyFoodScore>(initialScore);
   const [selectingMealFor, setSelectingMealFor] = useState<'lunch' | 'dinner' | null>(null);
 
+  const selectableMeals = [
+    ...meals,
+    { name: "Ayuno", icon: "⏱️", max: 9999 }
+  ];
+
   // --- MOBILE BACK BUTTON SUPPORT ---
   useModalHistory(true, onClose, 'dailyFoodScore');
   useModalHistory(!!selectingMealFor, () => setSelectingMealFor(null), `selecting-${selectingMealFor}`);
@@ -137,7 +142,7 @@ const DailyFoodScoreModal = ({
       setScore(newScore);
       onSave(newScore);
     } else {
-      const hasAvailable = meals.some(m => canSelectMeal(m.name, m.max));
+      const hasAvailable = selectableMeals.some(m => canSelectMeal(m.name, m.max));
       if (hasAvailable) {
         setSelectingMealFor('lunch');
       } else {
@@ -154,7 +159,7 @@ const DailyFoodScoreModal = ({
       setScore(newScore);
       onSave(newScore);
     } else {
-      const hasAvailable = meals.some(m => canSelectMeal(m.name, m.max));
+      const hasAvailable = selectableMeals.some(m => canSelectMeal(m.name, m.max));
       if (hasAvailable) {
         setSelectingMealFor('dinner');
       } else {
@@ -257,7 +262,7 @@ const DailyFoodScoreModal = ({
         <div className="p-6 space-y-6 overflow-y-auto">
           {selectingMealFor ? (
             <div className="grid grid-cols-2 gap-3">
-              {[...meals].sort((a, b) => {
+              {[...selectableMeals].sort((a, b) => {
                 const aCan = canSelectMeal(a.name, a.max);
                 const bCan = canSelectMeal(b.name, b.max);
                 if (aCan && !bCan) return -1;
@@ -292,7 +297,7 @@ const DailyFoodScoreModal = ({
               <div className="grid grid-cols-5 gap-2">
                 <button onClick={handleLunchClick} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.lunch ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
                   {score.lunchMeal ? (
-                    <span className="text-xl leading-none">{meals.find(m => m.name === score.lunchMeal)?.icon || '🍽️'}</span>
+                    <span className="text-xl leading-none">{selectableMeals.find(m => m.name === score.lunchMeal)?.icon || '🍽️'}</span>
                   ) : (
                     <UtensilsCrossed className="w-5 h-5" />
                   )}
@@ -300,7 +305,7 @@ const DailyFoodScoreModal = ({
                 </button>
                 <button onClick={handleDinnerClick} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.dinner ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
                   {score.dinnerMeal ? (
-                    <span className="text-xl leading-none">{meals.find(m => m.name === score.dinnerMeal)?.icon || '🍽️'}</span>
+                    <span className="text-xl leading-none">{selectableMeals.find(m => m.name === score.dinnerMeal)?.icon || '🍽️'}</span>
                   ) : (
                     <UtensilsCrossed className="w-5 h-5" />
                   )}
@@ -680,6 +685,15 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
 
   const daysOfMonth = getDaysOfMonth(monthOffset);
   
+  const weeks: (Date | null)[][] = [];
+  for (let i = 0; i < daysOfMonth.length; i += 7) {
+      weeks.push(daysOfMonth.slice(i, i + 7));
+  }
+  const todayStr = new Date().toDateString();
+  const currentWeekIndex = monthOffset === 0 
+      ? weeks.findIndex(week => week.some(d => d && d.toDateString() === todayStr))
+      : -1;
+  
   // Use historical data if viewing a past month
   const monthKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}`;
   const historicalData = foodState.monthlyHistory?.[monthKey];
@@ -997,63 +1011,87 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             />
 
             <div className={`bg-stone-900/40 rounded-3xl p-4 relative z-10 transition-colors duration-1000 ${isLegendary ? 'bg-white/5 border-black/10' : 'bg-stone-900/40 border-stone-800/50'}`}>
-          <div className="grid grid-cols-7 gap-y-4 gap-x-1">
-            {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map(day => (
-              <div key={day} className="text-[10px] font-black text-stone-600 text-center mb-1">
-                {day}
-              </div>
-            ))}
-            {daysOfMonth.map((date, index) => {
-              if (!date) return <div key={`empty-${index}`} />;
-              
-              const dateStr = date.toDateString();
-              const dayScore = dailyScores[dateStr] || defaultDailyScore;
-              const total = calculateDailyScore(dayScore, dateStr, dailyScores);
-              const isToday = date.toDateString() === new Date().toDateString();
-              const isFuture = date > new Date() && !isToday;
-
-              const percentage = Math.min(100, (Math.abs(total) / 4) * 100);
-              let conicGradient = '';
-              if (total > 0) {
-                  conicGradient = `conic-gradient(#84cc16 ${percentage}%, transparent 0)`;
-              } else if (total < 0) {
-                  conicGradient = `conic-gradient(transparent ${100 - percentage}%, #ef4444 0)`;
-              }
-
-              return (
-                <button
-                  key={dateStr}
-                  disabled={isFuture}
-                  onClick={() => setSelectedDate(date)}
-                  className={`flex flex-col items-center gap-1 transition-all ${isFuture ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
-                >
-                  <div className="relative w-9 h-9 rounded-full flex items-center justify-center">
-                    <div className={`absolute inset-0 rounded-full transition-colors
-                      ${total > 0 ? 'bg-lime-500/10' : total < 0 ? 'bg-red-500/10' : isToday ? 'bg-stone-800' : 'bg-stone-900/50'}
-                    `} />
-                    
-                    {conicGradient && (
-                      <div 
-                        className="absolute inset-0 rounded-full" 
-                        style={{ 
-                          background: conicGradient,
-                          WebkitMaskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)',
-                          maskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)'
-                        }} 
-                      />
-                    )}
-                    
-                    <span className={`relative z-10 text-[11px] font-bold
-                      ${total > 0 ? 'text-lime-400' : total < 0 ? 'text-red-400' : isToday ? 'text-lime-500' : 'text-stone-400'}
-                    `}>
-                      {date.getDate()}
-                    </span>
+              {/* Header Days of Week */}
+              <div className="grid grid-cols-7 gap-x-1 mb-2">
+                {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map(day => (
+                  <div key={day} className="text-[10px] font-black text-stone-600 text-center uppercase tracking-wider">
+                    {day}
                   </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+                ))}
+              </div>
+
+              {/* Weeks rows */}
+              <div className="space-y-1">
+                {weeks.map((week, wIndex) => {
+                  const isCurrentWeek = wIndex === currentWeekIndex;
+                  return (
+                    <div 
+                      key={wIndex}
+                      className={`grid grid-cols-7 gap-x-1 py-1.5 px-1 rounded-2xl transition-all relative ${
+                        isCurrentWeek 
+                          ? 'bg-lime-500/15 border border-lime-500/40 shadow-[0_0_20px_rgba(132,204,22,0.1)]' 
+                          : 'border border-transparent'
+                      }`}
+                    >
+                      {week.map((date, index) => {
+                        if (!date) return <div key={`empty-${wIndex}-${index}`} className="aspect-square" />;
+                        
+                        const dateStr = date.toDateString();
+                        const dayScore = dailyScores[dateStr] || defaultDailyScore;
+                        const total = calculateDailyScore(dayScore, dateStr, dailyScores);
+                        const isToday = date.toDateString() === new Date().toDateString();
+                        const isFuture = date > new Date() && !isToday;
+                        const isPast = !isToday && !isFuture;
+                        const isLunchLogged = !!(dayScore.lunch || dayScore.deliveryLunch);
+                        const isDinnerLogged = !!(dayScore.dinner || dayScore.deliveryDinner);
+                        const isIncomplete = !isLunchLogged || !isDinnerLogged;
+                        const showRedBg = isPast && isIncomplete;
+
+                        const percentage = Math.min(100, (Math.abs(total) / 4) * 100);
+                        let conicGradient = '';
+                        if (total > 0) {
+                            conicGradient = `conic-gradient(#84cc16 ${percentage}%, transparent 0)`;
+                        } else if (total < 0) {
+                            conicGradient = `conic-gradient(transparent ${100 - percentage}%, #ef4444 0)`;
+                        }
+
+                        return (
+                          <button
+                            key={dateStr}
+                            disabled={isFuture}
+                            onClick={() => setSelectedDate(date)}
+                            className={`flex flex-col items-center justify-center gap-1 transition-all ${isFuture ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
+                          >
+                            <div className="relative w-9 h-9 rounded-full flex items-center justify-center">
+                              <div className={`absolute inset-0 rounded-full transition-colors
+                                ${showRedBg ? 'bg-red-500/85' : total > 0 ? 'bg-lime-500/10' : total < 0 ? 'bg-red-500/10' : isToday ? 'bg-stone-800' : 'bg-stone-900/50'}
+                              `} />
+                              
+                              {conicGradient && (
+                                <div 
+                                  className="absolute inset-0 rounded-full" 
+                                  style={{ 
+                                    background: conicGradient,
+                                    WebkitMaskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)',
+                                    maskImage: 'radial-gradient(closest-side, transparent 75%, black 76%)'
+                                  }} 
+                                />
+                              )}
+                              
+                              <span className={`relative z-10 text-[11px] font-bold
+                                ${showRedBg ? 'text-white' : total > 0 ? 'text-lime-400' : total < 0 ? 'text-red-400' : isToday ? 'text-lime-500' : 'text-stone-400'}
+                              `}>
+                                {date.getDate()}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
       </div>
 
         {/* Habits Grouped Section */}
@@ -1227,7 +1265,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                     </div>
                     <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Frenesí Gastronómico!</h2>
                     <p className="text-stone-400 mb-8 text-sm leading-relaxed">
-                        Has dominado los esenciales del día. <br/>¿Reclamas los **+3 puntos** de supervivencia?
+                        Has dominado los esenciales del día. <br/>¿Reclamas los <strong className="font-bold text-lime-400">+3 puntos</strong> de supervivencia?
                     </p>
                     
                     <div className="grid grid-cols-2 gap-4 w-full">
@@ -1259,7 +1297,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                     </div>
                     <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Rutina Completada!</h2>
                     <p className="text-stone-400 mb-8 text-sm leading-relaxed">
-                        Has completado todos los pasos. <br/>¿Reclamas tu **+1 punto**?
+                        Has completado todos los pasos. <br/>¿Reclamas tu <strong className="font-bold text-emerald-400">+1 punto</strong>?
                     </p>
                     
                     <div className="grid grid-cols-2 gap-4 w-full">

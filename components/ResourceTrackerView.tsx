@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ResourceTask, Task } from '../types';
-import { ArrowLeft, Plus, Minus, Edit2, Save, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple, TreePine, TreeDeciduous } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Edit2, Save, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple, TreePine, TreeDeciduous, Leaf, Sun, Snowflake } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 interface ResourceTrackerViewProps {
   title: string;
-  themeColor: 'orange' | 'amber'; // Orange for Forjas (Fire), Amber for Leones
+  themeColor: 'orange' | 'amber'; // Orange for Roble, Amber for Leones
   tasks: ResourceTask[];
   onUpdate: (tasks: ResourceTask[]) => void;
   onBack: () => void;
@@ -50,6 +50,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   const [editName, setEditName] = useState(mainTask.name);
   const [editTarget, setEditTarget] = useState(mainTask.target.toString());
   const [editUnit, setEditUnit] = useState(mainTask.unit);
+  const [editNotes, setEditNotes] = useState(mainTask.notes || '');
 
   // Quarterly Editing State
   const [isEditingQuarterly, setIsEditingQuarterly] = useState(false);
@@ -74,6 +75,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   const [popupEditName, setPopupEditName] = useState('');
   const [popupEditTarget, setPopupEditTarget] = useState('');
   const [popupEditUnit, setPopupEditUnit] = useState('');
+  const [popupEditNotes, setPopupEditNotes] = useState('');
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useModalHistory(isEditingMain, () => setIsEditingMain(false), 'editMainObjective');
@@ -88,6 +90,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       setEditName(mainTask.name);
       setEditTarget(mainTask.target.toString());
       setEditUnit(mainTask.unit);
+      setEditNotes(mainTask.notes || '');
   }, [mainTask]);
 
   useEffect(() => {
@@ -99,6 +102,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       setPopupEditName(selectedObjective.name);
       setPopupEditTarget(selectedObjective.target.toString());
       setPopupEditUnit(selectedObjective.unit);
+      setPopupEditNotes(selectedObjective.notes || '');
     }
   }, [selectedObjective, isEditingInPopup]);
 
@@ -107,7 +111,8 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
           ...mainTask,
           name: editName,
           target: Number(editTarget) || 1, // Prevent 0 target
-          unit: editUnit
+          unit: editUnit,
+          notes: editNotes
       };
       // Keep main task at index 0, preserve rest
       const newTasks = [...tasks];
@@ -192,7 +197,8 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       ...t,
       name: popupEditName,
       target: Number(popupEditTarget) || 1,
-      unit: popupEditUnit
+      unit: popupEditUnit,
+      notes: popupEditNotes
     } : t);
     onUpdate(newTasks);
     setIsEditingInPopup(false);
@@ -345,7 +351,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       if (taskId.includes('money')) return 'Leones (Dinero)';
       if (taskId.includes('health')) return 'Cuerpo (Salud)';
       if (taskId.includes('love')) return 'Brotes (Amor)';
-      if (taskId.includes('proj')) return 'Proyecto';
+      if (taskId.includes('proj')) return 'Nubes';
       return `Objetivo ${index + 1}`;
   };
 
@@ -365,7 +371,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       <div className="flex-1 flex flex-col p-6 items-center space-y-4 overflow-y-auto pb-12 no-scrollbar">
         
         {/* OVERALL PROGRESS BAR */}
-        {(title === 'Forjas' || title === 'Roble') && quarterlyTasks.length > 0 && (
+        {title === 'Roble' && quarterlyTasks.length > 0 && (
             <div className="w-full mb-2">
                 <div className="flex justify-between items-end mb-2">
                     <h3 className="font-bold text-stone-400 uppercase tracking-widest text-xs">Progreso Global</h3>
@@ -421,6 +427,16 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                         </div>
                     </div>
 
+                    <div className="space-y-1">
+                        <label className="text-xs text-stone-500 font-bold ml-1">Notas / Detalles</label>
+                        <textarea 
+                            value={editNotes}
+                            onChange={e => setEditNotes(e.target.value)}
+                            placeholder="Detalla en qué consiste este objetivo para que Sebastian te lo recuerde..."
+                            className="w-full h-20 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-sm resize-none leading-relaxed placeholder:text-stone-650"
+                        />
+                    </div>
+
                     <button 
                         onClick={saveMainChanges}
                         className={`w-full py-3 rounded-xl font-bold text-stone-100 flex justify-center items-center gap-2 mt-4 transition-transform active:scale-95 ${theme.button}`}
@@ -431,8 +447,13 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
             ) : (
                 /* VIEW MODE MAIN - Compacted */
                 <div className="flex flex-col items-center justify-center w-full space-y-4 py-2">
-                    <div className="text-center w-full relative">
-                        <h2 className="text-2xl font-black text-stone-100 mb-0.5">{mainTask.name}</h2>
+                    <div className="text-center w-full relative px-8">
+                        <h2 className="text-2xl font-black text-stone-100 mb-1 leading-tight">{mainTask.name}</h2>
+                        {mainTask.notes && (
+                            <p className="text-xs text-stone-400 bg-stone-950/45 border border-stone-850 p-3 rounded-2xl italic leading-relaxed text-center mx-auto mb-3 max-w-[280px]">
+                                "{mainTask.notes}"
+                            </p>
+                        )}
                         <p className={`text-base font-mono ${theme.accent} opacity-80`}>
                             {mainTask.current} <span className="text-stone-500">/</span> {mainTask.target} <span className="text-xs text-stone-600">{mainTask.unit}</span>
                         </p>
@@ -559,45 +580,146 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
 
 
-        {/* SEASONAL TREE (FORJAS/ROBLE ONLY) */}
-        {(title === 'Forjas' || title === 'Roble') && (
+        {/* SEASONAL TREE (ROBLE ONLY) */}
+        {title === 'Roble' && (
             <div className="w-full flex justify-center py-6">
                 {(() => {
                     const month = new Date().getMonth(); // 0-11
                     let TreeIcon = TreePine;
                     let colorClass = "text-slate-300";
                     let seasonName = "Invierno";
+                    let ParticleIcon = Snowflake;
+                    let activeParticleClass = "text-sky-300 drop-shadow-[0_0_8px_rgba(125,211,252,0.6)]";
+                    const inactiveParticleClass = "text-stone-500";
 
                     if (month >= 3 && month <= 5) {
                         TreeIcon = TreeDeciduous;
                         colorClass = "text-lime-500 drop-shadow-[0_0_15px_rgba(132,204,22,0.4)]";
                         seasonName = "Primavera";
+                        ParticleIcon = Leaf;
+                        activeParticleClass = "text-lime-400 drop-shadow-[0_0_8px_rgba(163,230,53,0.6)]";
                     } else if (month >= 6 && month <= 8) {
                         TreeIcon = TreeDeciduous;
                         colorClass = "text-emerald-700 drop-shadow-[0_0_15px_rgba(4,120,87,0.4)]";
                         seasonName = "Verano";
+                        ParticleIcon = Sun;
+                        activeParticleClass = "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]";
                     } else if (month >= 9 && month <= 11) {
                         TreeIcon = TreeDeciduous;
                         colorClass = "text-orange-500 drop-shadow-[0_0_15px_rgba(249,115,22,0.4)]";
                         seasonName = "Otoño";
+                        ParticleIcon = Leaf;
+                        activeParticleClass = "text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.6)]";
                     } else {
                         colorClass = "text-slate-300 drop-shadow-[0_0_15px_rgba(203,213,225,0.3)] opacity-80";
+                        seasonName = "Invierno";
+                        ParticleIcon = Snowflake;
+                        activeParticleClass = "text-sky-300 drop-shadow-[0_0_8px_rgba(125,211,252,0.6)]";
                     }
 
+                    // Generate a deterministic grid of background particles (e.g. 8x8)
+                    const rows = 8;
+                    const cols = 8;
+                    const rawPoints = [];
+                    
+                    // Simple deterministic pseudo-random generator
+                    const pseudoRandom = (s: number) => {
+                        const val = Math.sin(s) * 10000;
+                        return val - Math.floor(val);
+                    };
+
+                    for (let r = 0; r < rows; r++) {
+                        for (let c = 0; c < cols; c++) {
+                            // Normalized coordinates (0 to 1)
+                            const nx = c / (cols - 1);
+                            const ny = r / (rows - 1);
+                            
+                            // Distance from center (0.5, 0.5) using an ellipse boundary
+                            // to clear a vertical capsule space for both the tree and the season text
+                            const dx = nx - 0.5;
+                            const dy = ny - 0.5;
+                            const ellipseValue = (dx * dx) / (0.24 * 0.24) + (dy * dy) / (0.38 * 0.38);
+                            
+                            // Skip items inside the ellipse exclusion zone
+                            if (ellipseValue < 1.0) continue;
+
+                            // Calculate actual percentage positions
+                            let px = nx * 100;
+                            let py = ny * 100;
+
+                            // Add deterministic jitter
+                            const seed = r * cols + c;
+                            const rx = pseudoRandom(seed);
+                            const ry = pseudoRandom(seed + 1);
+                            const rRot = pseudoRandom(seed + 2);
+                            const rScale = pseudoRandom(seed + 3);
+
+                            // Deviate positions slightly to look organic but maintaining symmetric spacing
+                            px += (rx - 0.5) * (100 / cols) * 0.15;
+                            py += (ry - 0.5) * (100 / rows) * 0.15;
+
+                            // Clamp values to keep particles within borders
+                            px = Math.max(5, Math.min(95, px));
+                            py = Math.max(5, Math.min(95, py));
+
+                            const rotation = rRot * 360;
+                            const scale = 0.9 + rScale * 0.2; // 0.9 to 1.1
+
+                            rawPoints.push({ x: px, y: py, rotation, scale });
+                        }
+                    }
+
+                    // Sort points by -Y * 3.5 + X ascending
+                    // This creates a smooth diagonal wave sweep from bottom-left to top-right
+                    const sortedPoints = rawPoints.map((p, idx) => ({
+                        ...p,
+                        sortKey: -p.y * 3.5 + p.x
+                    })).sort((a, b) => a.sortKey - b.sortKey);
+
+                    // Compute count of active elements based on overall progress
+                    const activeCount = Math.round((overallProgress / 100) * sortedPoints.length);
+
                     return (
-                        <div className="flex flex-col items-center">
-                            <TreeIcon className={`w-32 h-32 transition-all duration-1000 ${colorClass}`} strokeWidth={1.5} />
-                            <span className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-stone-600">
-                                {seasonName}
-                            </span>
+                        <div className="relative w-full bg-stone-950/40 border border-stone-900/60 rounded-[32px] p-6 flex items-center justify-center min-h-[260px] overflow-hidden shadow-inner">
+                            {/* Background Particles representing global progress */}
+                            <div className="absolute inset-0 z-0 select-none pointer-events-none">
+                                {sortedPoints.map((p, i) => {
+                                    const isActive = i < activeCount;
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="absolute transition-all duration-700 ease-out"
+                                            style={{
+                                                left: `${p.x}%`,
+                                                top: `${p.y}%`,
+                                                transform: `translate(-50%, -50%) rotate(${p.rotation}deg) scale(${isActive ? p.scale : p.scale * 0.85})`,
+                                                opacity: isActive ? 0.9 : 0.35,
+                                            }}
+                                        >
+                                            <ParticleIcon 
+                                                className={`w-5 h-5 transition-colors duration-700 ${isActive ? activeParticleClass : inactiveParticleClass}`} 
+                                                strokeWidth={1.5}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Centered Seasonal Tree Icon */}
+                            <div className="relative z-10 flex flex-col items-center select-none pointer-events-none">
+                                <TreeIcon className={`w-32 h-32 transition-all duration-1000 ${colorClass}`} strokeWidth={1.5} />
+                                <span className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">
+                                    {seasonName}
+                                </span>
+                            </div>
                         </div>
                     );
                 })()}
             </div>
         )}
 
-        {/* STACKED BUTTONS (FORJAS/ROBLE ONLY) */}
-        {(title === 'Forjas' || title === 'Roble') && quarterlyTasks.length > 0 && (
+        {/* STACKED BUTTONS (ROBLE ONLY) */}
+        {title === 'Roble' && quarterlyTasks.length > 0 && (
             <div className="w-full pt-4 space-y-3">
                 <div className="flex flex-col gap-3">
                     {quarterlyTasks.map((task, i) => {
@@ -767,6 +889,16 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                             </div>
                         </div>
 
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-stone-500 font-bold uppercase ml-1">Notas / Detalles</label>
+                            <textarea 
+                                value={popupEditNotes}
+                                onChange={e => setPopupEditNotes(e.target.value)}
+                                placeholder="Detalla en qué consiste este objetivo trimestral..."
+                                className="w-full h-20 bg-stone-950 border border-stone-850 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-sm resize-none leading-relaxed placeholder:text-stone-700"
+                            />
+                        </div>
+
                         <button 
                             onClick={savePopupChanges}
                             className={`w-full py-4 rounded-2xl font-black text-stone-100 flex justify-center items-center gap-2 mt-4 transition-transform active:scale-95 ${getQuarterlyColors(selectedObjective.id).button}`}
@@ -797,12 +929,18 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                         </div>
 
                         <h2 className="text-xl font-black text-stone-100 mb-1">{selectedObjective.name}</h2>
-                        <div className="flex items-baseline gap-2 mb-8">
+                        <div className="flex items-baseline gap-2 mb-4">
                              <span className={`text-3xl font-black font-mono ${getQuarterlyColors(selectedObjective.id).accent}`}>{selectedObjective.current}</span>
                              <span className="text-stone-600 text-lg">/</span>
                              <span className="text-stone-500 font-bold text-lg">{selectedObjective.target}</span>
                              <span className="text-stone-700 text-xs uppercase font-black">{selectedObjective.unit}</span>
                         </div>
+
+                        {selectedObjective.notes && (
+                            <p className="text-xs text-stone-400 bg-stone-950/45 border border-stone-850 p-3.5 rounded-2xl italic leading-relaxed text-center mx-auto mb-6 max-w-[280px]">
+                                "{selectedObjective.notes}"
+                            </p>
+                        )}
 
                         <div className="flex items-center justify-center gap-6 w-full mb-4">
                             <button 

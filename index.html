@@ -31,6 +31,20 @@
       .animate-blink {
         animation: blink 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       }
+      @keyframes cutlery-bounce {
+        0%, 100% {
+          transform: translateY(0) scaleY(1);
+        }
+        40% {
+          transform: translateY(-12px) scaleY(1.04);
+        }
+        70% {
+          transform: translateY(2px) scaleY(0.96);
+        }
+      }
+      .animate-cutlery-bounce {
+        animation: cutlery-bounce 0.8s infinite ease-in-out;
+      }
     </style>
   <script type="importmap">
 {

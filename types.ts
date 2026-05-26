@@ -40,6 +40,7 @@ export interface ResourceTask {
   current: number;
   target: number;
   isPrincipal?: boolean;
+  notes?: string; // Details/notes about this objective
 }
 
 export interface Book {
@@ -282,4 +283,5 @@ export interface AppData {
   firewallLastCompletedDate?: string; // YYYY-MM-DD or toDateString()
   firewallChecked?: { ducha: boolean; calle: boolean; huno: boolean };
   sebastianInstructions?: string; // Custom instructions for the Gemini agent
+  lastFoodEntryClick?: number; // Timestamp of the last time user entered Jumangiare (food) view
 }
