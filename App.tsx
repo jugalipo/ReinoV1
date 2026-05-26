@@ -13,7 +13,7 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -3775,102 +3775,159 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
             )}
 
             {showFocusModal && (
-              <div className="fixed inset-0 max-w-md mx-auto z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                <div className="bg-stone-900 w-full max-w-sm rounded-[2rem] shadow-2xl border border-amber-500/30 overflow-hidden relative p-6 space-y-6">
-                  
-                  <div className="flex justify-between items-center border-b border-stone-850 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
-                      <h3 className="font-black text-amber-500 text-xs uppercase tracking-widest">Enfoque del Mayordomo</h3>
-                    </div>
+              <div className="fixed inset-0 max-w-md mx-auto z-[200] bg-stone-950 flex flex-col p-6 animate-in fade-in duration-300">
+                {/* Header */}
+                <div className="flex justify-between items-center border-b border-stone-850 pb-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+                    <h2 className="text-lg font-black tracking-tighter text-stone-100 uppercase italic">Modo Enfoque</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
                     {!focusLoading && (
                       <button 
-                        onClick={() => setShowFocusModal(false)} 
-                        className="p-1.5 hover:bg-stone-800 rounded-full transition-colors"
+                        onClick={fetchFocusRecommendation} 
+                        className="p-2 hover:bg-stone-900 rounded-xl transition-colors border border-stone-850 active:scale-95"
+                        title="Proponer otra tarea"
                       >
-                        <X className="w-5 h-5 text-stone-500 hover:text-stone-300" />
+                        <RotateCw className="w-5 h-5 text-stone-400 hover:text-stone-200" />
                       </button>
                     )}
+                    <button 
+                      onClick={() => setShowFocusModal(false)} 
+                      className="p-2 hover:bg-stone-900 rounded-xl transition-colors border border-stone-850 active:scale-95"
+                      title="Salir"
+                    >
+                      <X className="w-5 h-5 text-stone-400 hover:text-stone-200" />
+                    </button>
                   </div>
+                </div>
 
-                  {focusLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse" />
-                        <div className="w-12 h-12 border-2 border-stone-800 border-t-amber-500 rounded-full animate-spin relative z-10" />
-                      </div>
-                      <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest animate-pulse">
-                        Sebastian está analizando sus deberes...
-                      </p>
+                {focusLoading ? (
+                  <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-2xl animate-pulse" />
+                      <div className="w-16 h-16 border-4 border-stone-850 border-t-amber-500 rounded-full animate-spin relative z-10" />
                     </div>
-                  ) : (
-                    <div className="space-y-5">
-                      <div className="relative bg-stone-950/80 rounded-2xl p-4 border border-stone-800 shadow-inner">
-                        <p className="text-stone-300 text-sm leading-relaxed whitespace-pre-wrap italic">
+                    <p className="text-xs text-amber-500 font-black uppercase tracking-widest animate-pulse mt-4">
+                      Sebastian está preparando vuestro siguiente deber...
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col justify-between py-4">
+                    {/* Sebastian's comment (motivational quote) */}
+                    <div className="flex flex-col items-center text-center space-y-4 max-w-sm mx-auto w-full">
+                      <div className="flex items-center gap-3 self-start">
+                        <div className="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                          <Sparkles className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-none">Sebastian</p>
+                          <p className="text-[8px] text-stone-500 uppercase tracking-wider font-bold mt-0.5">Mayordomo del Reino</p>
+                        </div>
+                      </div>
+                      
+                      <div className="relative bg-stone-900/60 rounded-2xl p-4 border border-stone-850 shadow-inner w-full text-left">
+                        <p className="text-stone-300 text-xs leading-relaxed whitespace-pre-wrap italic">
                           {focusRecommendation || "Vuestras tareas requieren vuestra atención, mi señor."}
                         </p>
-                        <div className="absolute -bottom-2 left-6 w-4 h-4 bg-stone-950 border-r border-b border-stone-800 transform rotate-45"></div>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-                          <Sparkles className="w-5 h-5 text-amber-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-amber-500 uppercase tracking-widest">Sebastian</p>
-                          <p className="text-[10px] text-stone-500">Mayordomo del Reino</p>
-                        </div>
-                      </div>
-
-                      {(() => {
-                        const recTask = getFocusRecommendedTask();
-                        if (!recTask) return null;
-                        return (
-                          <div className="space-y-2 pt-2 border-t border-stone-850">
-                            <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Acometer de Inmediato</p>
-                            <div 
-                              onClick={() => {
-                                handlePriorityTaskToggle(focusRecommendedTaskId);
-                                setTimeout(() => {
-                                  setShowFocusModal(false);
-                                }, 300);
-                              }}
-                              className={`w-full text-left p-4 rounded-2xl border transition-all duration-300 cursor-pointer flex items-center justify-between gap-3 group ${
-                                recTask.completed 
-                                  ? 'bg-emerald-950/20 border-emerald-900/50 hover:bg-emerald-900/20' 
-                                  : 'bg-stone-950 border-stone-800 hover:border-amber-500/50 hover:bg-stone-900'
-                              }`}
-                            >
-                              <div className="flex-1 min-w-0">
-                                <span className="text-[9px] font-bold text-amber-500/70 uppercase tracking-widest block mb-1">
-                                  {recTask.typeName}
-                                </span>
-                                <p className={`text-sm font-bold truncate ${recTask.completed ? 'line-through text-stone-500' : 'text-stone-200'}`}>
-                                  {recTask.text}
-                                </p>
-                              </div>
-                              <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
-                                recTask.completed 
-                                  ? 'bg-emerald-900/30 border-emerald-500 text-emerald-400' 
-                                  : 'bg-stone-900 border-stone-850 text-stone-500 group-hover:border-amber-500/50 group-hover:text-amber-500'
-                              }`}>
-                                {recTask.completed ? <CheckCircle2 className="w-5 h-5" /> : <Check className="w-4 h-4" />}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      <button
-                        onClick={() => setShowFocusModal(false)}
-                        className="w-full mt-2 py-3 rounded-xl border border-stone-800 hover:bg-stone-800 text-stone-400 font-bold transition-all text-xs uppercase tracking-widest"
-                      >
-                        Entendido
-                      </button>
                     </div>
-                  )}
 
-                </div>
+                    {/* Centered Task & Huge Checkbox */}
+                    {(() => {
+                      const recTask = getFocusRecommendedTask();
+                      if (!recTask) return (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
+                          <p className="text-stone-500 italic">No hay tareas pendientes en vuestro reino, mi señor.</p>
+                        </div>
+                      );
+
+                      const getFocusTaskEmoji = (task: any) => {
+                        if (task.typeName === "Diaria") {
+                          return getEmoji(task.text);
+                        }
+                        let shortcut = "";
+                        if (task.typeName.includes("Yunque")) shortcut = "yunque";
+                        else if (task.typeName === "Roble") shortcut = "forjas";
+                        else if (task.typeName.includes("Leones")) shortcut = "leones";
+                        else if (task.typeName.includes("Setas")) shortcut = "sets";
+                        else if (task.typeName.includes("Trenes")) shortcut = "trains";
+                        else if (task.typeName.includes("Nubes")) shortcut = "projects";
+
+                        if (shortcut) {
+                          const parentHuno = data.hunos.find(h => h.shortcut === shortcut);
+                          if (parentHuno) {
+                            return getEmoji(parentHuno.text);
+                          }
+                        }
+                        
+                        const ownEmoji = getEmoji(task.text);
+                        if (ownEmoji !== '❓') return ownEmoji;
+
+                        if (task.typeName.includes("Yunque")) return "⚔️";
+                        if (task.typeName === "Roble") return "🍁";
+                        if (task.typeName.includes("Leones")) return "🦁";
+                        if (task.typeName.includes("Setas")) return "🍄";
+                        if (task.typeName.includes("Trenes")) return "🚂";
+                        if (task.typeName.includes("Nubes")) return "🌦️";
+
+                        return "❓";
+                      };
+
+                      const taskEmoji = getFocusTaskEmoji(recTask);
+
+                      return (
+                        <div className="flex-1 flex flex-col items-center justify-center my-6 space-y-6 animate-in zoom-in-95 duration-300">
+                          {/* Task Category Tag */}
+                          <span className="px-4 py-1.5 bg-stone-900 border border-stone-850 text-[9px] font-black text-amber-500/80 uppercase tracking-[0.2em] rounded-full">
+                            {recTask.typeName}
+                          </span>
+
+                          {/* Huge Centered Emoji */}
+                          <div className="w-28 h-28 rounded-[2rem] bg-stone-900/40 border-2 border-stone-800 flex items-center justify-center text-5xl shadow-[0_0_30px_rgba(0,0,0,0.3)] select-none">
+                            {taskEmoji}
+                          </div>
+
+                          {/* Task Description Text */}
+                          <h3 className="text-xl font-black text-stone-100 text-center max-w-sm px-6 leading-snug tracking-tight">
+                            {recTask.text}
+                          </h3>
+
+                          {/* Huge Centered Checkbox Button */}
+                          <button
+                            onClick={() => {
+                              handlePriorityTaskToggle(focusRecommendedTaskId);
+                              // After 600ms, fetch the next task automatically!
+                              setTimeout(() => {
+                                fetchFocusRecommendation();
+                              }, 600);
+                            }}
+                            className={`group flex flex-col items-center justify-center space-y-2 p-5 rounded-2xl border transition-all duration-500 active:scale-95 ${
+                              recTask.completed
+                                ? 'bg-emerald-950/20 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
+                                : 'bg-stone-900 border-stone-850 text-stone-500 hover:border-amber-500/40 hover:bg-stone-900/80 hover:text-amber-500'
+                            }`}
+                          >
+                            <div className={`w-14 h-14 rounded-xl border flex items-center justify-center transition-all duration-300 ${
+                              recTask.completed
+                                ? 'bg-emerald-500 border-emerald-400 text-stone-950'
+                                : 'bg-stone-950 border-stone-750 group-hover:border-amber-500'
+                            }`}>
+                              {recTask.completed ? (
+                                <Check className="w-9 h-9 stroke-[3]" />
+                              ) : (
+                                <Check className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" />
+                              )}
+                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-widest">
+                              {recTask.completed ? '¡Completada!' : 'Marcar Completada'}
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             )}
 
