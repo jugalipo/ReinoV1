@@ -1042,8 +1042,8 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                         const isToday = date.toDateString() === new Date().toDateString();
                         const isFuture = date > new Date() && !isToday;
                         const isPast = !isToday && !isFuture;
-                        const isLunchLogged = !!(dayScore.lunch || dayScore.deliveryLunch);
-                        const isDinnerLogged = !!(dayScore.dinner || dayScore.deliveryDinner);
+                        const isLunchLogged = !!(dayScore.lunch || dayScore.deliveryLunch || dayScore.fasting);
+                        const isDinnerLogged = !!(dayScore.dinner || dayScore.deliveryDinner || dayScore.fasting);
                         const isIncomplete = !isLunchLogged || !isDinnerLogged;
                         const showRedBg = isPast && isIncomplete;
 

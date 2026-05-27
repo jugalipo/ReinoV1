@@ -374,8 +374,8 @@ const shouldJumangiareBounce = (
     const dateStr = checkDate.toDateString();
     const score = dailyScores[dateStr];
     
-    const lunchLogged = score ? (score.lunch || score.fasting) : false;
-    const dinnerLogged = score ? (score.dinner || score.fasting) : false;
+    const lunchLogged = score ? (score.lunch || score.fasting || score.deliveryLunch) : false;
+    const dinnerLogged = score ? (score.dinner || score.fasting || score.deliveryDinner) : false;
     
     if (!lunchLogged || !dinnerLogged) {
       return true; // Bounce because a past meal is missing!
@@ -389,7 +389,7 @@ const shouldJumangiareBounce = (
 
   // Today's Lunch (due from 15:00 onwards)
   if (currentHour >= 15) {
-    const lunchLogged = todayScore ? (todayScore.lunch || todayScore.fasting) : false;
+    const lunchLogged = todayScore ? (todayScore.lunch || todayScore.fasting || todayScore.deliveryLunch) : false;
     if (!lunchLogged) {
       const limit15 = new Date(now);
       limit15.setHours(15, 0, 0, 0);
@@ -401,7 +401,7 @@ const shouldJumangiareBounce = (
 
   // Today's Dinner (due from 22:00 onwards)
   if (currentHour >= 22) {
-    const dinnerLogged = todayScore ? (todayScore.dinner || todayScore.fasting) : false;
+    const dinnerLogged = todayScore ? (todayScore.dinner || todayScore.fasting || todayScore.deliveryDinner) : false;
     if (!dinnerLogged) {
       const limit22 = new Date(now);
       limit22.setHours(22, 0, 0, 0);
