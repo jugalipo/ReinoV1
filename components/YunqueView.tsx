@@ -235,7 +235,7 @@ export const YunqueView: React.FC<YunqueViewProps> = ({
         </div>
       </header>
 
-      <div className="p-5 flex-1 pb-10 overflow-y-auto">
+      <div className="p-5 flex-1 pb-28 overflow-y-auto">
         <p className="text-stone-400 text-sm mb-6 text-center font-medium px-4">
           Tareas genéricas, divididas por intensidad. <br/> Puedes pegar varias líneas a la vez.
         </p>

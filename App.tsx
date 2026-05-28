@@ -13,7 +13,8 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw } from 'lucide-react';
+import { ToolsView } from './components/ToolsView';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -87,6 +88,93 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
+
+const getStartOfDay = (timeMs: number): number => {
+  const d = new Date(timeMs);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
+const getHunoCreationTime = (id: string): number => {
+  if (id.startsWith('huno-')) return 0;
+  const timestamp = parseFloat(id);
+  if (isNaN(timestamp)) return 0;
+  return getStartOfDay(timestamp);
+};
+
+const parseDateKey = (dateKey: string): number => {
+  const t = Date.parse(dateKey);
+  if (isNaN(t)) return 0;
+  return getStartOfDay(t);
+};
+
+export const calculateHunosPlenosAndPending = (
+  hunos: Task[],
+  hunosHistory: Record<string, string[]>,
+  todayCompletedIds: string[]
+) => {
+  const visibleHunos = hunos.filter(t => t.text !== 'GAP');
+  const visibleHunoIdsSet = new Set(visibleHunos.map(t => t.id));
+  const todayKey = new Date().toDateString();
+
+  const getActiveHunoIdsForTime = (timeMs: number): string[] => {
+    return visibleHunos
+      .filter(h => getHunoCreationTime(h.id) <= timeMs)
+      .map(h => h.id);
+  };
+
+  let plenos = 0;
+  const completedInCurrentCycle = new Set<string>();
+
+  // Sort history keys chronologically (excluding today's date)
+  const sortedDateKeys = Object.keys(hunosHistory || {})
+    .filter(key => key !== todayKey)
+    .sort((a, b) => parseDateKey(a) - parseDateKey(b));
+
+  // Process history day by day
+  sortedDateKeys.forEach(dateKey => {
+    const timeMs = parseDateKey(dateKey);
+    const activeHunoIds = getActiveHunoIdsForTime(timeMs);
+    if (activeHunoIds.length === 0) return;
+
+    const completedIds = hunosHistory[dateKey] || [];
+    const dayCompletions = completedIds.filter(id => visibleHunoIdsSet.has(id));
+
+    dayCompletions.forEach(id => {
+      completedInCurrentCycle.add(id);
+    });
+
+    const isCycleComplete = activeHunoIds.every(id => completedInCurrentCycle.has(id));
+    if (isCycleComplete) {
+      plenos++;
+      completedInCurrentCycle.clear();
+    }
+  });
+
+  // Process today's completions
+  const todayTimeMs = Date.now();
+  const activeHunoIdsToday = getActiveHunoIdsForTime(todayTimeMs);
+  if (activeHunoIdsToday.length > 0) {
+    const todayCompletions = todayCompletedIds.filter(id => visibleHunoIdsSet.has(id));
+    todayCompletions.forEach(id => {
+      completedInCurrentCycle.add(id);
+    });
+
+    const isCycleCompleteToday = activeHunoIdsToday.every(id => completedInCurrentCycle.has(id));
+    if (isCycleCompleteToday) {
+      plenos++;
+      completedInCurrentCycle.clear();
+    }
+  }
+
+  // Pending are the active Hunos today that are not completed in the current cycle
+  const pendingInCurrentCycle = activeHunoIdsToday.filter(id => !completedInCurrentCycle.has(id));
+
+  return {
+    plenos,
+    pendingHunoIds: pendingInCurrentCycle
+  };
+};
 
 const MUSHROOM_TASKS = [
   { text: "🍄 Cascada 🍄 20'", subtasks: ["Fecha", "Agenda semanal al PC", "Cambiar pijama", "Disco al ordenador", "Whattsapps no leídos", "Contadores DTH", "Ferrocopos", "Cumple y Calla", "Neceser", "Una calle de Granada", "Actualizar excel Reino"] },
@@ -784,6 +872,18 @@ const processResets = (parsed: AppData): AppData => {
       yesterdayDate.setDate(yesterdayDate.getDate() - 1);
       result.firewallLastCompletedDate = yesterdayDate.toDateString();
     }
+  }
+
+  // Dynamic calculation of Hunos Plenos from the entire history + current day completions
+  if (result.hunos) {
+    const todayCompletedIds = result.hunos.filter(t => t.completed).map(t => t.id);
+    const { plenos } = calculateHunosPlenosAndPending(
+      result.hunos,
+      result.hunosHistory || {},
+      todayCompletedIds
+    );
+    result.stats.hunoPlenos = plenos;
+    result.stats.hunoPlenoCurrent = plenos % 50;
   }
 
   return result;
@@ -2571,21 +2671,23 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     const completedIds = newTasks.filter(t => t.completed).map(t => t.id);
     const updatedHistory = { ...(data.hunosHistory || {}), [todayKey]: completedIds };
 
-    // Check for Huno Pleno (daily)
-    let newHunoPlenoCurrent = data.stats.hunoPlenoCurrent || 0;
-    let newHunoTrophies = data.stats.hunoPlenos;
-    const isNowPleno = newTasks.every(t => t.completed);
-    const wasPlenoInHistory = (data.hunosHistory?.[todayKey] || []).length === data.hunos.length;
+    // Dynamic calculation of Hunos Plenos from the entire history + today's completions
+    const { plenos: newHunoPlenos } = calculateHunosPlenosAndPending(
+      newTasks,
+      data.hunosHistory || {},
+      completedIds
+    );
 
-    if (isNowPleno && !wasPlenoInHistory) {
-      newHunoPlenoCurrent += 1;
-      if (newHunoPlenoCurrent >= 50) {
-        newHunoPlenoCurrent = 0;
-        newHunoTrophies += 1;
+    const newHunoPlenoCurrent = newHunoPlenos % 50;
+
+    // Trigger congratulations if a new 50-plenos threshold is crossed
+    const oldHunoPlenos = data.stats.hunoPlenos || 0;
+    if (newHunoPlenos > oldHunoPlenos) {
+      const oldThresh = Math.floor(oldHunoPlenos / 50);
+      const newThresh = Math.floor(newHunoPlenos / 50);
+      if (newThresh > oldThresh) {
         setShowCongratulations({ show: true, type: 'hunos', reward: data.stats.hunoReward || 'Tu recompensa' });
       }
-    } else if (!isNowPleno && wasPlenoInHistory) {
-      newHunoPlenoCurrent = Math.max(0, newHunoPlenoCurrent - 1);
     }
 
     setData(prev => ({
@@ -2594,7 +2696,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       hunosHistory: updatedHistory,
       stats: {
         ...prev.stats,
-        hunoPlenos: newHunoTrophies,
+        hunoPlenos: newHunoPlenos,
         hunoPlenoCurrent: newHunoPlenoCurrent
       }
     }));
@@ -2970,6 +3072,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       case 'yunque': return <YunqueView largas={data.yunqueLargas || []} rapidas={data.yunqueRapidas || []} onUpdateLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))} onUpdateRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))} onBack={() => setView('home')} />;
       case 'stats': return <StatsView data={data} onUpdate={setData} onBack={() => setView('home')} onNavigate={setView} />;
       case 'caminos': return <CaminosView caminos={data.caminos || []} onUpdate={c => setData(prev => ({ ...prev, caminos: c }))} onBack={() => setView('home')} />;
+      case 'tools': return <ToolsView onBack={() => setView('home')} />;
       default:
         const trainProgress = getTrainProgress();
         const isTrainPleno = trainProgress === 100;
@@ -2977,7 +3080,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         const currentFoodScore = getCurrentMonthlyFoodScore();
         const isFoodPleno = currentFoodScore >= 200;
         return (
-          <div className="flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative">
+          <div className={`flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative ${!hideFloatingButtons ? 'pb-28' : ''}`}>
             <header className="mb-6 mt-4 flex justify-between items-center">
               <h1 className="text-4xl font-black text-stone-100 tracking-tighter">EL REINO</h1>
               <div className="flex items-center gap-2">
@@ -3283,28 +3386,41 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               );
             })()}
 
-            <DailyHunos
-              tasks={data.hunos}
-              hunosHistory={data.hunosHistory || {}}
-              pendingHunoIds={pendingVoiceUpdates?.tasks?.map((t: any) => t.id) || []}
-              hunoPlenoCurrent={data.stats.hunoPlenoCurrent || 0}
-              hunoPlenos={data.stats.hunoPlenos || 0}
-              hunoReward={data.stats.hunoReward || "Premio por definir"}
-              onUpdate={handleHunosUpdate}
-              onUpdateReward={(reward) => setData(prev => ({ ...prev, stats: { ...prev.stats, hunoReward: reward } }))}
-              energy={data.energy || 1}
-              onUpdateEnergy={(val) => {
-                const todayStr = new Date().toDateString();
-                setData(prev => ({
-                  ...prev,
-                  energy: val,
-                  energyHistory: {
-                    ...(prev.energyHistory || {}),
-                    [todayStr]: val
-                  }
-                }));
-              }}
-            />
+            {(() => {
+              const { pendingHunoIds } = calculateHunosPlenosAndPending(
+                data.hunos,
+                data.hunosHistory || {},
+                data.hunos.filter(t => t.completed).map(t => t.id)
+              );
+              const combinedPendingHunoIds = Array.from(new Set([
+                ...pendingHunoIds,
+                ...(pendingVoiceUpdates?.tasks?.map((t: any) => t.id) || [])
+              ]));
+              return (
+                <DailyHunos
+                  tasks={data.hunos}
+                  hunosHistory={data.hunosHistory || {}}
+                  pendingHunoIds={combinedPendingHunoIds}
+                  hunoPlenoCurrent={data.stats.hunoPlenoCurrent || 0}
+                  hunoPlenos={data.stats.hunoPlenos || 0}
+                  hunoReward={data.stats.hunoReward || "Premio por definir"}
+                  onUpdate={handleHunosUpdate}
+                  onUpdateReward={(reward) => setData(prev => ({ ...prev, stats: { ...prev.stats, hunoReward: reward } }))}
+                  energy={data.energy || 1}
+                  onUpdateEnergy={(val) => {
+                    const todayStr = new Date().toDateString();
+                    setData(prev => ({
+                      ...prev,
+                      energy: val,
+                      energyHistory: {
+                        ...(prev.energyHistory || {}),
+                        [todayStr]: val
+                      }
+                    }));
+                  }}
+                />
+              );
+            })()}
 
             <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300">
               <div 
@@ -3427,15 +3543,27 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               )}
             </div>
 
-            <button 
-              onClick={() => setView('caminos')}
-              className="w-full mt-4 py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-stone-700 transition-all shadow-xl group"
-            >
-              <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center border border-stone-700 group-hover:bg-stone-700 transition-colors">
-                <MapIcon className="w-6 h-6 text-stone-400" />
-              </div>
-              <span className="font-black text-lg uppercase tracking-tighter italic">Caminos</span>
-            </button>
+            <div className="grid grid-cols-2 gap-3 mt-4 w-full">
+              <button 
+                onClick={() => setView('caminos')}
+                className="py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-stone-700 transition-all shadow-xl group"
+              >
+                <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center border border-stone-700 group-hover:bg-stone-700 transition-colors shrink-0">
+                  <MapIcon className="w-6 h-6 text-stone-400" />
+                </div>
+                <span className="font-black text-lg uppercase tracking-tighter italic">Caminos</span>
+              </button>
+
+              <button 
+                onClick={() => setView('tools')}
+                className="py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-stone-700 transition-all shadow-xl group"
+              >
+                <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center border border-stone-700 group-hover:bg-stone-700 transition-colors shrink-0">
+                  <Wrench className="w-6 h-6 text-stone-400" />
+                </div>
+                <span className="font-black text-lg uppercase tracking-tighter italic">Trastos</span>
+              </button>
+            </div>
 
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
             {showHistory && (
@@ -4077,31 +4205,29 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900">
         {renderView()}
 
-        {/* Floating Focus and Voice Buttons */}
+        {/* Fixed Bottom Footer */}
         {!hideFloatingButtons && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none z-[90]">
-            <div className="flex justify-end px-6 pointer-events-auto">
-              <div className="flex bg-stone-900/90 backdrop-blur-md rounded-2xl border border-stone-800 p-1 shadow-2xl shadow-black/50 gap-1">
-                <button 
-                  onClick={fetchFocusRecommendation} 
-                  className="p-3 hover:bg-stone-850 active:scale-95 rounded-xl transition-all flex items-center justify-center text-amber-500 hover:text-amber-400 shadow-sm"
-                  title="Enfoque"
-                >
-                  <Sparkles className="w-6 h-6" />
-                </button>
-                <button 
-                  onClick={isRecording ? stopRecording : startRecording} 
-                  className={`p-3 rounded-xl active:scale-95 transition-all flex items-center justify-center relative ${
-                    isRecording 
-                      ? 'bg-red-500/20 text-red-500 ring-1 ring-red-500/50 animate-pulse' 
-                      : 'hover:bg-stone-850 text-stone-400'
-                  }`}
-                  title="Micrófono"
-                >
-                  {isRecording ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-                </button>
-              </div>
-            </div>
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-stone-900/90 backdrop-blur-md border-t border-stone-800 border-x border-stone-900 px-6 py-4 flex gap-4 z-[90] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+            <button 
+              onClick={fetchFocusRecommendation} 
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-stone-950/50 hover:bg-stone-950/80 text-amber-500 hover:text-amber-400 shadow-sm transition-all active:scale-95 font-bold text-sm uppercase tracking-tighter italic"
+              title="Enfoque"
+            >
+              <Sparkles className="w-5 h-5" />
+              <span>Enfoque</span>
+            </button>
+            <button 
+              onClick={isRecording ? stopRecording : startRecording} 
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl active:scale-95 transition-all font-bold text-sm uppercase tracking-tighter italic shadow-sm ${
+                isRecording 
+                  ? 'bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse' 
+                  : 'bg-stone-950/50 hover:bg-stone-950/80 text-stone-400 hover:text-stone-300'
+              }`}
+              title="Micrófono"
+            >
+              {isRecording ? <MicOff className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
+              <span>{isRecording ? 'Detener' : 'Sebastian'}</span>
+            </button>
           </div>
         )}
       </div>

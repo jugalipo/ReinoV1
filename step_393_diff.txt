@@ -1,0 +1,69 @@
+Created At: 2026-05-23T14:33:05Z
+Completed At: 2026-05-23T14:35:09Z
+The following changes were made by the multi_replace_file_content tool to: /Users/julian/Apps_Antigravity_ElReino/ReinoV1/App.tsx. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -782,6 +782,13 @@
+     setHasCheckedInitialEnergy(true);
+   }, [loaded, isInitializing, data.energyHistory, hasCheckedInitialEnergy]);
+ 
++  const getDaysSinceLastInteractionText = (lastInteraction: number) => {
++    if (!lastInteraction) return 'nunca';
++    const diffTime = Math.abs(Date.now() - lastInteraction);
++    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
++    return `${diffDays} días`;
++  };
++
+   const fetchGeminiRecommendation = async (energyVal: number) => {
+     const startTime = Date.now();
+     setGeminiLoading(true);
+@@ -795,8 +795,9 @@
+     const setsPending = (data.sets || []).filter(t => !t.completed);
+     const trainsPending = (data.trains || []).filter(t => !t.completed);
+     const annualTrainsPending = (data.annualTrains || []).filter(t => !t.completed);
+-
+-    const totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length + setsPending.length + trainsPending.length + annualTrainsPending.length;
++    const projectsPending = (data.projects || []).filter(t => !t.completed);
++
++    const totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length + setsPending.length + trainsPending.length + annualTrainsPending.length + projectsPending.length;
+ 
+     if (totalUncompleted === 0) {
+       setSebastianResponse("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo");
+@@ -820,7 +820,7 @@
+ 
+       const promptText = `
+ Eres Sebastian, el mayordomo del Reino. Tu señor te ha indicado que hoy tiene un nivel de energía de ${energy
+<truncated 17122 bytes>
+."
++                      className="w-full h-32 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 text-sm focus:outline-none focus:border-amber-500 font-sans resize-none placeholder:text-stone-600 leading-relaxed"
++                    />
++                    
++                    <div className="grid grid-cols-2 gap-3 w-full pt-2">
++                      <button 
++                        onClick={() => setNoteEditingProjectId(null)}
++                        className="py-3 rounded-xl border border-stone-750 text-stone-400 hover:bg-stone-800 font-bold transition-colors text-sm"
++                      >
++                        Cancelar
++                      </button>
++                      <button 
++                        onClick={() => {
++                          handleProjectNotesChange(noteEditingProjectId, tempProjectNoteText);
++                          setNoteEditingProjectId(null);
++                        }}
++                        className="py-3 rounded-xl bg-amber-600 text-stone-950 font-bold hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20 text-sm"
++                      >
++                        Guardar Notas
++                      </button>
++                    </div>
++                  </div>
++                </div>
++              </div>
++            )}
++
+             {showCongratulations.show && (
+               <div className="fixed inset-0 max-w-md mx-auto z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-500">
+                 <div className="bg-stone-900 w-full max-w-sm rounded-[3rem] shadow-2xl border border-yellow-500/30 overflow-hidden relative">
+[diff_block_end]
+
+Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may have many more lines not shown.
+
+We did our best to apply changes despite some inaccuracies. Double check if the edit applied is what you intended.

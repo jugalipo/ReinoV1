@@ -648,7 +648,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pb-12 bg-blue-950/20">
+      <div className="flex-1 overflow-y-auto p-4 pb-28 bg-blue-950/20">
         {/* Train Visualization (Hidden when Editing to reduce clutter) */}
         {!isEditing && (
             <div className="mb-8 p-6 bg-stone-900 rounded-2xl shadow-sm border border-blue-900/50">

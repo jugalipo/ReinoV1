@@ -1047,7 +1047,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-12">
+      <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-28">
         {isEditingPlenos && (
            <div className="space-y-4 mb-8 bg-stone-900/50 p-4 rounded-2xl border border-purple-900/30">
                <h3 className="font-bold text-purple-400 uppercase text-xs tracking-wider">Edición de Plenos</h3>

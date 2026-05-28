@@ -972,7 +972,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-20 no-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-28 no-scrollbar">
         
         {/* Main Counter */}
         <div className="flex flex-col items-center justify-center py-6">

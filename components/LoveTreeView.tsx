@@ -272,7 +272,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
         <h1 className="text-xl font-bold text-pink-200">Brotes</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 bg-pink-950/20">
+      <div className="flex-1 overflow-y-auto p-4 pb-28 bg-pink-950/20">
         {/* Tree Visualization */}
         <div className="bg-stone-900 rounded-2xl shadow-sm border border-pink-900/50 mb-6 relative overflow-hidden h-80 flex items-center justify-center flex-shrink-0">
             <svg width="300" height="320" viewBox="0 0 300 320">

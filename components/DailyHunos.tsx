@@ -29,7 +29,9 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   energy,
   onUpdateEnergy
 }) => {
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showMonthView, setShowMonthView] = useState(false);
+  const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
 
   // Edit Mode States
   const [isEditing, setIsEditing] = useState(false);
@@ -82,27 +84,58 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useModalHistory(isEditing, () => setIsEditing(false));
   useModalHistory(showMonthView, () => setShowMonthView(false));
+  useModalHistory(showConfirmModal, () => setShowConfirmModal(false));
   useModalHistory(!!taskToDelete, () => setTaskToDelete(null));
   useModalHistory(!!noteEditingTaskId, () => setNoteEditingTaskId(null));
   // ---------------------------------------------
 
   // --- VIEW MODE ACTIONS ---
 
+  // (Legacy useEffect removed — pleno is now triggered purely via pendingHunoIds in toggleTask)
+
   const toggleTask = (id: string) => {
     if (isEditing) return;
 
-    // 1. Calculate the new state for the task
     const task = tasks.find(t => t.id === id);
     if (!task) return;
 
     const willBeCompleted = !task.completed;
-
-    // 2. Create updated list
     const simulatedTasks = tasks.map((t) =>
       t.id === id ? { ...t, completed: willBeCompleted } : t
     );
 
-    onUpdate(simulatedTasks);
+    // Pleno trigger: check if all pendingHunoIds are now completed
+    if (willBeCompleted && pendingHunoIds.length > 0) {
+      const allPendingNowCompleted = pendingHunoIds.every(pendingId => {
+        if (pendingId === id) return true; // just marked
+        return tasks.find(t => t.id === pendingId)?.completed === true;
+      });
+
+      if (allPendingNowCompleted) {
+        setPendingTaskId(id);
+        setShowConfirmModal(true);
+        return; // wait for confirmation before saving
+      }
+    }
+
+    onUpdate(simulatedTasks, false);
+  };
+
+  const handleConfirmPleno = () => {
+    // Apply the last pending task and signal a pleno to App.tsx
+    // The dynamic recalculation in handleHunosUpdate will detect the new pleno from history
+    const updatedTasks = tasks.map(t =>
+      t.id === pendingTaskId ? { ...t, completed: true } : t
+    );
+    onUpdate(updatedTasks, true);
+    setShowConfirmModal(false);
+    setPendingTaskId(null);
+  };
+
+  const handleCancelPleno = () => {
+    // User cancelled — don't save anything, dots remain as-is
+    setShowConfirmModal(false);
+    setPendingTaskId(null);
   };
 
   // --- EDIT MODE ACTIONS ---
@@ -572,6 +605,44 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
       )}
 
       {/* --- MODALS --- */}
+
+      {/* Pleno Confirmation Modal */}
+      {showConfirmModal && (
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={handleCancelPleno}
+        >
+            <div 
+              className="bg-stone-900 w-full max-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-6 flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-orange-900/30 rounded-full flex items-center justify-center mb-4 border border-orange-600/50">
+                        <CheckCircle2 className="w-10 h-10 text-orange-500" />
+                    </div>
+                    <h2 className="text-xl font-bold text-stone-100 mb-2">¡Pleno Diario!</h2>
+                    <p className="text-stone-400 mb-6 text-sm">
+                        Has completado todos los Hunos. ¿Quieres sumar +1 al contador y reiniciar los puntos naranjas?
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                        <button 
+                            onClick={handleCancelPleno}
+                            className="py-3 rounded-xl border border-stone-700 text-stone-400 hover:bg-stone-800 font-bold transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            onClick={handleConfirmPleno}
+                            className="py-3 rounded-xl bg-orange-600 text-stone-950 font-bold hover:bg-orange-500 transition-colors shadow-lg shadow-orange-900/20"
+                        >
+                            ¡Sí, sumar +1!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {taskToDelete && (

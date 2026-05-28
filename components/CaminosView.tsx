@@ -81,7 +81,7 @@ export const CaminosView: React.FC<CaminosViewProps> = ({ caminos, onUpdate, onB
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-28">
         {sortedCaminos.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full opacity-30 grayscale py-20">
             <span className="text-7xl mb-6 animate-pulse">🛤️</span>

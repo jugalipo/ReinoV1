@@ -212,7 +212,7 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pb-20 bg-red-950/20">
+      <div className="flex-1 overflow-y-auto p-4 pb-28 bg-red-950/20">
         
         {/* Week Label Centered */}
         <div className="flex justify-center items-center gap-3 mb-6 mt-2">

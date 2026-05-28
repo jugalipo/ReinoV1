@@ -368,7 +368,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
         <h1 className={`text-xl font-bold ${theme.text}`}>{title}</h1>
       </div>
 
-      <div className="flex-1 flex flex-col p-6 items-center space-y-4 overflow-y-auto pb-12 no-scrollbar">
+      <div className="flex-1 flex flex-col p-6 items-center space-y-4 overflow-y-auto pb-28 no-scrollbar">
         
         {/* OVERALL PROGRESS BAR */}
         {title === 'Roble' && quarterlyTasks.length > 0 && (
