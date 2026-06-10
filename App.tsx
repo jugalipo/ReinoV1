@@ -2124,7 +2124,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       } else {
         const currentChecked = data.firewallChecked || { ducha: false, calle: false, huno: false };
         const hasCheckedItems = currentChecked.ducha || currentChecked.calle || currentChecked.huno;
-        if (data.firewallDay !== 1 || data.firewallLastCompletedDate !== "" || hasCheckedItems) {
+        if (data.firewallDay !== 1 || data.firewallLastCompletedDate !== "") {
           setData(prev => ({
             ...prev,
             firewallDay: 1,
@@ -2149,7 +2149,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       if (unreviewedDaysCount === 4) {
         const currentChecked = data.firewallChecked || { ducha: false, calle: false, huno: false };
         const hasCheckedItems = currentChecked.ducha || currentChecked.calle || currentChecked.huno;
-        if (data.firewallDay !== 1 || data.firewallLastCompletedDate !== "" || hasCheckedItems) {
+        if (data.firewallDay !== 1 || data.firewallLastCompletedDate !== "") {
           setData(prev => ({
             ...prev,
             firewallDay: 1,
@@ -2162,7 +2162,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         setShowFirewallModal(false);
       }
     }
-  }, [loaded, data.firewallDay, data.firewallLastCompletedDate, data.streakReviewedDays, data.firewallChecked]);
+  }, [loaded, data.firewallDay, data.firewallLastCompletedDate, data.streakReviewedDays]);
 
   const handleCompleteFirewallDay = () => {
     const todayStr = new Date().toDateString();
@@ -2264,6 +2264,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [showFootModal, setShowFootModal] = useState(false);
   const [showGympiezaModal, setShowGympiezaModal] = useState(false);
 
@@ -2361,12 +2362,36 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
   }, [view]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser && currentUser.email !== 'jugalipo@gmail.com') {
+        setAuthError('Solo el usuario jugalipo@gmail.com está autorizado para acceder a esta aplicación.');
+        await logout();
+        setUser(null);
+      } else {
+        setUser(currentUser);
+        if (currentUser) {
+          setAuthError(null);
+        }
+      }
       setAuthReady(true);
     });
     return () => unsubscribe();
   }, []);
+
+  const handleLogin = async () => {
+    try {
+      setAuthError(null);
+      const loggedUser = await loginWithGoogle();
+      if (loggedUser && loggedUser.email !== 'jugalipo@gmail.com') {
+        setAuthError('Solo el usuario jugalipo@gmail.com está autorizado para acceder a esta aplicación.');
+        await logout();
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Error al iniciar sesión:", error);
+      setAuthError('Error al iniciar sesión con Google.');
+    }
+  };
 
   useEffect(() => {
     if (!magicTaskId || !authReady) return;
@@ -2624,14 +2649,22 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
           <p className="text-stone-400 mb-8 text-center max-w-sm">
             Inicia sesión para sincronizar tus hábitos entre dispositivos.
           </p>
+          {authError && (
+            <div className="bg-red-950/40 border border-red-500/30 text-red-200 px-4 py-3 rounded-2xl text-xs font-black text-center mb-6 max-w-xs uppercase tracking-wider animate-in fade-in slide-in-from-top-2 duration-300">
+              ⚠️ {authError}
+            </div>
+          )}
           <button
-            onClick={loginWithGoogle}
+            onClick={handleLogin}
             className="bg-stone-100 text-stone-900 font-bold py-3 px-6 rounded-xl hover:bg-white transition-colors mb-4"
           >
             Iniciar sesión con Google
           </button>
           <button
-            onClick={() => setIsGuest(true)}
+            onClick={() => {
+              setAuthError(null);
+              setIsGuest(true);
+            }}
             className="text-stone-500 font-medium py-2 px-4 rounded-xl hover:text-stone-300 transition-colors"
           >
             Continuar como invitado
