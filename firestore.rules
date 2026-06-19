@@ -25,5 +25,49 @@ service cloud.firestore {
       // Only the owner can read and write their own habit documents
       allow read, write: if isOwner(userId);
     }
+
+    // Rules for Biblioteca (My Books)
+    match /users/{userId}/books_reviewed/{bookId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/books_legenda/{bookId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/books_lecta/{bookId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Rules for Cartelera (My Movies)
+    match /users/{userId}/cartelera_reviewed/{movieId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/cartelera_videnda/{movieId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/cartelera_visa/{movieId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/cartelera_state/{docId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Rules for Glosa (Anki & Duolingo Fusion)
+    match /users/{userId}/profile/data {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/mistakes/data {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/cards/{cardId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/glosa_state/{docId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Rules for Leones (Personal Finance)
+    match /users/{userId}/leones_state/{docId} {
+      allow read, write: if isOwner(userId);
+    }
   }
 }

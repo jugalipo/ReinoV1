@@ -9,9 +9,10 @@ interface HistoryEditorModalProps {
   onUpdateData: (data: AppData) => void;
   onClose: () => void;
   initialDate?: Date;
+  onTriggerTelon?: () => void;
 }
 
-export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, onUpdateData, onClose, initialDate }) => {
+export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, onUpdateData, onClose, initialDate, onTriggerTelon }) => {
   useModalHistory(true, onClose);
 
   const [currentDate, setCurrentDate] = useState(() => {
@@ -31,7 +32,10 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
       return date.toDateString();
   };
 
-
+  const getEmoji = (text: string) => {
+    const match = text.match(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u);
+    return match ? match[0] : '❓';
+  };
 
   const changeDate = (delta: number) => {
       const newDate = new Date(currentDate);
@@ -486,41 +490,62 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                     Registro de Hunos: {currentDate.toLocaleDateString()}
                 </h3>
                 
-                <div className="grid grid-cols-1 gap-2">
-                    {data.hunos.filter(t => t.text !== 'GAP').map(task => {
+                {(() => {
+                    const filteredHunos = data.hunos.filter(t => t.text !== 'GAP');
+                    const renderTask = (task: any) => {
                         const isCompleted = completedIds.includes(task.id);
                         return (
-                            <div 
-                                key={task.id} 
-                                className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
+                            <button
+                                key={task.id}
+                                onClick={() => toggleTaskHistory(task.id)}
+                                className={`aspect-[2/1] rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${
                                     isCompleted 
-                                        ? 'bg-purple-900/20 border-purple-500/50' 
-                                        : 'bg-stone-900 border-stone-800 hover:border-stone-700'
+                                        ? 'bg-purple-600 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)] scale-105' 
+                                        : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'
                                 }`}
                             >
-                                <div className="flex items-center gap-3 flex-1">
-                                    <div 
-                                        onClick={() => toggleTaskHistory(task.id)}
-                                        className="flex-1 cursor-pointer py-1"
-                                    >
-                                        <span className={`text-sm font-medium ${isCompleted ? 'text-purple-200' : 'text-stone-400'}`}>
-                                            {task.text}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div 
-                                    onClick={() => toggleTaskHistory(task.id)}
-                                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer flex-shrink-0 ${
-                                        isCompleted 
-                                            ? 'bg-purple-500 border-purple-500' 
-                                            : 'border-stone-600'
-                                    }`}
-                                >
-                                    {isCompleted && <div className="w-2 h-2 bg-white rounded-full" />}
-                                </div>
-                            </div>
+                                <span className={isCompleted ? 'grayscale-0' : 'grayscale'}>{getEmoji(task.text)}</span>
+                            </button>
                         );
-                    })}
+                    };
+
+                    return (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-4 gap-3">
+                                {filteredHunos.slice(0, 4).map(renderTask)}
+                            </div>
+                            <div className="grid grid-cols-4 gap-3">
+                                {filteredHunos.slice(4, 15).map(renderTask)}
+                            </div>
+                            <div className="grid grid-cols-4 gap-3">
+                                {filteredHunos.slice(15).map(renderTask)}
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                <div className="flex flex-col items-center pt-4">
+                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                        Día Revisado (Racha)
+                    </span>
+                    <div 
+                        onClick={() => {
+                            const newReviewed = { ...(data.streakReviewedDays || {}) };
+                            if (newReviewed[dateKey]) {
+                                delete newReviewed[dateKey];
+                            } else {
+                                newReviewed[dateKey] = true;
+                            }
+                            onUpdateData({ ...data, streakReviewedDays: newReviewed });
+                        }}
+                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors ${
+                            data.streakReviewedDays?.[dateKey]
+                                ? 'bg-purple-500 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)]'
+                                : 'bg-stone-900 border-stone-700 hover:border-stone-600'
+                        }`}
+                    >
+                        {data.streakReviewedDays?.[dateKey] && <div className="w-3 h-3 bg-white rounded-full" />}
+                    </div>
                 </div>
                  {/* Energy Adjuster for Selected Date - Integrated into Hunos section */}
                  <div className="space-y-4 pt-2">
@@ -581,9 +606,18 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                  </div>
            </div>
 
-
-
-
+            {onTriggerTelon && (
+              <div className="mt-4 mb-6 px-2">
+                <button
+                  type="button"
+                  onClick={onTriggerTelon}
+                  className="w-full py-3 rounded-xl border border-amber-900/30 text-amber-500 hover:bg-amber-950/20 active:scale-95 font-bold transition-all text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  Disparar Telón
+                </button>
+              </div>
+            )}
 
             <div className="pt-6 border-t border-stone-800">
                 <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider mb-3 px-2">Recordatorio</h3>

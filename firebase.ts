@@ -18,6 +18,10 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
 
+export const carteleraDb = getFirestore(app, "cartelera");
+export const bibliotecaDb = getFirestore(app, "biblioteca");
+export const bosqueDb = getFirestore(app, "sir-salud");
+
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 

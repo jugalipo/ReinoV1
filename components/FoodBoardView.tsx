@@ -26,7 +26,7 @@ const DEFAULT_BONUSES = [
   { id: 'fast24', icon: '🌑', label: 'AYUNO 24H', points: 4 }
 ];
 
-const DEFAULT_MEALS = [
+export const DEFAULT_MEALS = [
   { name: "Huevos cocidos", icon: "🥚", max: 3 },
   { name: "Huevos fritos", icon: "🥚", max: 2 },
   { name: "Tortilla", icon: "🥚", max: 3 },

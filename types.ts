@@ -284,4 +284,5 @@ export interface AppData {
   firewallChecked?: { ducha: boolean; calle: boolean; huno: boolean };
   sebastianInstructions?: string; // Custom instructions for the Gemini agent
   lastFoodEntryClick?: number; // Timestamp of the last time user entered Jumangiare (food) view
+  lastBookFormSunday?: string; // Date string of the Sunday for which the book form was last processed
 }

@@ -4,7 +4,7 @@ import { DailyHunos } from './components/DailyHunos';
 import { TrainView } from './components/TrainView';
 import { SetsView } from './components/SetsView';
 import { LoveTreeView } from './components/LoveTreeView';
-import { FoodBoardView, calculateAllDaysTotal } from './components/FoodBoardView';
+import { FoodBoardView, calculateAllDaysTotal, DEFAULT_MEALS } from './components/FoodBoardView';
 import { ResourceTrackerView } from './components/ResourceTrackerView';
 import { ExerciseView } from './components/ExerciseView';
 import { PianoView } from './components/PianoView';
@@ -14,9 +14,9 @@ import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { ToolsView } from './components/ToolsView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench } from 'lucide-react';
-import { auth, db, loginWithGoogle, logout } from './firebase';
-import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc } from 'firebase/firestore';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen } from 'lucide-react';
+import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb } from './firebase';
+import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 enum OperationType {
@@ -321,6 +321,7 @@ const INITIAL_DATA: AppData = {
   lastSetsReset: Date.now(),
   lastTrainsReset: Date.now(),
   lastFoodEntryClick: 0,
+  lastBookFormSunday: "",
   setsPlenoClaimed: false,
   trainsPlenoClaimed: false,
   stats: {
@@ -523,7 +524,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0 } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "" } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -552,6 +553,7 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.firewallDay = doc.data.firewallDay || 0;
       result.firewallLastCompletedDate = doc.data.firewallLastCompletedDate || "";
       result.firewallChecked = doc.data.firewallChecked || { ducha: false, calle: false, huno: false };
+      result.lastBookFormSunday = doc.data.lastBookFormSunday || "";
     } else if (doc.id === 'hunos') {
       result.hunos = doc.data.items || INITIAL_DATA.hunos;
     } else if (doc.id === 'trains') {
@@ -751,6 +753,17 @@ const processResets = (parsed: AppData): AppData => {
       };
     });
 
+    if (result.firewallDay > 0) {
+      const fwYesterdayDate = new Date(todayDate);
+      fwYesterdayDate.setDate(todayDate.getDate() - 1);
+      const fwYesterdayStr = fwYesterdayDate.toDateString();
+      if (result.firewallLastCompletedDate !== fwYesterdayStr && result.firewallLastCompletedDate !== today) {
+        result.firewallDay = 1;
+        result.firewallLastCompletedDate = "";
+        result.firewallChecked = { ducha: false, calle: false, huno: false };
+      }
+    }
+
     result.lastDate = today;
   }
 
@@ -889,6 +902,84 @@ const processResets = (parsed: AppData): AppData => {
   return result;
 };
 
+const processBosqueData = (bosqueData: any) => {
+  if (!bosqueData) return { trainedToday: false, weeklyMinutes: 0 };
+  
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  const dayOfWeek = startOfWeek.getDay(); 
+  startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
+  startOfWeek.setHours(0,0,0,0);
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23,59,59,999);
+
+  let weeklyMinutes = 0;
+  let trainedToday = false;
+
+  const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+  const finalExercises: any[] = [];
+  if (bosqueData.exercise && Array.isArray(bosqueData.exercise)) {
+    finalExercises.push(...bosqueData.exercise);
+  }
+
+  const processDesenWorkouts = (workouts: any[]) => {
+    workouts.forEach(w => {
+      if (w.sessionLogs && w.sessionLogs.length > 0) {
+        w.sessionLogs.forEach((log: any) => {
+          let dateStr = log.date;
+          if (!dateStr && w.date) {
+            const d = new Date(w.date);
+            dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+          }
+          const mins = Math.round((log.durationSeconds || 0) / 60) || 1;
+          finalExercises.push({ date: dateStr, duration: mins });
+        });
+      } else {
+        const isEligible = w.status === 'completed' || w.status === 'in_progress' || w.status === 'in-progress' || (w.durationSeconds && w.durationSeconds > 0);
+        if (isEligible) {
+          let dateStr = w.date;
+          if (w.date) {
+             const d = new Date(w.date);
+             dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+          } else if (w.createdAt) {
+             const d = new Date(w.createdAt);
+             dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+          }
+          const mins = Math.round((w.durationSeconds || 0) / 60) || w.duration || w.minutes || 15;
+          finalExercises.push({ date: dateStr, duration: mins });
+        }
+      }
+    });
+  };
+
+  if (bosqueData.desencadenado) {
+    if (Array.isArray(bosqueData.desencadenado.workouts)) {
+      processDesenWorkouts(bosqueData.desencadenado.workouts);
+    }
+    if (Array.isArray(bosqueData.desencadenado.completedPrograms)) {
+      bosqueData.desencadenado.completedPrograms.forEach((p: any) => {
+        if (Array.isArray(p.workouts)) processDesenWorkouts(p.workouts);
+      });
+    }
+  }
+
+  finalExercises.forEach(ex => {
+    if (!ex.date) return;
+    const d = new Date(ex.date + 'T12:00:00');
+    if (d >= startOfWeek && d <= endOfWeek) {
+      weeklyMinutes += (ex.duration || 0);
+    }
+    if (ex.date === todayStr) {
+      trainedToday = true;
+    }
+  });
+
+  return { trainedToday, weeklyMinutes };
+};
+
 function App() {
   const [view, setView] = useState<ViewState>('home');
   const [data, setData] = useState<AppData>(INITIAL_DATA);
@@ -903,6 +994,31 @@ function App() {
   const [modoTelonActive, setModoTelonActive] = useState(false);
   const [telonDismissed, setTelonDismissed] = useState(false);
   const [selectedEnergy, setSelectedEnergy] = useState<number | null>(null);
+
+  // New Modo Telón form states
+  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food'>('energy');
+  const [formEnergy, setFormEnergy] = useState<number | null>(null);
+  const [formMovieWatched, setFormMovieWatched] = useState<boolean>(false);
+  const [formMovieTitle, setFormMovieTitle] = useState<string>('');
+  const [formMovieYear, setFormMovieYear] = useState<string>('');
+  const [formMovieStars, setFormMovieStars] = useState<number>(3);
+  const [formMovieIsSerie, setFormMovieIsSerie] = useState<boolean>(false);
+  
+  // Book states
+  const [formBookRead, setFormBookRead] = useState<boolean>(false);
+  const [formBookTitle, setFormBookTitle] = useState<string>('');
+  const [formBookAuthor, setFormBookAuthor] = useState<string>('');
+  const [formBookPubYear, setFormBookPubYear] = useState<string>('');
+  const [formBookPubYearUncertain, setFormBookPubYearUncertain] = useState<boolean>(false);
+  const [formBookReadYear, setFormBookReadYear] = useState<string>(new Date().getFullYear().toString());
+  const [formBookReadYearUncertain, setFormBookReadYearUncertain] = useState<boolean>(false);
+  const [formBookAuthorAge, setFormBookAuthorAge] = useState<string>('');
+  const [formBookAuthorAgeUncertain, setFormBookAuthorAgeUncertain] = useState<boolean>(false);
+  const [formBookRating, setFormBookRating] = useState<number>(4);
+  const [formBookReadCount, setFormBookReadCount] = useState<string>('1');
+  const [formBookDiaryNumber, setFormBookDiaryNumber] = useState<string>('');
+
+  const [formFoodChoice, setFormFoodChoice] = useState<string>('saltar');
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [sebastianResponse, setSebastianResponse] = useState<string | null>(null);
   const [priorityTaskId, setPriorityTaskId] = useState<string | null>(null);
@@ -910,6 +1026,9 @@ function App() {
 
   // Focus States
   const [showFocusModal, setShowFocusModal] = useState(false);
+
+  const [bosqueWeeklyMinutes, setBosqueWeeklyMinutes] = useState(0);
+  const [bosqueTrainedToday, setBosqueTrainedToday] = useState(false);
   const [focusLoading, setFocusLoading] = useState(false);
   const [focusRecommendation, setFocusRecommendation] = useState<string | null>(null);
   const [focusRecommendedTaskId, setFocusRecommendedTaskId] = useState<string | null>(null);
@@ -932,6 +1051,14 @@ function App() {
     const todayStr = new Date().toDateString();
     const hasTodayEnergy = data.energyHistory && data.energyHistory[todayStr] !== undefined;
     if (!hasTodayEnergy) {
+      setTelonStep('energy');
+      setFormEnergy(null);
+      setFormMovieWatched(false);
+      setFormMovieTitle('');
+      setFormMovieYear('');
+      setFormMovieStars(3);
+      setFormMovieIsSerie(false);
+      setFormFoodChoice('saltar');
       setModoTelonActive(true);
     }
     setHasCheckedInitialEnergy(true);
@@ -1828,6 +1955,403 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     await fetchGeminiRecommendation(val);
   };
 
+  const getEffectiveDishesForDate = (date: Date) => {
+    if (!data || !data.food) return {};
+    const now = new Date();
+    if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) {
+      return data.food.dishes || {};
+    }
+    
+    const targetMonth = date.getMonth();
+    const targetYear = date.getFullYear();
+    const targetMonthKey = `${targetYear}-${(targetMonth + 1).toString().padStart(2, '0')}`;
+    
+    return data.food.monthlyHistory?.[targetMonthKey]?.dishes || {};
+  };
+
+  const getPrecedingSunday = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 is Sunday, 1 is Monday, etc.
+    const diff = d.getDate() - day; // day is how many days since Sunday
+    const sunday = new Date(d.setDate(diff));
+    sunday.setHours(0, 0, 0, 0);
+    return sunday;
+  };
+
+  const shouldAskBookForm = () => {
+    if (!data) return false;
+    const today = new Date();
+    const sunday = getPrecedingSunday(today);
+    const sundayKey = sunday.toDateString();
+    return data.lastBookFormSunday !== sundayKey;
+  };
+
+  const getUnloggedMealInfo = () => {
+    if (!data || !data.food) return null;
+    const now = new Date();
+    const isBefore15 = now.getHours() < 15;
+    
+    // We will generate the sequence of meals going backwards.
+    // For offset 0:
+    //   if isBefore15: we don't ask about today's lunch yet (skip offset 0).
+    //   if >= 15: we ask about today's lunch first.
+    // For offset > 0 (1 to 7):
+    //   we check dinner, then lunch of (offset) days ago.
+    const candidates: { date: Date; mealType: 'lunch' | 'dinner'; dayOffset: number }[] = [];
+    
+    if (!isBefore15) {
+      const today = new Date();
+      candidates.push({ date: today, mealType: 'lunch', dayOffset: 0 });
+    }
+    
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      candidates.push({ date: d, mealType: 'dinner', dayOffset: i });
+      candidates.push({ date: d, mealType: 'lunch', dayOffset: i });
+    }
+    
+    for (const cand of candidates) {
+      const dateStr = cand.date.toDateString();
+      const score = data.food.dailyScores?.[dateStr] || {
+        lunch: false,
+        dinner: false,
+        fasting: false,
+        deliveryLunch: false,
+        deliveryDinner: false,
+        fah: [false, false, false, false]
+      };
+      
+      const isLogged = cand.mealType === 'lunch'
+        ? (score.lunch || score.fasting || score.deliveryLunch)
+        : (score.dinner || score.fasting || score.deliveryDinner);
+        
+      if (!isLogged) {
+        let question = '';
+        const isToday = cand.dayOffset === 0;
+        const isYesterday = cand.dayOffset === 1;
+        
+        if (cand.mealType === 'lunch') {
+          if (isToday) {
+            question = '¿Qué comiste hoy?';
+          } else if (isYesterday) {
+            question = '¿Qué comiste ayer?';
+          } else {
+            const options: Intl.DateTimeFormatOptions = { weekday: 'long' };
+            const dayName = cand.date.toLocaleDateString('es-ES', options);
+            const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+            question = `¿Qué comiste el ${dayCapitalized}?`;
+          }
+        } else {
+          if (isYesterday) {
+            question = '¿Qué cenaste ayer?';
+          } else {
+            const options: Intl.DateTimeFormatOptions = { weekday: 'long' };
+            const dayName = cand.date.toLocaleDateString('es-ES', options);
+            const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+            question = `¿Qué cenaste el ${dayCapitalized}?`;
+          }
+        }
+        
+        return {
+          date: cand.date,
+          mealType: cand.mealType,
+          question
+        };
+      }
+    }
+    
+    return null;
+  };
+
+  const saveJumangiareChoice = (
+    currentFoodState: any,
+    targetDate: Date,
+    mealType: 'lunch' | 'dinner',
+    choice: string
+  ) => {
+    const dateStr = targetDate.toDateString();
+    const dailyScores = currentFoodState.dailyScores || {};
+    const oldDailyScore = dailyScores[dateStr] || {
+      lunch: false,
+      dinner: false,
+      fasting: false,
+      deliveryLunch: false,
+      deliveryDinner: false,
+      fah: [false, false, false, false]
+    };
+
+    const newDailyScore = { ...oldDailyScore };
+    if (choice === 'ayuno') {
+      if (mealType === 'lunch') {
+        newDailyScore.lunch = true;
+        newDailyScore.lunchMeal = 'Ayuno';
+      } else {
+        newDailyScore.dinner = true;
+        newDailyScore.dinnerMeal = 'Ayuno';
+      }
+    } else if (choice === 'delivery') {
+      if (mealType === 'lunch') {
+        newDailyScore.lunch = true;
+        newDailyScore.deliveryLunch = true;
+      } else {
+        newDailyScore.dinner = true;
+        newDailyScore.deliveryDinner = true;
+      }
+    } else {
+      if (mealType === 'lunch') {
+        newDailyScore.lunch = true;
+        newDailyScore.lunchMeal = choice;
+      } else {
+        newDailyScore.dinner = true;
+        newDailyScore.dinnerMeal = choice;
+      }
+    }
+
+    const newScores = { ...dailyScores, [dateStr]: newDailyScore };
+    const oldTotal = calculateAllDaysTotal(dailyScores);
+    const newTotal = calculateAllDaysTotal(newScores);
+    const diff = newTotal - oldTotal;
+
+    const activeConfig = currentFoodState.config || {
+      wheel: [],
+      broccoli: [],
+      bonuses: [],
+      meals: DEFAULT_MEALS
+    };
+
+    const now = new Date();
+    const isCurrentMonthDate = targetDate.getMonth() === now.getMonth() && targetDate.getFullYear() === now.getFullYear();
+
+    let effectiveDishes = {};
+    if (isCurrentMonthDate) {
+      effectiveDishes = currentFoodState.dishes || {};
+    } else {
+      const targetMonth = targetDate.getMonth();
+      const targetYear = targetDate.getFullYear();
+      const targetMonthKey = `${targetYear}-${(targetMonth + 1).toString().padStart(2, '0')}`;
+      effectiveDishes = currentFoodState.monthlyHistory?.[targetMonthKey]?.dishes || {};
+    }
+
+    const newDishes = { ...effectiveDishes };
+
+    const getDishCountLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+      let count = 0;
+      for (let i = 0; i < max; i++) {
+        const key = baseName + ' '.repeat(i);
+        if (currentDishes[key]) count++;
+      }
+      return count;
+    };
+
+    const decrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+      let count = getDishCountLocal(baseName, max, currentDishes);
+      if (count > 0) {
+        const key = baseName + ' '.repeat(count - 1);
+        currentDishes[key] = false;
+      }
+    };
+
+    const incrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+      let count = getDishCountLocal(baseName, max, currentDishes);
+      if (count < max) {
+        const key = baseName + ' '.repeat(count);
+        currentDishes[key] = true;
+      }
+    };
+
+    if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
+      const mealConfig = activeConfig.meals.find((m: any) => m.name === oldDailyScore.lunchMeal);
+      if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+    if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
+      const mealConfig = activeConfig.meals.find((m: any) => m.name === newDailyScore.lunchMeal);
+      if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+
+    if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
+      const mealConfig = activeConfig.meals.find((m: any) => m.name === oldDailyScore.dinnerMeal);
+      if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+    if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
+      const mealConfig = activeConfig.meals.find((m: any) => m.name === newDailyScore.dinnerMeal);
+      if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+    }
+
+    const updateScore = (delta: number) => {
+      return currentFoodState.score + delta;
+    };
+
+    const addHistory = (action: string, delta: number) => {
+      return [
+        { action, timestamp: Date.now(), delta },
+        ...(currentFoodState.history || [])
+      ].slice(0, 50);
+    };
+
+    if (isCurrentMonthDate) {
+      return {
+        ...currentFoodState,
+        score: updateScore(diff),
+        dailyScores: newScores,
+        dishes: newDishes,
+        history: diff !== 0 ? addHistory(`Día: ${targetDate.getDate()}`, diff) : (currentFoodState.history || [])
+      };
+    } else {
+      const historyMap = currentFoodState.monthlyHistory || {};
+      const monthKeyForDate = `${targetDate.getFullYear()}-${(targetDate.getMonth() + 1).toString().padStart(2, '0')}`;
+      const oldMonthData = historyMap[monthKeyForDate] || {
+        wheelPlenoCount: 0,
+        broccoliPlenoCount: 0,
+        bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
+        dishes: {}
+      };
+
+      return {
+        ...currentFoodState,
+        dailyScores: newScores,
+        monthlyHistory: {
+          ...historyMap,
+          [monthKeyForDate]: {
+            ...oldMonthData,
+            dishes: newDishes
+          }
+        },
+        history: diff !== 0 ? addHistory(`Retro-Día: ${targetDate.getDate()} (${monthKeyForDate})`, diff) : (currentFoodState.history || [])
+      };
+    }
+  };
+
+  const handleCompleteDailyForm = async (
+    foodChoiceParam: string = 'saltar',
+    movieWatchedParam: boolean = formMovieWatched,
+    bookReadParam: boolean = formBookRead
+  ) => {
+    if (formEnergy === null) return;
+    
+    // 1. Process Energy Level
+    setSelectedEnergy(formEnergy);
+    const todayStr = new Date().toDateString();
+    
+    let nextData = { ...data };
+    nextData.energy = formEnergy;
+    nextData.energyHistory = {
+      ...(nextData.energyHistory || {}),
+      [todayStr]: formEnergy
+    };
+
+    // 2. Process Movie (Cartelera)
+    if (movieWatchedParam && formMovieTitle.trim()) {
+      try {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const newMovie = {
+          id: 'visa-' + Date.now(),
+          title: formMovieTitle.trim(),
+          author: '-',
+          pubYear: formMovieYear ? parseInt(formMovieYear, 10) : '',
+          pubYearUncertain: false,
+          readYear: yesterday.getFullYear(),
+          readYearUncertain: false,
+          authorAge: '',
+          authorAgeUncertain: false,
+          rating: formMovieStars,
+          readCount: 1,
+          diaryNumber: '',
+          serie: formMovieIsSerie ? 's' : '-'
+        };
+        
+        if (user) {
+          await setDoc(doc(carteleraDb, 'users', user.uid, 'cartelera_visa', newMovie.id), newMovie);
+          await setDoc(doc(carteleraDb, 'users', user.uid, 'cartelera_state', 'meta'), { lastUpdated: Date.now() });
+        }
+      } catch (err) {
+        console.error("Error saving movie to Cartelera DB:", err);
+      }
+    }
+
+    // 3. Process Book (Biblioteca)
+    const sundayKey = getPrecedingSunday(new Date()).toDateString();
+    if (shouldAskBookForm()) {
+      nextData.lastBookFormSunday = sundayKey;
+      
+      if (bookReadParam && formBookTitle.trim() && formBookAuthor.trim()) {
+        try {
+          const today = new Date();
+          const newBook = {
+            id: 'lecta-' + Date.now(),
+            title: formBookTitle.trim(),
+            author: formBookAuthor.trim(),
+            pubYear: formBookPubYear ? parseInt(formBookPubYear, 10) : '',
+            pubYearUncertain: formBookPubYearUncertain,
+            readYear: formBookReadYear ? parseInt(formBookReadYear, 10) : today.getFullYear(),
+            readYearUncertain: formBookReadYearUncertain,
+            authorAge: formBookAuthorAge ? parseInt(formBookAuthorAge, 10) : '',
+            authorAgeUncertain: formBookAuthorAgeUncertain,
+            rating: formBookRating,
+            readCount: formBookReadCount ? parseInt(formBookReadCount, 10) : 1,
+            diaryNumber: formBookDiaryNumber ? parseInt(formBookDiaryNumber, 10) : ''
+          };
+          
+          if (user) {
+            await setDoc(doc(bibliotecaDb, 'users', user.uid, 'books_lecta', newBook.id), newBook);
+          }
+        } catch (err) {
+          console.error("Error saving book to Biblioteca DB:", err);
+        }
+      }
+    }
+
+    // 4. Process Jumangiare
+    const unloggedMeal = getUnloggedMealInfo();
+    const finalFoodChoice = foodChoiceParam;
+    if (unloggedMeal && finalFoodChoice !== 'saltar') {
+      const updatedFood = saveJumangiareChoice(
+        nextData.food || { score: 0, dishes: {}, dailyScores: {}, history: [] },
+        unloggedMeal.date,
+        unloggedMeal.mealType,
+        finalFoodChoice
+      );
+      nextData.food = updatedFood;
+    }
+
+    // Update state to trigger Firestore sync
+    setData(nextData);
+
+    // Call Gemini
+    await fetchGeminiRecommendation(formEnergy);
+  };
+
+  const triggerTelonManually = () => {
+    setTelonStep('energy');
+    setFormEnergy(null);
+    setFormMovieWatched(false);
+    setFormMovieTitle('');
+    setFormMovieYear('');
+    setFormMovieStars(3);
+    setFormMovieIsSerie(false);
+    
+    setFormBookRead(false);
+    setFormBookTitle('');
+    setFormBookAuthor('');
+    setFormBookPubYear('');
+    setFormBookPubYearUncertain(false);
+    setFormBookReadYear(new Date().getFullYear().toString());
+    setFormBookReadYearUncertain(false);
+    setFormBookAuthorAge('');
+    setFormBookAuthorAgeUncertain(false);
+    setFormBookRating(4);
+    setFormBookReadCount('1');
+    setFormBookDiaryNumber('');
+
+    setFormFoodChoice('saltar');
+    setSelectedEnergy(null);
+    
+    setShowHistory(false);
+    setHistoryInitialDate(undefined);
+    setModoTelonActive(true);
+  };
+
   const isPriorityTaskCompleted = (taskId: string | null): boolean => {
     if (!taskId || taskId === 'none') return false;
     
@@ -1928,6 +2452,8 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     const isCompleted = isPriorityTaskCompleted(taskId);
 
     if (data.hunos.some(t => t.id === taskId)) {
+      const hunoTask = data.hunos.find(t => t.id === taskId);
+      if (hunoTask && (hunoTask.shortcut === 'exercise' || hunoTask.text.includes('Gim'))) return;
       const nextHunos = data.hunos.map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
       handleHunosUpdate(nextHunos);
       return;
@@ -1978,13 +2504,36 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     const isCompleted = isPriorityTaskCompleted(priorityTaskId);
     const taskText = getPriorityTaskText(priorityTaskId);
     const taskType = getPriorityTaskType(priorityTaskId);
+    const unloggedMeal = getUnloggedMealInfo();
+
+    const activeConfig = data.food?.config || {
+      wheel: [],
+      broccoli: [],
+      bonuses: [],
+      meals: DEFAULT_MEALS
+    };
+
+    const targetDate = unloggedMeal?.date;
+    const currentDishes = targetDate ? getEffectiveDishesForDate(targetDate) : {};
+    const availableDishes = activeConfig.meals.filter(meal => {
+      let count = 0;
+      for (let i = 0; i < meal.max; i++) {
+        const key = meal.name + ' '.repeat(i);
+        if (currentDishes[key]) count++;
+      }
+      return count < meal.max;
+    });
+
+    const isMovieFormValid = !formMovieWatched || (formMovieTitle.trim().length > 0 && formMovieYear.trim().length > 0);
+    const isBookFormValid = !formBookRead || (formBookTitle.trim().length > 0 && formBookAuthor.trim().length > 0);
+    const isFormValid = formEnergy !== null && isMovieFormValid && isBookFormValid;
 
     return (
       <div className="flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-amber-500/5 blur-3xl rounded-full pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-yellow-500/5 blur-3xl rounded-full pointer-events-none" />
 
-        <header className="flex justify-between items-center z-10 mb-8 mt-4">
+        <header className="flex justify-between items-center z-10 mb-6 mt-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
             <h2 className="text-xs font-black tracking-[0.2em] text-stone-400 uppercase">Modo Telón</h2>
@@ -2000,32 +2549,500 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
           </button>
         </header>
 
-        <div className="flex-1 flex flex-col justify-center items-center z-10 max-w-sm mx-auto w-full">
+        <div className="flex-1 flex flex-col justify-center items-center z-10 max-w-sm mx-auto w-full overflow-hidden">
           {selectedEnergy === null ? (
-            <div className="w-full text-center space-y-8 animate-in fade-in duration-500">
-              <div className="space-y-3">
-                <h1 className="text-3xl font-black text-stone-100 tracking-tighter uppercase italic">
-                  Nivel de Energía
-                </h1>
-                <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
-                  Defina su nivel de energía para la jornada de hoy. Sebastian preparará sus deberes correspondientes.
-                </p>
-              </div>
+            <div className="w-full space-y-6 animate-in fade-in duration-300 pr-2">
+              {/* Back navigation */}
+              {telonStep !== 'energy' && (
+                <div className="w-full text-left">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (telonStep === 'movie_ask') {
+                        setTelonStep('energy');
+                        setFormEnergy(null);
+                      } else if (telonStep === 'movie_fields') {
+                        setTelonStep('movie_ask');
+                      } else if (telonStep === 'book_ask') {
+                        if (formMovieWatched) {
+                          setTelonStep('movie_fields');
+                        } else {
+                          setTelonStep('movie_ask');
+                        }
+                      } else if (telonStep === 'book_fields') {
+                        setTelonStep('book_ask');
+                      } else if (telonStep === 'food') {
+                        if (shouldAskBookForm()) {
+                          if (formBookRead) {
+                            setTelonStep('book_fields');
+                          } else {
+                            setTelonStep('book_ask');
+                          }
+                        } else {
+                          if (formMovieWatched) {
+                            setTelonStep('movie_fields');
+                          } else {
+                            setTelonStep('movie_ask');
+                          }
+                        }
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors"
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    Atrás
+                  </button>
+                </div>
+              )}
 
-              <div className="grid grid-cols-5 gap-3 max-w-xs mx-auto">
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const val = i + 1;
-                  return (
+              {telonStep === 'energy' && (
+                <div className="w-full text-center space-y-8 animate-in fade-in duration-500">
+                  <div className="space-y-3">
+                    <h1 className="text-3xl font-black text-stone-100 tracking-tighter uppercase italic">
+                      Nivel de Energía
+                    </h1>
+                    <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
+                      Defina su nivel de energía para la jornada de hoy. Sebastian preparará sus deberes correspondientes.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-3 max-w-xs mx-auto">
+                    {Array.from({ length: 10 }).map((_, i) => {
+                      const val = i + 1;
+                      return (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => {
+                            setFormEnergy(val);
+                            setTelonStep('movie_ask');
+                          }}
+                          className="aspect-square rounded-full border-2 border-amber-900/40 bg-stone-900 text-amber-200 hover:border-amber-500 hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.05)] hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                        >
+                          {val}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {telonStep === 'movie_ask' && (
+                <div className="w-full text-center space-y-8 animate-in fade-in duration-500">
+                  <div className="space-y-3">
+                    <div className="w-12 h-12 bg-amber-950/40 border border-amber-500/30 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                      <Film className="w-6 h-6" />
+                    </div>
+                    <h1 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
+                      Cartelera
+                    </h1>
+                    <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
+                      ¿Ayer viste alguna película o serie para apuntar en tu colección?
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
                     <button
-                      key={val}
-                      onClick={() => handleRegisterEnergy(val)}
-                      className="aspect-square rounded-full border-2 border-amber-900/40 bg-stone-900 text-amber-200 hover:border-amber-500 hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.05)] hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                      type="button"
+                      onClick={() => {
+                        setFormMovieWatched(true);
+                        setTelonStep('movie_fields');
+                      }}
+                      className="py-4 px-6 rounded-2xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-stone-950 font-black text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2 shadow-lg shadow-amber-950/20"
                     >
-                      {val}
+                      <Check className="w-5 h-5 stroke-[3]" />
+                      Sí, vi una
                     </button>
-                  );
-                })}
-              </div>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormMovieWatched(false);
+                        if (shouldAskBookForm()) {
+                          setTelonStep('book_ask');
+                        } else {
+                          const unlogged = getUnloggedMealInfo();
+                          if (unlogged) {
+                            setTelonStep('food');
+                          } else {
+                            handleCompleteDailyForm('saltar', false, false);
+                          }
+                        }
+                      }}
+                      className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
+                    >
+                      <X className="w-5 h-5 text-stone-500 stroke-[3]" />
+                      No
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {telonStep === 'movie_fields' && (
+                <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-xs mx-auto text-left">
+                  <div className="space-y-1 text-center">
+                    <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
+                      Detalles de la Peli
+                    </h2>
+                    <p className="text-stone-400 text-xs font-medium leading-relaxed">
+                      Introduce los datos para la ficha de Cartelera.
+                    </p>
+                  </div>
+
+                  <div className="bg-stone-900/40 backdrop-blur-md border border-stone-850 rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Título</label>
+                      <input 
+                        type="text"
+                        placeholder="Título de la película o serie"
+                        value={formMovieTitle}
+                        onChange={(e) => setFormMovieTitle(e.target.value)}
+                        className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-amber-500/50 w-full transition-colors"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Año de estreno</label>
+                        <input 
+                          type="number"
+                          placeholder="Ej: 2024"
+                          value={formMovieYear}
+                          onChange={(e) => setFormMovieYear(e.target.value)}
+                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-amber-500/50 w-full transition-colors"
+                        />
+                      </div>
+                      <div className="flex flex-col justify-end pb-1">
+                        <label className="flex items-center gap-2 text-xs font-bold text-stone-400 cursor-pointer select-none">
+                          <input 
+                            type="checkbox"
+                            checked={formMovieIsSerie}
+                            onChange={(e) => setFormMovieIsSerie(e.target.checked)}
+                            className="rounded border-stone-800 bg-stone-950 text-amber-600 focus:ring-amber-500"
+                          />
+                          ¿Es una serie?
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Estrellas</label>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const active = star <= formMovieStars;
+                          return (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setFormMovieStars(star)}
+                              className="p-0.5 hover:scale-110 active:scale-95 transition-transform"
+                            >
+                              <Star className={`w-7 h-7 ${active ? 'text-amber-500 fill-current drop-shadow-[0_0_5px_rgba(245,158,11,0.2)]' : 'text-stone-700'}`} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!formMovieTitle.trim() || !formMovieYear.trim()}
+                    onClick={() => {
+                      if (shouldAskBookForm()) {
+                        setTelonStep('book_ask');
+                      } else {
+                        const unlogged = getUnloggedMealInfo();
+                        if (unlogged) {
+                          setTelonStep('food');
+                        } else {
+                          handleCompleteDailyForm('saltar', true, false);
+                        }
+                      }
+                    }}
+                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border
+                      ${(formMovieTitle.trim() && formMovieYear.trim())
+                        ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 border-amber-400 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer'
+                        : 'bg-stone-950 border-stone-850 text-stone-700 cursor-not-allowed'}`}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+
+              {telonStep === 'book_ask' && (
+                <div className="w-full text-center space-y-8 animate-in fade-in duration-500">
+                  <div className="space-y-3">
+                    <div className="w-12 h-12 bg-indigo-950/40 border border-indigo-500/30 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_15px_rgba(99,102,241,0.1)]">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
+                    <h1 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
+                      Biblioteca
+                    </h1>
+                    <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
+                      ¿Has leído algún libro esta semana para apuntar en tu Lecta?
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormBookRead(true);
+                        setTelonStep('book_fields');
+                      }}
+                      className="py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-stone-950 font-black text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2 shadow-lg shadow-indigo-950/20"
+                    >
+                      <Check className="w-5 h-5 stroke-[3]" />
+                      Sí, leí uno
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormBookRead(false);
+                        const unlogged = getUnloggedMealInfo();
+                        if (unlogged) {
+                          setTelonStep('food');
+                        } else {
+                          handleCompleteDailyForm('saltar', formMovieWatched, false);
+                        }
+                      }}
+                      className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
+                    >
+                      <X className="w-5 h-5 text-stone-500 stroke-[3]" />
+                      No
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {telonStep === 'book_fields' && (
+                <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-xs mx-auto text-left">
+                  <div className="space-y-1 text-center">
+                    <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
+                      Detalles del Libro
+                    </h2>
+                    <p className="text-stone-400 text-xs font-medium leading-relaxed">
+                      Introduce los datos para el registro en tu Lecta.
+                    </p>
+                  </div>
+
+                  <div className="bg-stone-900/40 backdrop-blur-md border border-stone-850 rounded-2xl p-5 space-y-4 shadow-xl max-h-[360px] overflow-y-auto pr-1">
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Título *</label>
+                        <input 
+                          type="text"
+                          placeholder="Título del libro"
+                          value={formBookTitle}
+                          onChange={(e) => setFormBookTitle(e.target.value)}
+                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500/50 w-full transition-colors"
+                        />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Autor *</label>
+                        <input 
+                          type="text"
+                          placeholder="Autor del libro"
+                          value={formBookAuthor}
+                          onChange={(e) => setFormBookAuthor(e.target.value)}
+                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500/50 w-full transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 border-t border-stone-850/60 pt-3">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Año Publicación</label>
+                      <div className="flex gap-2 items-center">
+                        <input 
+                          type="number"
+                          placeholder="Ej: 1984"
+                          value={formBookPubYear}
+                          onChange={(e) => setFormBookPubYear(e.target.value)}
+                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500/50 flex-1 transition-colors"
+                        />
+                        <label className="flex items-center gap-1.5 text-xs text-stone-400 cursor-pointer select-none">
+                          <input 
+                            type="checkbox"
+                            checked={formBookPubYearUncertain}
+                            onChange={(e) => setFormBookPubYearUncertain(e.target.checked)}
+                            className="rounded border-stone-800 bg-stone-950 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          Dudoso
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 border-t border-stone-850/60 pt-3">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Año Lectura</label>
+                      <div className="flex gap-2 items-center">
+                        <input 
+                          type="number"
+                          placeholder="Ej: 2026"
+                          value={formBookReadYear}
+                          onChange={(e) => setFormBookReadYear(e.target.value)}
+                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500/50 flex-1 transition-colors"
+                        />
+                        <label className="flex items-center gap-1.5 text-xs text-stone-400 cursor-pointer select-none">
+                          <input 
+                            type="checkbox"
+                            checked={formBookReadYearUncertain}
+                            onChange={(e) => setFormBookReadYearUncertain(e.target.checked)}
+                            className="rounded border-stone-800 bg-stone-950 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          Dudoso
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 border-t border-stone-850/60 pt-3">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Edad Autor</label>
+                      <div className="flex gap-2 items-center">
+                        <input 
+                          type="number"
+                          placeholder="Edad al escribir"
+                          value={formBookAuthorAge}
+                          onChange={(e) => setFormBookAuthorAge(e.target.value)}
+                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500/50 flex-1 transition-colors"
+                        />
+                        <label className="flex items-center gap-1.5 text-xs text-stone-400 cursor-pointer select-none">
+                          <input 
+                            type="checkbox"
+                            checked={formBookAuthorAgeUncertain}
+                            onChange={(e) => setFormBookAuthorAgeUncertain(e.target.checked)}
+                            className="rounded border-stone-800 bg-stone-950 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          Dudoso
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 border-t border-stone-850/60 pt-3">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Nota (1-5)</label>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const active = star <= formBookRating;
+                          return (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setFormBookRating(star)}
+                              className="p-0.5 hover:scale-110 active:scale-95 transition-transform"
+                            >
+                              <Star className={`w-7 h-7 ${active ? 'text-indigo-500 fill-current drop-shadow-[0_0_5px_rgba(99,102,241,0.2)]' : 'text-stone-700'}`} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 border-t border-stone-850/60 pt-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Veces leído</label>
+                        <input 
+                          type="number"
+                          min="1"
+                          placeholder="1"
+                          value={formBookReadCount}
+                          onChange={(e) => setFormBookReadCount(e.target.value)}
+                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500/50 w-full transition-colors"
+                        />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Nº Diario</label>
+                        <input 
+                          type="number"
+                          placeholder="Opcional"
+                          value={formBookDiaryNumber}
+                          onChange={(e) => setFormBookDiaryNumber(e.target.value)}
+                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500/50 w-full transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!formBookTitle.trim() || !formBookAuthor.trim()}
+                    onClick={() => {
+                      const unlogged = getUnloggedMealInfo();
+                      if (unlogged) {
+                        setTelonStep('food');
+                      } else {
+                        handleCompleteDailyForm('saltar', formMovieWatched, true);
+                      }
+                    }}
+                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border
+                      ${(formBookTitle.trim() && formBookAuthor.trim())
+                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-stone-950 border-indigo-400 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.2)] cursor-pointer'
+                        : 'bg-stone-950 border-stone-850 text-stone-700 cursor-not-allowed'}`}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+
+              {telonStep === 'food' && unloggedMeal && (
+                <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
+                  <div className="space-y-1 text-center">
+                    <div className="w-12 h-12 bg-emerald-950/40 border border-emerald-500/30 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                      <Utensils className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
+                      Jumangiare
+                    </h2>
+                    <p className="text-stone-400 text-xs font-medium leading-relaxed">
+                      {unloggedMeal.question}
+                    </p>
+                  </div>
+
+                  <div className="bg-stone-900/40 backdrop-blur-md border border-stone-850 rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-1">
+                      {availableDishes.map((meal) => (
+                        <button
+                          key={meal.name}
+                          type="button"
+                          onClick={() => handleCompleteDailyForm(meal.name)}
+                          className="px-3.5 py-2 rounded-xl bg-stone-950 border border-stone-850 text-stone-300 hover:border-emerald-500 hover:bg-emerald-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                        >
+                          <span className="text-sm">{meal.icon}</span>
+                          <span>{meal.name}</span>
+                        </button>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => handleCompleteDailyForm('ayuno')}
+                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-stone-850 text-stone-300 hover:border-blue-500 hover:bg-blue-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                      >
+                        <span className="text-sm">⏱️</span>
+                        <span>Ayuno</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCompleteDailyForm('delivery')}
+                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-stone-850 text-stone-300 hover:border-red-500 hover:bg-red-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                      >
+                        <span className="text-sm">🚴</span>
+                        <span>A domicilio</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCompleteDailyForm('saltar')}
+                        className="px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-stone-400 hover:border-stone-700 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                      >
+                        <span className="text-sm">❌</span>
+                        <span>Saltar / No registrar</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="w-full space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -2490,6 +3507,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
     const habitsRef = collection(db, 'users', user.uid, 'habits');
     let unsubscribe: () => void;
+    let unsubscribeBosque: () => void;
 
     const initializeData = async () => {
       setIsInitializing(true);
@@ -2577,6 +3595,17 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
           console.error("Firestore sync error:", error);
           handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
         });
+
+        unsubscribeBosque = onSnapshot(doc(bosqueDb, 'users', user.uid), (snapshot) => {
+          if (snapshot.exists()) {
+            const bosqueData = snapshot.data();
+            const { trainedToday, weeklyMinutes } = processBosqueData(bosqueData);
+            setBosqueTrainedToday(trainedToday);
+            setBosqueWeeklyMinutes(weeklyMinutes);
+          }
+        }, (error) => {
+          console.error("Bosque Firestore sync error:", error);
+        });
       }
     };
 
@@ -2584,8 +3613,23 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
     return () => {
       if (unsubscribe) unsubscribe();
+      if (unsubscribeBosque) unsubscribeBosque();
     };
   }, [user, authReady]);
+
+  useEffect(() => {
+    if (bosqueTrainedToday && !isInitializing && loaded) {
+      setData(prev => {
+        const gimIndex = prev.hunos.findIndex(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
+        if (gimIndex !== -1 && !prev.hunos[gimIndex].completed) {
+          const newHunos = [...prev.hunos];
+          newHunos[gimIndex] = { ...newHunos[gimIndex], completed: true };
+          return { ...prev, hunos: newHunos };
+        }
+        return prev;
+      });
+    }
+  }, [bosqueTrainedToday, isInitializing, loaded]);
 
   useEffect(() => {
     if (isInitializing || !loaded || !user) return;
@@ -3117,10 +4161,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
             <header className="mb-6 mt-4 flex justify-between items-center">
               <h1 className="text-4xl font-black text-stone-100 tracking-tighter">EL REINO</h1>
               <div className="flex items-center gap-2">
-
-                <button onClick={() => setShowHistory(true)} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><CalendarClock className="w-6 h-6 text-stone-500" /></button>
                 <button onClick={() => setView('stats')} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><BarChart3 className="w-6 h-6 text-stone-500" /></button>
-                <button onClick={() => { if (isGuest) setIsGuest(false); else logout(); }} title="Cerrar Sesión" className="p-2 bg-stone-900 rounded-xl hover:bg-red-900/50 transition-colors border border-stone-800"><LogOut className="w-6 h-6 text-stone-500 hover:text-red-400" /></button>
               </div>
             </header>
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -3199,8 +4240,8 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                 className="col-span-2 bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl group transition-colors p-4"
               >
                 <div className="flex gap-1 h-10 w-full">
-                  {Array.from({ length: 9 }).map((_, i) => (
-                    <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < data.exercise.seriesCurrent ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30'}`} />
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < Math.floor(bosqueWeeklyMinutes / 20) ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30'}`} />
                   ))}
                 </div>
               </button>
@@ -3434,6 +4475,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   tasks={data.hunos}
                   hunosHistory={data.hunosHistory || {}}
                   pendingHunoIds={combinedPendingHunoIds}
+                  lockedTaskIds={(() => {
+                    const gimHuno = data.hunos.find(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
+                    return gimHuno ? [gimHuno.id] : [];
+                  })()}
                   hunoPlenoCurrent={data.stats.hunoPlenoCurrent || 0}
                   hunoPlenos={data.stats.hunoPlenos || 0}
                   hunoReward={data.stats.hunoReward || "Premio por definir"}
@@ -3598,6 +4643,28 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               </button>
             </div>
 
+            <div className="grid grid-cols-2 gap-3 mt-3 w-full">
+              <button 
+                onClick={() => setShowHistory(true)}
+                className="py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-stone-700 transition-all shadow-xl group"
+              >
+                <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center border border-stone-700 group-hover:bg-stone-700 transition-colors shrink-0">
+                  <CalendarClock className="w-6 h-6 text-stone-400" />
+                </div>
+                <span className="font-black text-lg uppercase tracking-tighter italic">Bitácora</span>
+              </button>
+
+              <button 
+                onClick={() => { if (isGuest) setIsGuest(false); else logout(); }}
+                className="py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-red-900/50 transition-all shadow-xl group"
+              >
+                <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center border border-stone-700 group-hover:bg-stone-700 transition-colors shrink-0">
+                  <LogOut className="w-6 h-6 text-stone-400 group-hover:text-red-400 animate-in spin-in-12 duration-500" />
+                </div>
+                <span className="font-black text-lg uppercase tracking-tighter italic group-hover:text-red-400">Salir</span>
+              </button>
+            </div>
+
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
             {showHistory && (
               <HistoryEditorModal 
@@ -3608,6 +4675,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   setShowHistory(false);
                   setHistoryInitialDate(undefined);
                 }} 
+                onTriggerTelon={triggerTelonManually}
               />
             )}
 

@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service cloud.firestore {
+  // ================================================================
+  // Base de datos: desencadenado
+  // Solo el usuario jugalipo@gmail.com puede leer y escribir.
+  // ================================================================
+  match /databases/desencadenado/documents {
+
+    // Helper: usuario autenticado y es el único autorizado
+    function isAuthorizedUser() {
+      return request.auth != null
+        && request.auth.token.email == "jugalipo@gmail.com"
+        && request.auth.token.email_verified == true;
+    }
+
+    // Acceso al progreso del programa Desencadenado
+    match /progress/{document=**} {
+      allow read, write: if isAuthorizedUser();
+    }
+
+    // Acceso a los dias y semanas completados
+    match /weeks/{weekId} {
+      allow read, write: if isAuthorizedUser();
+    }
+
+    match /weeks/{weekId}/days/{dayId} {
+      allow read, write: if isAuthorizedUser();
+    }
+
+    // Notas personales
+    match /notes/{noteId} {
+      allow read, write: if isAuthorizedUser();
+    }
+
+    // Estado general de la app
+    match /state/{docId} {
+      allow read, write: if isAuthorizedUser();
+    }
+
+    // Bloquear todo lo demás por defecto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

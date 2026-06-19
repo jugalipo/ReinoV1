@@ -8,6 +8,7 @@ interface DailyHunosProps {
   tasks: Task[];
   hunosHistory: Record<string, string[]>;
   pendingHunoIds?: string[];
+  lockedTaskIds?: string[];
   hunoPlenoCurrent: number;
   hunoPlenos: number;
   hunoReward: string;
@@ -21,6 +22,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   tasks, 
   hunosHistory, 
   pendingHunoIds = [],
+  lockedTaskIds = [],
   hunoPlenoCurrent, 
   hunoPlenos, 
   hunoReward,
@@ -95,6 +97,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
 
   const toggleTask = (id: string) => {
     if (isEditing) return;
+    if (lockedTaskIds.includes(id)) return;
 
     const task = tasks.find(t => t.id === id);
     if (!task) return;

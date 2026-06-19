@@ -1,18 +1,42 @@
 {
-  "hosting": {
-    "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "El Reino",
+        "supportEmail": "jugalipo@gmail.com",
+        "authorizedRedirectUris": [
+          "https://desencadenado-del-reino.web.app"
+        ]
       }
-    ]
+    }
   },
+  "firestore": [
+    {
+      "database": "(default)",
+      "rules": "firestore.rules"
+    },
+    {
+      "database": "desencadenado",
+      "rules": "firestore.desencadenado.rules"
+    }
+  ],
+  "hosting": [
+    {
+      "site": "el-reino-354ca",
+      "public": "dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  ],
   "functions": [
     {
       "source": "functions",
