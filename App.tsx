@@ -921,10 +921,27 @@ const processBosqueData = (bosqueData: any) => {
   const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
 
   const finalExercises: any[] = [];
-  if (bosqueData.exercise && Array.isArray(bosqueData.exercise)) {
-    finalExercises.push(...bosqueData.exercise);
+
+  // Bosque saves exercises inside dailyLogs[].exercises (not in the top-level exercise array,
+  // which is always emptied before saving to Firestore).
+  if (Array.isArray(bosqueData.dailyLogs)) {
+    bosqueData.dailyLogs.forEach((log: any) => {
+      const dateStr = log.date;
+      if (!dateStr) return;
+      // New format: exercises array
+      if (Array.isArray(log.exercises)) {
+        log.exercises.forEach((ex: any) => {
+          finalExercises.push({ date: dateStr, duration: ex.duration || 0 });
+        });
+      }
+      // Old legacy format: single exercise object
+      if (log.exercise && typeof log.exercise === 'object') {
+        finalExercises.push({ date: dateStr, duration: log.exercise.duration || 0 });
+      }
+    });
   }
 
+  // Also check Desencadenado workouts (stored separately in bosqueData.desencadenado)
   const processDesenWorkouts = (workouts: any[]) => {
     workouts.forEach(w => {
       if (w.sessionLogs && w.sessionLogs.length > 0) {
@@ -979,6 +996,7 @@ const processBosqueData = (bosqueData: any) => {
 
   return { trainedToday, weeklyMinutes };
 };
+
 
 function App() {
   const [view, setView] = useState<ViewState>('home');
