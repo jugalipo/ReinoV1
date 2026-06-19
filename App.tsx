@@ -15,7 +15,7 @@ import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { ToolsView } from './components/ToolsView';
 import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen } from 'lucide-react';
-import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb } from './firebase';
+import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
@@ -3617,12 +3617,19 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         unsubscribeBosque = onSnapshot(doc(bosqueDb, 'users', user.uid), (snapshot) => {
           if (snapshot.exists()) {
             const bosqueData = snapshot.data();
+            const todayStr = new Date().toISOString().split('T')[0];
+            console.log('[BOSQUE DEBUG] snapshot received, dailyLogs:', bosqueData.dailyLogs?.length, 'exercise[]:', bosqueData.exercise?.length);
+            const todayLog = bosqueData.dailyLogs?.find((l: any) => l.date === todayStr);
+            console.log('[BOSQUE DEBUG] today:', todayStr, '| todayLog:', JSON.stringify(todayLog));
             const { trainedToday, weeklyMinutes } = processBosqueData(bosqueData);
+            console.log('[BOSQUE DEBUG] result -> trainedToday:', trainedToday, '| weeklyMinutes:', weeklyMinutes);
             setBosqueTrainedToday(trainedToday);
             setBosqueWeeklyMinutes(weeklyMinutes);
+          } else {
+            console.log('[BOSQUE DEBUG] snapshot does NOT exist for uid:', user.uid);
           }
         }, (error) => {
-          console.error("Bosque Firestore sync error:", error);
+          console.error('Bosque Firestore sync error:', error);
         });
       }
     };
