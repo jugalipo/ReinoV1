@@ -10,6 +10,7 @@ import { calculateAllDaysTotal } from './FoodBoardView';
 
 interface StatsViewProps {
   data: AppData;
+  bosqueExercises?: {date: string, duration: number}[];
   onUpdate?: React.Dispatch<React.SetStateAction<AppData>>;
   onBack: () => void;
   onNavigate?: (view: any) => void;
@@ -21,7 +22,7 @@ const MushroomIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, onNavigate }) => {
+export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = [], onUpdate, onBack, onNavigate }) => {
   const { stats, exercise, food, friends, sets, trains, hunos } = data;
 
   const [showHunosModal, setShowHunosModal] = useState(false);
@@ -375,14 +376,13 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
   }, [exerciseTimeframe, monthsList, yearsList, exerciseSelectedPeriod, availableMonths, availableYears]);
 
   const exerciseStatsForPeriod = useMemo(() => {
-    if (exerciseTimeframe === 'siempre') {
-      const w = (exercise.daysTrained || 0) + (exercise.sprintCount || 0) + (exercise.stretchCount || 0);
-      const m = exercise.totalMinutes || 0;
-      return { workouts: w, hours: Math.floor(m / 60), mins: m % 60, isAccurate: true };
-    }
-
     let w = 0;
     let m = 0;
+
+    if (exerciseTimeframe === 'siempre') {
+      w += (exercise.daysTrained || 0) + (exercise.sprintCount || 0) + (exercise.stretchCount || 0);
+      m += exercise.totalMinutes || 0;
+    }
 
     Object.entries(exercise.history || {}).forEach(([dateStr, statsData]) => {
       const stats = statsData as ExerciseDayStats;
@@ -397,14 +397,34 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
         include = mStr === exerciseSelectedPeriod;
       }
 
-      if (include) {
+      if (include && exerciseTimeframe !== 'siempre') {
         w += (stats.workouts || 0);
         m += (stats.minutes || 0);
       }
     });
 
+    bosqueExercises.forEach((ex) => {
+      const d = new Date(ex.date + 'T12:00:00');
+      if (isNaN(d.getTime())) return;
+      
+      let include = false;
+      if (exerciseTimeframe === 'año') {
+        include = d.getFullYear().toString() === exerciseSelectedPeriod;
+      } else if (exerciseTimeframe === 'mes') {
+        const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        include = mStr === exerciseSelectedPeriod;
+      } else if (exerciseTimeframe === 'siempre') {
+        include = true;
+      }
+
+      if (include) {
+        w += 1;
+        m += (ex.duration || 0);
+      }
+    });
+
     return { workouts: w, hours: Math.floor(m / 60), mins: m % 60, isAccurate: true };
-  }, [exercise, exerciseTimeframe, exerciseSelectedPeriod]);
+  }, [exercise, exerciseTimeframe, exerciseSelectedPeriod, bosqueExercises]);
 
   const formatMinutes = (mins: number) => {
     const h = Math.floor(mins / 60);
@@ -555,11 +575,27 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, onUpdate, onBack, on
       const weekIndex = diffTime <= 0 ? 0 : diffWeeks;
       
       if (weekIndex >= 0 && weekIndex < 20) {
-        result[19 - weekIndex] += (stats.workouts || 0);
+        result[19 - weekIndex] += (stats.minutes || 0);
       }
     });
+
+    bosqueExercises.forEach((ex) => {
+      const d = new Date(ex.date + 'T12:00:00');
+      if (isNaN(d.getTime())) return;
+
+      const dStart = new Date(d);
+      dStart.setHours(0,0,0,0);
+      const diffTime = startOfCurrentWeek.getTime() - dStart.getTime();
+      const diffWeeks = Math.ceil(diffTime / (7 * 24 * 60 * 60 * 1000));
+      const weekIndex = diffTime <= 0 ? 0 : diffWeeks;
+
+      if (weekIndex >= 0 && weekIndex < 20) {
+        result[19 - weekIndex] += (ex.duration || 0);
+      }
+    });
+
     return result;
-  }, [exercise.history]);
+  }, [exercise.history, bosqueExercises]);
   const exerciseMax = Math.max(...exerciseHistoryToDisplay, 5);
 
   // Logic for 20-week Projects (Nubes) evolution

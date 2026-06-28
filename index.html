@@ -16,14 +16,36 @@
         color: #e7e5e4; /* stone-200 */
         overscroll-behavior: none;
       }
+      /* Custom dark scrollbar globally */
+      :root {
+        --scrollbar-thumb: #292524; /* stone-800 */
+        --scrollbar-track: #0c0a09; /* stone-950 */
+      }
+      * {
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+        scrollbar-width: thin;
+      }
+      @supports not (scrollbar-color: auto) {
+        *::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        *::-webkit-scrollbar-thumb {
+          background: var(--scrollbar-thumb);
+          border-radius: 3px;
+        }
+        *::-webkit-scrollbar-track {
+          background: var(--scrollbar-track);
+        }
+      }
       /* Hide scrollbar for Chrome, Safari and Opera */
       .no-scrollbar::-webkit-scrollbar {
-        display: none;
+        display: none !important;
       }
       /* Hide scrollbar for IE, Edge and Firefox */
       .no-scrollbar {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
+        -ms-overflow-style: none !important;  /* IE and Edge */
+        scrollbar-width: none !important;  /* Firefox */
       }
       @keyframes blink {
         0%, 100% { opacity: 1; }

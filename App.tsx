@@ -6,7 +6,6 @@ import { SetsView } from './components/SetsView';
 import { LoveTreeView } from './components/LoveTreeView';
 import { FoodBoardView, calculateAllDaysTotal, DEFAULT_MEALS } from './components/FoodBoardView';
 import { ResourceTrackerView } from './components/ResourceTrackerView';
-import { ExerciseView } from './components/ExerciseView';
 import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
@@ -278,7 +277,7 @@ const ANNUAL_TRAIN_TASKS = [
 const HUNOS_TASKS = [
   // Fila 1
   { text: "T1 🦁🦁🦁 20'", shortcut: 'leones' },
-  { text: "Gim 🏋️ 60'", shortcut: 'exercise' },
+  { text: "Gim 🏋️ 60'" },
   { text: "❤️❤️ 20'", shortcut: 'love' },
   { text: "Leer 📖 30'", shortcut: 'read' },
 
@@ -994,7 +993,7 @@ const processBosqueData = (bosqueData: any) => {
     }
   });
 
-  return { trainedToday, weeklyMinutes };
+  return { trainedToday, weeklyMinutes, exercises: finalExercises };
 };
 
 
@@ -1047,6 +1046,7 @@ function App() {
 
   const [bosqueWeeklyMinutes, setBosqueWeeklyMinutes] = useState(0);
   const [bosqueTrainedToday, setBosqueTrainedToday] = useState(false);
+  const [bosqueExercises, setBosqueExercises] = useState<{date: string, duration: number}[]>([]);
   const [focusLoading, setFocusLoading] = useState(false);
   const [focusRecommendation, setFocusRecommendation] = useState<string | null>(null);
   const [focusRecommendedTaskId, setFocusRecommendedTaskId] = useState<string | null>(null);
@@ -1148,11 +1148,11 @@ ${roblePending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` 
 ${leonesPending.map(t => `- [${t.id}] ${t.name} (${t.current}/${t.target} ${t.unit})`).join('\n')}
 
 Por favor, responde con un objeto JSON que contenga:
-- "text": Dos líneas de texto cortas, firmadas por 'Sebastian, su mayordomo'. La primera línea debe ser un comentario ingenioso, elegante y respetuoso sobre su nivel de energía de hoy. La segunda línea debe recomendar por qué se ha seleccionado esta tarea en particular y terminar con la firma 'Sebastian, su mayordomo'. Usa un salto de línea (\\n) para separarlas.
+- "text": Una única frase corta y respetuosa, adaptada a su nivel de energía de hoy, que explique por qué se ha seleccionado esta tarea en particular y que termine con la firma 'Sebastian, su mayordomo'.
 - "taskId": El ID de la tarea seleccionada de la lista anterior. Debe coincidir exactamente con el ID proporcionado en el contexto.
 
 Ejemplo de respuesta en "text":
-"Veo que hoy su espíritu brilla con gran intensidad, mi señor. He seleccionado esta tarea porque su alta energía le permitirá conquistarla con soltura. Sebastian, su mayordomo"
+"Dada la gran energía que os acompaña hoy, considero oportuno afrontar esta tarea, mi señor. Sebastian, su mayordomo"
 `;
 
       const response = await fetch(
@@ -1175,7 +1175,7 @@ Ejemplo de respuesta en "text":
                 properties: {
                   text: {
                     type: 'STRING',
-                    description: "Two lines of text signed by 'Sebastian, su mayordomo'."
+                    description: "A single short sentence signed by 'Sebastian, su mayordomo'."
                   },
                   taskId: {
                     type: 'STRING',
@@ -1235,10 +1235,10 @@ Ejemplo de respuesta en "text":
     else if (leonesPending.length > 0) selected = leonesPending[0];
 
     if (selected) {
-      setSebastianResponse(`Mi señor, no he podido contactar con el oráculo de Gemini, pero os sugiero esta tarea para hoy.\nEspero que vuestra jornada sea provechosa. Sebastian, su mayordomo`);
+      setSebastianResponse(`No he podido contactar con el oráculo de Gemini, pero os sugiero esta tarea para hoy, mi señor. Sebastian, su mayordomo`);
       setPriorityTaskId(selected.id);
     } else {
-      setSebastianResponse(`Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo`);
+      setSebastianResponse(`Vuestros backlogs están completamente vacíos, mi señor, disfrutad de un merecido descanso. Sebastian, su mayordomo`);
       setPriorityTaskId("none");
     }
   };
@@ -2471,7 +2471,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
     if (data.hunos.some(t => t.id === taskId)) {
       const hunoTask = data.hunos.find(t => t.id === taskId);
-      if (hunoTask && (hunoTask.shortcut === 'exercise' || hunoTask.text.includes('Gim'))) return;
+      if (hunoTask && (hunoTask.text.includes('Gim'))) return;
       const nextHunos = data.hunos.map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
       handleHunosUpdate(nextHunos);
       return;
@@ -2619,9 +2619,6 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     <h1 className="text-3xl font-black text-stone-100 tracking-tighter uppercase italic">
                       Nivel de Energía
                     </h1>
-                    <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
-                      Defina su nivel de energía para la jornada de hoy. Sebastian preparará sus deberes correspondientes.
-                    </p>
                   </div>
 
                   <div className="grid grid-cols-5 gap-3 max-w-xs mx-auto">
@@ -2655,7 +2652,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       Cartelera
                     </h1>
                     <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
-                      ¿Ayer viste alguna película o serie para apuntar en tu colección?
+                      ¿Ayer viste alguna película?
                     </p>
                   </div>
 
@@ -2700,14 +2697,14 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                 <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-xs mx-auto text-left">
                   <div className="space-y-1 text-center">
                     <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
-                      Detalles de la Peli
+                      CARTELERA
                     </h2>
                     <p className="text-stone-400 text-xs font-medium leading-relaxed">
                       Introduce los datos para la ficha de Cartelera.
                     </p>
                   </div>
 
-                  <div className="bg-stone-900/40 backdrop-blur-md border border-stone-850 rounded-2xl p-5 space-y-4 shadow-xl">
+                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Título</label>
                       <input 
@@ -2715,7 +2712,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         placeholder="Título de la película o serie"
                         value={formMovieTitle}
                         onChange={(e) => setFormMovieTitle(e.target.value)}
-                        className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-amber-500/50 w-full transition-colors"
+                        className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full transition-colors"
                       />
                     </div>
                     
@@ -2727,19 +2724,21 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           placeholder="Ej: 2024"
                           value={formMovieYear}
                           onChange={(e) => setFormMovieYear(e.target.value)}
-                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-amber-500/50 w-full transition-colors"
+                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full transition-colors"
                         />
                       </div>
-                      <div className="flex flex-col justify-end pb-1">
-                        <label className="flex items-center gap-2 text-xs font-bold text-stone-400 cursor-pointer select-none">
-                          <input 
-                            type="checkbox"
-                            checked={formMovieIsSerie}
-                            onChange={(e) => setFormMovieIsSerie(e.target.checked)}
-                            className="rounded border-stone-800 bg-stone-950 text-amber-600 focus:ring-amber-500"
-                          />
-                          ¿Es una serie?
-                        </label>
+                      <div className="flex flex-col justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setFormMovieIsSerie(!formMovieIsSerie)}
+                          className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 text-center select-none ${
+                            formMovieIsSerie
+                              ? 'bg-amber-600 text-stone-950 font-black'
+                              : 'bg-stone-950 text-stone-400 hover:text-stone-300'
+                          }`}
+                        >
+                          Serie
+                        </button>
                       </div>
                     </div>
 
@@ -2778,10 +2777,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         }
                       }
                     }}
-                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border
+                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
                       ${(formMovieTitle.trim() && formMovieYear.trim())
-                        ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 border-amber-400 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer'
-                        : 'bg-stone-950 border-stone-850 text-stone-700 cursor-not-allowed'}`}
+                        ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer'
+                        : 'bg-stone-950 text-stone-700 cursor-not-allowed'}`}
                   >
                     Siguiente
                   </button>
@@ -2798,7 +2797,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       Biblioteca
                     </h1>
                     <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
-                      ¿Has leído algún libro esta semana para apuntar en tu Lecta?
+                      ¿Has leído algún libro esta semana?
                     </p>
                   </div>
 
@@ -2846,7 +2845,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     </p>
                   </div>
 
-                  <div className="bg-stone-900/40 backdrop-blur-md border border-stone-850 rounded-2xl p-5 space-y-4 shadow-xl max-h-[360px] overflow-y-auto pr-1">
+                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl max-h-[360px] overflow-y-auto pr-1">
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Título *</label>
@@ -2855,7 +2854,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           placeholder="Título del libro"
                           value={formBookTitle}
                           onChange={(e) => setFormBookTitle(e.target.value)}
-                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500/50 w-full transition-colors"
+                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors"
                         />
                       </div>
                       
@@ -2866,12 +2865,12 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           placeholder="Autor del libro"
                           value={formBookAuthor}
                           onChange={(e) => setFormBookAuthor(e.target.value)}
-                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500/50 w-full transition-colors"
+                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2 border-t border-stone-850/60 pt-3">
+                    <div className="space-y-2 pt-1">
                       <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Año Publicación</label>
                       <div className="flex gap-2 items-center">
                         <input 
@@ -2879,21 +2878,23 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           placeholder="Ej: 1984"
                           value={formBookPubYear}
                           onChange={(e) => setFormBookPubYear(e.target.value)}
-                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500/50 flex-1 transition-colors"
+                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 flex-1 transition-colors"
                         />
-                        <label className="flex items-center gap-1.5 text-xs text-stone-400 cursor-pointer select-none">
-                          <input 
-                            type="checkbox"
-                            checked={formBookPubYearUncertain}
-                            onChange={(e) => setFormBookPubYearUncertain(e.target.checked)}
-                            className="rounded border-stone-800 bg-stone-950 text-indigo-600 focus:ring-indigo-500"
-                          />
+                        <button
+                          type="button"
+                          onClick={() => setFormBookPubYearUncertain(!formBookPubYearUncertain)}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 text-center select-none shrink-0 ${
+                            formBookPubYearUncertain
+                              ? 'bg-indigo-600 text-stone-950 font-black'
+                              : 'bg-stone-950 text-stone-400 hover:text-stone-300'
+                          }`}
+                        >
                           Dudoso
-                        </label>
+                        </button>
                       </div>
                     </div>
 
-                    <div className="space-y-2 border-t border-stone-850/60 pt-3">
+                    <div className="space-y-2 pt-1">
                       <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Año Lectura</label>
                       <div className="flex gap-2 items-center">
                         <input 
@@ -2901,21 +2902,23 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           placeholder="Ej: 2026"
                           value={formBookReadYear}
                           onChange={(e) => setFormBookReadYear(e.target.value)}
-                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500/50 flex-1 transition-colors"
+                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 flex-1 transition-colors"
                         />
-                        <label className="flex items-center gap-1.5 text-xs text-stone-400 cursor-pointer select-none">
-                          <input 
-                            type="checkbox"
-                            checked={formBookReadYearUncertain}
-                            onChange={(e) => setFormBookReadYearUncertain(e.target.checked)}
-                            className="rounded border-stone-800 bg-stone-950 text-indigo-600 focus:ring-indigo-500"
-                          />
+                        <button
+                          type="button"
+                          onClick={() => setFormBookReadYearUncertain(!formBookReadYearUncertain)}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 text-center select-none shrink-0 ${
+                            formBookReadYearUncertain
+                              ? 'bg-indigo-600 text-stone-950 font-black'
+                              : 'bg-stone-950 text-stone-400 hover:text-stone-300'
+                          }`}
+                        >
                           Dudoso
-                        </label>
+                        </button>
                       </div>
                     </div>
 
-                    <div className="space-y-2 border-t border-stone-850/60 pt-3">
+                    <div className="space-y-2 pt-1">
                       <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Edad Autor</label>
                       <div className="flex gap-2 items-center">
                         <input 
@@ -2923,21 +2926,23 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           placeholder="Edad al escribir"
                           value={formBookAuthorAge}
                           onChange={(e) => setFormBookAuthorAge(e.target.value)}
-                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500/50 flex-1 transition-colors"
+                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 flex-1 transition-colors"
                         />
-                        <label className="flex items-center gap-1.5 text-xs text-stone-400 cursor-pointer select-none">
-                          <input 
-                            type="checkbox"
-                            checked={formBookAuthorAgeUncertain}
-                            onChange={(e) => setFormBookAuthorAgeUncertain(e.target.checked)}
-                            className="rounded border-stone-800 bg-stone-950 text-indigo-600 focus:ring-indigo-500"
-                          />
+                        <button
+                          type="button"
+                          onClick={() => setFormBookAuthorAgeUncertain(!formBookAuthorAgeUncertain)}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 text-center select-none shrink-0 ${
+                            formBookAuthorAgeUncertain
+                              ? 'bg-indigo-600 text-stone-950 font-black'
+                              : 'bg-stone-950 text-stone-400 hover:text-stone-300'
+                          }`}
+                        >
                           Dudoso
-                        </label>
+                        </button>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5 border-t border-stone-850/60 pt-3">
+                    <div className="space-y-1.5 pt-1">
                       <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Nota (1-5)</label>
                       <div className="flex items-center gap-2">
                         {[1, 2, 3, 4, 5].map((star) => {
@@ -2956,7 +2961,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 border-t border-stone-850/60 pt-3">
+                    <div className="grid grid-cols-2 gap-3 pt-1">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Veces leído</label>
                         <input 
@@ -2965,7 +2970,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           placeholder="1"
                           value={formBookReadCount}
                           onChange={(e) => setFormBookReadCount(e.target.value)}
-                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500/50 w-full transition-colors"
+                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors"
                         />
                       </div>
                       
@@ -2976,7 +2981,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           placeholder="Opcional"
                           value={formBookDiaryNumber}
                           onChange={(e) => setFormBookDiaryNumber(e.target.value)}
-                          className="bg-stone-950 border border-stone-850 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500/50 w-full transition-colors"
+                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors"
                         />
                       </div>
                     </div>
@@ -2993,10 +2998,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         handleCompleteDailyForm('saltar', formMovieWatched, true);
                       }
                     }}
-                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border
+                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
                       ${(formBookTitle.trim() && formBookAuthor.trim())
-                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-stone-950 border-indigo-400 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.2)] cursor-pointer'
-                        : 'bg-stone-950 border-stone-850 text-stone-700 cursor-not-allowed'}`}
+                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.2)] cursor-pointer'
+                        : 'bg-stone-950 text-stone-700 cursor-not-allowed'}`}
                   >
                     Siguiente
                   </button>
@@ -3004,7 +3009,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               )}
 
               {telonStep === 'food' && unloggedMeal && (
-                <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
+                <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-lg mx-auto text-left">
                   <div className="space-y-1 text-center">
                     <div className="w-12 h-12 bg-emerald-950/40 border border-emerald-500/30 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
                       <Utensils className="w-6 h-6" />
@@ -3017,14 +3022,14 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     </p>
                   </div>
 
-                  <div className="bg-stone-900/40 backdrop-blur-md border border-stone-850 rounded-2xl p-5 space-y-4 shadow-xl">
-                    <div className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-1">
+                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div className="flex flex-wrap gap-2 pr-1">
                       {availableDishes.map((meal) => (
                         <button
                           key={meal.name}
                           type="button"
                           onClick={() => handleCompleteDailyForm(meal.name)}
-                          className="px-3.5 py-2 rounded-xl bg-stone-950 border border-stone-850 text-stone-300 hover:border-emerald-500 hover:bg-emerald-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                          className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-emerald-500 hover:bg-emerald-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                         >
                           <span className="text-sm">{meal.icon}</span>
                           <span>{meal.name}</span>
@@ -3034,7 +3039,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       <button
                         type="button"
                         onClick={() => handleCompleteDailyForm('ayuno')}
-                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-stone-850 text-stone-300 hover:border-blue-500 hover:bg-blue-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-blue-500 hover:bg-blue-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
                         <span className="text-sm">⏱️</span>
                         <span>Ayuno</span>
@@ -3043,7 +3048,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       <button
                         type="button"
                         onClick={() => handleCompleteDailyForm('delivery')}
-                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-stone-850 text-stone-300 hover:border-red-500 hover:bg-red-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-red-500 hover:bg-red-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
                         <span className="text-sm">🚴</span>
                         <span>A domicilio</span>
@@ -3052,7 +3057,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       <button
                         type="button"
                         onClick={() => handleCompleteDailyForm('saltar')}
-                        className="px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-stone-400 hover:border-stone-700 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                        className="px-3.5 py-2 rounded-xl bg-stone-900 border border-transparent text-stone-400 hover:border-stone-700 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
                         <span className="text-sm">❌</span>
                         <span>Saltar / No registrar</span>
@@ -3077,7 +3082,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               ) : (
                 <div className="space-y-6">
                   {sebastianResponse && (
-                    <div className="bg-stone-900/40 backdrop-blur-md border border-stone-850 rounded-3xl p-6 relative overflow-hidden shadow-xl">
+                    <div className="bg-stone-900/40 backdrop-blur-md rounded-3xl p-6 relative overflow-hidden shadow-xl">
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
                       <div className="text-stone-300 italic text-sm leading-relaxed space-y-3">
                         {sebastianResponse.split('\n').map((line, idx) => (
@@ -3618,15 +3623,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
           if (snapshot.exists()) {
             const bosqueData = snapshot.data();
             const todayStr = new Date().toISOString().split('T')[0];
-            console.log('[BOSQUE DEBUG] snapshot received, dailyLogs:', bosqueData.dailyLogs?.length, 'exercise[]:', bosqueData.exercise?.length);
-            const todayLog = bosqueData.dailyLogs?.find((l: any) => l.date === todayStr);
-            console.log('[BOSQUE DEBUG] today:', todayStr, '| todayLog:', JSON.stringify(todayLog));
-            const { trainedToday, weeklyMinutes } = processBosqueData(bosqueData);
-            console.log('[BOSQUE DEBUG] result -> trainedToday:', trainedToday, '| weeklyMinutes:', weeklyMinutes);
+            const { trainedToday, weeklyMinutes, exercises } = processBosqueData(bosqueData);
             setBosqueTrainedToday(trainedToday);
             setBosqueWeeklyMinutes(weeklyMinutes);
-          } else {
-            console.log('[BOSQUE DEBUG] snapshot does NOT exist for uid:', user.uid);
+            setBosqueExercises(exercises);
           }
         }, (error) => {
           console.error('Bosque Firestore sync error:', error);
@@ -3645,7 +3645,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
   useEffect(() => {
     if (bosqueTrainedToday && !isInitializing && loaded) {
       setData(prev => {
-        const gimIndex = prev.hunos.findIndex(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
+        const gimIndex = prev.hunos.findIndex(h => h.text.includes('Gim'));
         if (gimIndex !== -1 && !prev.hunos[gimIndex].completed) {
           const newHunos = [...prev.hunos];
           newHunos[gimIndex] = { ...newHunos[gimIndex], completed: true };
@@ -3759,7 +3759,6 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       });
     };
 
-    triggerShortcut('exercise', 'exercise');
     triggerShortcut('love', 'love');
     triggerShortcut('forjas', 'forjas');
     triggerShortcut('yunque', 'yunque');
@@ -4169,10 +4168,9 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       case 'food': return <FoodBoardView foodState={data.food} onUpdate={(f) => setData(prev => ({ ...prev, food: f }))} onBack={() => setView('home')} />;
       case 'forjas': return <ResourceTrackerView title="Roble" themeColor="orange" tasks={data.forjas} forjaTasks={data.forjaTasks || []} onUpdateForjaTasks={t => setData(prev => ({ ...prev, forjaTasks: t }))} onUpdate={t => setData(prev => ({ ...prev, forjas: t }))} onBack={() => setView('home')} />;
       case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({ ...prev, billetesState: bs, huchaCount: hc }))} leonesState={data.leonesState || Array(20).fill(false)} leonesCount={data.leonesCount || 0} onUpdateLeones={(ls, lc) => setData(prev => ({ ...prev, leonesState: ls, leonesCount: lc }))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
-      case 'exercise': return <ExerciseView exercise={data.exercise} onUpdate={ex => setData(prev => ({ ...prev, exercise: ex }))} onBack={() => setView('home')} />;
       case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;
       case 'yunque': return <YunqueView largas={data.yunqueLargas || []} rapidas={data.yunqueRapidas || []} onUpdateLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))} onUpdateRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))} onBack={() => setView('home')} />;
-      case 'stats': return <StatsView data={data} onUpdate={setData} onBack={() => setView('home')} onNavigate={setView} />;
+      case 'stats': return <StatsView data={data} bosqueExercises={bosqueExercises} onUpdate={setData} onBack={() => setView('home')} onNavigate={setView} />;
       case 'caminos': return <CaminosView caminos={data.caminos || []} onUpdate={c => setData(prev => ({ ...prev, caminos: c }))} onBack={() => setView('home')} />;
       case 'tools': return <ToolsView onBack={() => setView('home')} />;
       default:
@@ -4183,10 +4181,74 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         const isFoodPleno = currentFoodScore >= 200;
         return (
           <div className={`flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative ${!hideFloatingButtons ? 'pb-28' : ''}`}>
-            <header className="mb-6 mt-4 flex justify-between items-center">
-              <h1 className="text-4xl font-black text-stone-100 tracking-tighter">EL REINO</h1>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setView('stats')} className="p-2 bg-stone-900 rounded-xl hover:bg-stone-800 transition-colors border border-stone-800"><BarChart3 className="w-6 h-6 text-stone-500" /></button>
+            <header className="mb-6 mt-4 flex justify-between items-center w-full gap-2">
+              {/* Small Streak Dial in Header */}
+              <div className="flex-1 flex items-center justify-between">
+                {/* Left Side: 5 circles representing the past 5 days, connected by a line */}
+                <div className="flex-1 flex flex-col justify-center pr-4">
+                  <div className="relative flex justify-between items-center w-full px-2">
+                    {/* Connecting Line */}
+                    <div className="absolute top-1/2 -translate-y-1/2 left-[10%] right-[10%] h-[2px] bg-stone-800 -z-0" />
+                    
+                    {(() => {
+                      const pastDays = getPastFiveDays();
+                      return pastDays.map((d, index) => {
+                        const dateKey = d.toDateString();
+                        const isMarked = !!data.streakReviewedDays?.[dateKey];
+                        const dayNumber = d.getDate();
+
+                        return (
+                          <div key={dateKey} className="flex flex-col items-center relative z-10">
+                            {/* Interactive Circle Button */}
+                            <button
+                              onClick={() => toggleStreakDayReview(d)}
+                              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                                isMarked
+                                  ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)] scale-105 hover:bg-purple-500'
+                                  : 'bg-stone-950 border-stone-800 text-stone-600 hover:border-stone-600 hover:text-stone-400'
+                              }`}
+                              title={`Revisar ${d.toLocaleDateString()}`}
+                            >
+                              {isMarked ? (
+                                <Check className="w-5 h-5 stroke-[3]" />
+                              ) : (
+                                <span className="text-xs font-black">{dayNumber}</span>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* Right Side: Speech Bubble showing current Streak */}
+                {(() => {
+                  const currentStreak = calculateStreak();
+                  return (
+                    <div className="flex flex-col items-center justify-center pl-2">
+                      <div className="relative">
+                        {/* Speech Bubble / Badge */}
+                        <div className={`bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 text-stone-950 px-4 h-11 rounded-2xl shadow-[0_0_15px_rgba(249,115,22,0.4)] flex flex-col items-center justify-center min-w-[50px] relative ${
+                          currentStreak === 0 ? 'animate-pulse duration-[3000ms]' : ''
+                        }`}>
+                          <span className="text-2xl font-black tracking-tighter leading-none">
+                            {currentStreak}
+                          </span>
+                          {/* Tiny speech bubble pointer/arrow */}
+                          <div className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-3 h-3 bg-orange-500 rotate-45" style={{ zIndex: -1 }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Stats Button */}
+              <div className="flex items-center">
+                <button onClick={() => setView('stats')} className="h-11 w-11 bg-stone-900 rounded-2xl hover:bg-stone-800 transition-colors border border-stone-800 flex items-center justify-center shadow-sm">
+                  <BarChart3 className="w-5 h-5 text-stone-500" />
+                </button>
               </div>
             </header>
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -4259,17 +4321,26 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                 );
               })()}
 
-              {/* Bosque Button - 2/4 width */}
-              <button 
-                onClick={() => setView('exercise')} 
-                className="col-span-2 bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 rounded-2xl group transition-colors p-4"
-              >
-                <div className="flex gap-1 h-10 w-full">
-                  {Array.from({ length: 7 }).map((_, i) => (
-                    <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < Math.floor(bosqueWeeklyMinutes / 20) ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30'}`} />
-                  ))}
+              {/* Bosque Progress - 2/4 width */}
+              <div className="col-span-2 flex flex-col justify-center items-center h-full w-full p-2">
+                <div className="flex flex-col gap-1 w-full px-2">
+                  <div className="flex gap-1 w-full">
+                    {Array.from({ length: 6 }).map((_, i) => {
+                      const isFilled = i < Math.floor(bosqueWeeklyMinutes / 20);
+                      const bgClass = isFilled ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30';
+                      return <div key={i} className={`flex-1 aspect-square rounded-md transition-all duration-300 ${bgClass}`} />;
+                    })}
+                  </div>
+                  <div className="flex gap-1 w-full">
+                    {Array.from({ length: 6 }).map((_, i) => {
+                      const absIndex = i + 6;
+                      const isFilled = absIndex < Math.floor(bosqueWeeklyMinutes / 20);
+                      const bgClass = isFilled ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]' : 'bg-emerald-950/40 border border-emerald-900/30';
+                      return <div key={i} className={`flex-1 aspect-square rounded-md transition-all duration-300 ${bgClass}`} />;
+                    })}
+                  </div>
                 </div>
-              </button>
+              </div>
 
               {/* Jumangiare (Food) Button - 1/4 width */}
               <button
@@ -4301,68 +4372,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               </button>
             </div>
 
-            {/* Small Streak Dial */}
-            <div className="bg-stone-900 rounded-2xl p-4 w-full mb-3 border border-stone-800 flex items-center justify-between relative overflow-hidden">
-              {/* Left Side: 5 circles representing the past 5 days, connected by a line */}
-              <div className="flex-1 flex flex-col justify-center pr-4">
-                <div className="relative flex justify-between items-center w-full px-2">
-                  {/* Connecting Line */}
-                  <div className="absolute top-1/2 -translate-y-1/2 left-[10%] right-[10%] h-[2px] bg-stone-800 -z-0" />
-                  
-                  {(() => {
-                    const pastDays = getPastFiveDays();
-                    return pastDays.map((d, index) => {
-                      const dateKey = d.toDateString();
-                      const isMarked = !!data.streakReviewedDays?.[dateKey];
-                      const dayNumber = d.getDate();
 
-                      return (
-                        <div key={dateKey} className="flex flex-col items-center relative z-10">
-                          {/* Interactive Circle Button */}
-                          <button
-                            onClick={() => toggleStreakDayReview(d)}
-                            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
-                              isMarked
-                                ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)] scale-105 hover:bg-purple-500'
-                                : 'bg-stone-950 border-stone-800 text-stone-600 hover:border-stone-600 hover:text-stone-400'
-                            }`}
-                            title={`Revisar ${d.toLocaleDateString()}`}
-                          >
-                            {isMarked ? (
-                              <Check className="w-5 h-5 stroke-[3]" />
-                            ) : (
-                              <span className="text-xs font-black">{dayNumber}</span>
-                            )}
-                          </button>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-
-              {/* Right Side: Speech Bubble showing current Streak */}
-              {(() => {
-                const currentStreak = calculateStreak();
-                return (
-                  <div className="flex flex-col items-center justify-center pl-2 border-l border-stone-800">
-                    <div className="relative">
-                      {/* Speech Bubble / Badge */}
-                      <div className={`bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 text-stone-950 px-4 py-2 rounded-2xl shadow-[0_0_15px_rgba(249,115,22,0.4)] flex flex-col items-center justify-center min-w-[70px] relative ${
-                        currentStreak === 0 ? 'animate-pulse duration-[3000ms]' : ''
-                      }`}>
-                        <span className="text-[8px] font-black uppercase tracking-wider leading-none opacity-80">Racha</span>
-                        <span className="text-2xl font-black tracking-tighter leading-none mt-0.5">
-                          🔥 {currentStreak}
-                        </span>
-                        {/* Tiny speech bubble pointer/arrow */}
-                        <div className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-3 h-3 bg-orange-500 rotate-45" style={{ zIndex: -1 }} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
 
             {(() => {
               const now = new Date();
@@ -4746,7 +4756,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
                   {/* Title & Day Indicator */}
                   <h2 className="text-red-500 font-black tracking-tighter text-2xl uppercase italic animate-pulse">
-                    MODO CORTAFUEGOS
+                    CORTAFUEGOS
                   </h2>
                   <p className="text-stone-400 font-bold tracking-widest text-xs uppercase mt-1 mb-6">
                     Día {data.firewallDay || 1} de 3
@@ -4780,10 +4790,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                               };
                             });
                           }}
-                          className={`w-full py-3.5 px-5 rounded-2xl border flex items-center justify-between transition-all duration-300 font-bold uppercase tracking-wider text-xs ${
+                          className={`w-full py-3.5 px-5 rounded-2xl border border-transparent flex items-center justify-between transition-all duration-300 font-bold uppercase tracking-wider text-xs ${
                             isChecked
-                              ? 'bg-red-950/30 border-red-500 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
-                              : 'bg-stone-950 border-stone-850 text-stone-500 hover:border-stone-700 hover:text-stone-400'
+                              ? 'bg-red-950/30 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
+                              : 'bg-stone-950 text-stone-500 hover:text-stone-400'
                           }`}
                         >
                           <span className="flex items-center gap-3">
@@ -4804,10 +4814,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   <button
                     disabled={!Object.values(data.firewallChecked || { ducha: false, calle: false, huno: false }).every(v => v)}
                     onClick={handleCompleteFirewallDay}
-                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-500 border ${
+                    className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-500 border border-transparent ${
                       Object.values(data.firewallChecked || { ducha: false, calle: false, huno: false }).every(v => v)
-                        ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white border-red-400 hover:scale-[1.02] shadow-[0_0_20px_rgba(239,68,68,0.3)] cursor-pointer'
-                        : 'bg-stone-950 border-stone-850 text-stone-700 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white hover:scale-[1.02] shadow-[0_0_20px_rgba(239,68,68,0.3)] cursor-pointer'
+                        : 'bg-stone-950 text-stone-700 cursor-not-allowed'
                     }`}
                   >
                     Semper Iterum Rudis
