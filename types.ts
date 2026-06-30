@@ -107,6 +107,9 @@ export interface DailyFoodScore {
   deliveryDinner: boolean;
   fah: boolean[]; // length 4
   calories?: number;
+  organs?: boolean;
+  legumes?: boolean;
+  fast24?: boolean;
 }
 
 export interface FoodState {

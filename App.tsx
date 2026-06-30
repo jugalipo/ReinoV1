@@ -13,7 +13,7 @@ import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { ToolsView } from './components/ToolsView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen, Timer } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -1050,6 +1050,9 @@ function App() {
   const [focusLoading, setFocusLoading] = useState(false);
   const [focusRecommendation, setFocusRecommendation] = useState<string | null>(null);
   const [focusRecommendedTaskId, setFocusRecommendedTaskId] = useState<string | null>(null);
+  const [rejectedFocusTaskIds, setRejectedFocusTaskIds] = useState<string[]>([]);
+  const [focusTimerEndTime, setFocusTimerEndTime] = useState<number | null>(null);
+  const [focusTimerProgress, setFocusTimerProgress] = useState<number>(0);
 
   // Voice States & Refs
   const [isRecording, setIsRecording] = useState(false);
@@ -1243,37 +1246,133 @@ Ejemplo de respuesta en "text":
     }
   };
 
-  // Focus & Voice Hooks
   useEffect(() => {
-    if (voiceSuccessUpdates || voiceError) {
-      const timer = setTimeout(() => {
-        if (!isRecording && !voiceLoading) {
-          setVoiceSuccessUpdates(null);
-          setVoiceError(null);
-          setVoiceStatus(null);
-        }
-      }, 5000);
-      return () => clearTimeout(timer);
+    if (!focusTimerEndTime) {
+      setFocusTimerProgress(0);
+      return;
     }
-  }, [voiceSuccessUpdates, voiceError, isRecording, voiceLoading]);
 
-  const fetchFocusRecommendation = async () => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const totalDuration = 3 * 60 * 1000; // 3 minutes
+      const remaining = focusTimerEndTime - now;
+
+      if (remaining <= 0) {
+        setFocusTimerEndTime(null);
+        setFocusTimerProgress(0);
+        clearInterval(interval);
+        
+        // Play notification chime using Web Audio API (Synthesizer)
+        try {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            const ctx = new AudioContextClass();
+            const nowTime = ctx.currentTime;
+            
+            const playTone = (time: number, freq: number, duration: number) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, time);
+              
+              gain.gain.setValueAtTime(0, time);
+              gain.gain.linearRampToValueAtTime(0.5, time + 0.05);
+              gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+              
+              osc.start(time);
+              osc.stop(time + duration);
+            };
+            
+            // Nice triple notification beep
+            playTone(nowTime, 587.33, 0.3); // D5
+            playTone(nowTime + 0.2, 587.33, 0.3);
+            playTone(nowTime + 0.4, 880.00, 0.8); // A5
+          }
+        } catch (err) {
+          console.error("Failed to play focus timer audio:", err);
+        }
+      } else {
+        const elapsed = totalDuration - remaining;
+        const progress = Math.max(0, Math.min(1.0, elapsed / totalDuration));
+        setFocusTimerProgress(progress);
+      }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [focusTimerEndTime]);
+
+  const toggleFocusTimer = () => {
+    if (focusTimerEndTime) {
+      setFocusTimerEndTime(null);
+      setFocusTimerProgress(0);
+    } else {
+      // Warm up Web Audio context to allow locked/background audio playback
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const dummyCtx = new AudioContextClass();
+          if (dummyCtx.state === 'suspended') {
+            dummyCtx.resume();
+          }
+          const osc = dummyCtx.createOscillator();
+          const gain = dummyCtx.createGain();
+          osc.connect(gain);
+          gain.connect(dummyCtx.destination);
+          gain.gain.setValueAtTime(0.0001, dummyCtx.currentTime);
+          osc.start(0);
+          osc.stop(0.01);
+        }
+      } catch (e) {
+        console.warn("Failed to warm up AudioContext:", e);
+      }
+
+      setFocusTimerEndTime(Date.now() + 3 * 60 * 1000);
+      setFocusTimerProgress(0);
+    }
+  };
+
+  const fetchFocusRecommendation = async (isReload = false) => {
     const startTime = Date.now();
     setFocusLoading(true);
     setFocusRecommendation(null);
+
+    let currentRejected = rejectedFocusTaskIds;
+    if (isReload && focusRecommendedTaskId && focusRecommendedTaskId !== 'none') {
+      currentRejected = [...rejectedFocusTaskIds, focusRecommendedTaskId];
+      setRejectedFocusTaskIds(currentRejected);
+    } else {
+      currentRejected = [];
+      setRejectedFocusTaskIds([]);
+    }
+
     setFocusRecommendedTaskId(null);
     setShowFocusModal(true);
 
-    const hunosPending = data.hunos.filter(t => !t.completed);
-    const yunqueLargasPending = (data.yunqueLargas || []).filter(t => !t.completed);
-    const yunqueRapidasPending = (data.yunqueRapidas || []).filter(t => !t.completed);
-    const roblePending = (data.forjaTasks || []).filter(t => !t.completed);
-    const leonesPending = (data.leones || []).filter(t => t.current < t.target);
+    let hunosPending = data.hunos.filter(t => !t.completed && !currentRejected.includes(t.id));
+    let yunqueLargasPending = (data.yunqueLargas || []).filter(t => !t.completed && !currentRejected.includes(t.id));
+    let yunqueRapidasPending = (data.yunqueRapidas || []).filter(t => !t.completed && !currentRejected.includes(t.id));
+    let roblePending = (data.forjaTasks || []).filter(t => !t.completed && !currentRejected.includes(t.id));
+    let leonesPending = (data.leones || []).filter(t => t.current < t.target && !currentRejected.includes(t.id));
 
-    const totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length;
+    let totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length;
+
+    if (totalUncompleted === 0 && currentRejected.length > 0) {
+      // Clear rejected list and retry with full pending list
+      currentRejected = [];
+      setRejectedFocusTaskIds([]);
+      hunosPending = data.hunos.filter(t => !t.completed);
+      yunqueLargasPending = (data.yunqueLargas || []).filter(t => !t.completed);
+      yunqueRapidasPending = (data.yunqueRapidas || []).filter(t => !t.completed);
+      roblePending = (data.forjaTasks || []).filter(t => !t.completed);
+      leonesPending = (data.leones || []).filter(t => t.current < t.target);
+      totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length;
+    }
 
     if (totalUncompleted === 0) {
-      setFocusRecommendation("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo");
+      setFocusRecommendation("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.");
       setFocusRecommendedTaskId("none");
       setFocusLoading(false);
       return;
@@ -1314,11 +1413,11 @@ ${roblePending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` 
 ${leonesPending.map(t => `- [${t.id}] ${t.name} (${t.current}/${t.target} ${t.unit})`).join('\n')}
 
 Por favor, responde con un objeto JSON que contenga:
-- "text": Dos líneas de texto cortas, firmadas por 'Sebastian, su mayordomo'. La primera línea debe ser un comentario ingenioso, elegante y respetuoso para motivar a su señor. La segunda línea debe recomendar la tarea seleccionada y terminar con 'Sebastian, su mayordomo'. Usa un salto de línea (\\n) para separarlas.
+- "text": Una única frase muy breve y directa (máximo 15-20 palabras) que explique qué tarea sugieres y por qué, de forma motivadora y respetuosa para tu señor. NO firmes con tu nombre al final, no pongas "Sebastian, su mayordomo" ni nada parecido. Sólo la frase.
 - "taskId": El ID de la tarea seleccionada de la lista anterior. Debe coincidir exactamente con el ID proporcionado en el contexto.
 
 Ejemplo de respuesta en "text":
-"Es momento de retomar vuestra gran jornada, mi señor. Os sugiero avanzar con esta tarea para despejar el camino de hoy. Sebastian, su mayordomo"
+"Os sugiero priorizar hoy la tarea de hacer la compra ya que vuestros recursos de comida se están agotando."
 `;
 
       const response = await fetch(
@@ -1341,7 +1440,7 @@ Ejemplo de respuesta en "text":
                 properties: {
                   text: {
                     type: 'STRING',
-                    description: "Two lines of text signed by 'Sebastian, su mayordomo'."
+                    description: "A single very brief sentence explaining what to do and why. Maximum 20 words. No signature."
                   },
                   taskId: {
                     type: 'STRING',
@@ -1396,10 +1495,10 @@ Ejemplo de respuesta en "text":
     else if (leonesPending.length > 0) selected = leonesPending[0];
 
     if (selected) {
-      setFocusRecommendation("Mi señor, no he podido contactar con el oráculo de Gemini, pero os sugiero esta tarea para hoy.\nEspero que vuestra jornada sea provechosa. Sebastian, su mayordomo");
+      setFocusRecommendation(`Os sugiero avanzar con la tarea de "${selected.text || selected.name}" para mantener el rumbo de hoy.`);
       setFocusRecommendedTaskId(selected.id);
     } else {
-      setFocusRecommendation("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo");
+      setFocusRecommendation("Vuestros backlogs están completamente vacíos, disfrutad de un merecido descanso.");
       setFocusRecommendedTaskId("none");
     }
   };
@@ -4286,13 +4385,8 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               </button>
               <button onClick={() => setView('leones')} className="aspect-square bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-900/50 transition-colors border border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
               <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><TreeDeciduous className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
-              <button onClick={() => setView('yunque')} className="aspect-square bg-slate-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-slate-900/50 transition-colors border border-slate-900/50 group relative">
-                <div className="flex-1 flex items-center justify-center">
-                  <Anvil className="w-8 h-8 text-slate-500 group-hover:text-slate-400 transition-colors" />
-                </div>
-                <div className="w-full h-1 bg-slate-900/40 rounded-full overflow-hidden">
-                  <div className="h-full bg-slate-500 transition-all duration-300" style={{ width: `100%` }}></div>
-                </div>
+              <button onClick={() => setView('yunque')} className="aspect-square bg-slate-950/30 rounded-xl flex flex-col items-center justify-center p-2 hover:bg-slate-900/50 transition-colors border border-slate-900/50 group relative">
+                <Anvil className="w-8 h-8 text-slate-500 group-hover:text-slate-400 transition-colors" />
               </button>
             </div>
             <div className="grid grid-cols-4 gap-2 mb-6">
@@ -4309,7 +4403,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                 return (
                   <button 
                     onClick={() => setShowFootModal(true)}
-                    className="col-span-1 aspect-square bg-emerald-950/20 rounded-2xl flex flex-col items-center justify-between p-3 border border-emerald-900/40 hover:bg-emerald-900/40 transition-all group relative"
+                    className="col-span-1 aspect-square flex flex-col items-center justify-between p-3 transition-all group relative"
                   >
                     <div className="flex-1 flex items-center justify-center">
                       <Footprints className="w-8 h-8 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
@@ -4348,12 +4442,12 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   setView('food');
                   setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
                 }}
-                className={`col-span-1 aspect-square rounded-2xl flex flex-col items-center justify-between p-2 transition-all duration-700 border group relative ${
+                className={`col-span-1 aspect-square flex flex-col items-center justify-between p-2 transition-all duration-700 group relative ${
                     currentFoodScore < 0 
-                      ? 'bg-red-950/50 border-red-900 animate-blink shadow-[0_0_15px_rgba(239,68,68,0.3)]' 
+                      ? 'animate-blink' 
                       : isFoodPleno
-                        ? 'bg-lime-600/30 border-lime-400 shadow-[0_0_30px_rgba(132,204,22,0.4)] ring-2 ring-lime-500/20 scale-[1.05] animate-pulse'
-                        : 'bg-lime-950/30 border-lime-900/50 hover:bg-lime-900/50'
+                        ? 'scale-[1.05] animate-pulse'
+                        : ''
                   }`}
               >
                 <div className="flex-1 flex items-center justify-center">
@@ -4385,7 +4479,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               const isExpired = goalsLastReset.getTime() < startOfCurrentWeek.getTime();
 
               return (
-                <div className="bg-stone-900 rounded-2xl shadow-sm p-4 w-full mb-3 border border-stone-800 relative overflow-hidden">
+                <div className="w-full mb-3 relative overflow-hidden">
                   {/* Expired Overlay */}
                   {isExpired && (
                     <div className="absolute inset-0 bg-stone-950/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-300">
@@ -4415,13 +4509,23 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     {/* Leones */}
                     <div className="flex items-center gap-3">
                       <span className="text-2xl flex-shrink-0">🦁</span>
-                      <DebouncedInput
-                        type="text"
-                        value={data.weeklyGoals?.leones.text || ''}
-                        onChange={(val: string) => updateWeeklyGoal('leones', 'text', val)}
-                        className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-amber-500 transition-colors"
-                        placeholder="Objetivo Leones..."
-                      />
+                      {(() => {
+                        const completed = !!data.weeklyGoals?.leones.completed;
+                        return (
+                          <DebouncedInput
+                            type="text"
+                            value={data.weeklyGoals?.leones.text || ''}
+                            onChange={(val: string) => updateWeeklyGoal('leones', 'text', val)}
+                            disabled={completed}
+                            className={`flex-1 min-w-0 rounded-lg px-3 py-2 transition-colors ${
+                              completed 
+                                ? 'bg-amber-900/20 border border-amber-700/40 text-stone-400 cursor-not-allowed' 
+                                : 'bg-stone-950 border border-stone-800 text-stone-200 focus:outline-none focus:border-amber-500'
+                            }`}
+                            placeholder="Objetivo Leones..."
+                          />
+                        );
+                      })()}
                       <button
                         onClick={() => !isExpired && updateWeeklyGoal('leones', 'completed', !(data.weeklyGoals?.leones.completed || false))}
                         className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.leones.completed ? 'bg-amber-600 border-amber-600' : 'border-stone-700 hover:border-amber-500'}`}
@@ -4433,13 +4537,23 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     {/* Forjas */}
                     <div className="flex items-center gap-3">
                       <span className="text-2xl flex-shrink-0">🍁</span>
-                      <DebouncedInput
-                        type="text"
-                        value={data.weeklyGoals?.forjas.text || ''}
-                        onChange={(val: string) => updateWeeklyGoal('forjas', 'text', val)}
-                        className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-orange-500 transition-colors"
-                        placeholder="Objetivo Roble..."
-                      />
+                      {(() => {
+                        const completed = !!data.weeklyGoals?.forjas.completed;
+                        return (
+                          <DebouncedInput
+                            type="text"
+                            value={data.weeklyGoals?.forjas.text || ''}
+                            onChange={(val: string) => updateWeeklyGoal('forjas', 'text', val)}
+                            disabled={completed}
+                            className={`flex-1 min-w-0 rounded-lg px-3 py-2 transition-colors ${
+                              completed 
+                                ? 'bg-orange-900/20 border border-orange-700/40 text-stone-400 cursor-not-allowed' 
+                                : 'bg-stone-950 border border-stone-800 text-stone-200 focus:outline-none focus:border-orange-500'
+                            }`}
+                            placeholder="Objetivo Roble..."
+                          />
+                        );
+                      })()}
                       <button
                         onClick={() => !isExpired && updateWeeklyGoal('forjas', 'completed', !(data.weeklyGoals?.forjas.completed || false))}
                         className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.forjas.completed ? 'bg-orange-600 border-orange-600' : 'border-stone-700 hover:border-orange-500'}`}
@@ -4451,13 +4565,23 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     {/* Puerto */}
                     <div className="flex items-center gap-3">
                       <span className="text-2xl flex-shrink-0">⚔️</span>
-                      <DebouncedInput
-                        type="text"
-                        value={data.weeklyGoals?.puerto.text || ''}
-                        onChange={(val: string) => updateWeeklyGoal('puerto', 'text', val)}
-                        className="flex-1 min-w-0 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 transition-colors"
-                        placeholder="Objetivo Yunque..."
-                      />
+                      {(() => {
+                        const completed = !!data.weeklyGoals?.puerto.completed;
+                        return (
+                          <DebouncedInput
+                            type="text"
+                            value={data.weeklyGoals?.puerto.text || ''}
+                            onChange={(val: string) => updateWeeklyGoal('puerto', 'text', val)}
+                            disabled={completed}
+                            className={`flex-1 min-w-0 rounded-lg px-3 py-2 transition-colors ${
+                              completed 
+                                ? 'bg-blue-900/20 border border-blue-700/40 text-stone-400 cursor-not-allowed' 
+                                : 'bg-stone-950 border border-stone-800 text-stone-200 focus:outline-none focus:border-blue-500'
+                            }`}
+                            placeholder="Objetivo Yunque..."
+                          />
+                        );
+                      })()}
                       <button
                         onClick={() => !isExpired && updateWeeklyGoal('puerto', 'completed', !(data.weeklyGoals?.puerto.completed || false))}
                         className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.puerto.completed ? 'bg-blue-600 border-blue-600' : 'border-stone-700 hover:border-blue-500'}`}
@@ -4468,11 +4592,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   </div>
 
                   {/* Weekly Timeline - Linea discontinua de 7 secciones */}
-                  <div className={`mt-4 border-t border-stone-800 pt-3 transition-opacity duration-500 ${isExpired ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
-                    <div className="flex justify-between text-[9px] text-stone-500 font-black mb-2 px-1 tracking-[0.2em] uppercase">
-                      <span>Cronología Semanal</span>
-                      <span className="text-stone-400">{day + 1} / 7</span>
-                    </div>
+                  <div className={`mt-4 transition-opacity duration-500 ${isExpired ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
                     <div className="flex gap-1.5 h-1.5 w-full">
                       {Array.from({ length: 7 }).map((_, i) => {
                         const isPassed = i < day;
@@ -5041,16 +5161,21 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
             {showFocusModal && (
               <div className="fixed inset-0 max-w-md mx-auto z-[200] bg-stone-950 flex flex-col p-6 animate-in fade-in duration-300">
                 {/* Header */}
-                <div className="flex justify-between items-center border-b border-stone-850 pb-4 mb-6">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
-                    <h2 className="text-lg font-black tracking-tighter text-stone-100 uppercase italic">Modo Enfoque</h2>
+                <div className="flex justify-between items-center pb-2 mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-black text-amber-500 uppercase tracking-widest leading-none">Sebastian</p>
+                      <p className="text-[10px] text-stone-500 uppercase tracking-wider font-bold mt-1">Mayordomo del Reino</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {!focusLoading && (
                       <button 
-                        onClick={fetchFocusRecommendation} 
-                        className="p-2 hover:bg-stone-900 rounded-xl transition-colors border border-stone-850 active:scale-95"
+                        onClick={() => fetchFocusRecommendation(true)} 
+                        className="p-2 hover:bg-stone-900 rounded-xl transition-colors active:scale-95"
                         title="Proponer otra tarea"
                       >
                         <RotateCw className="w-5 h-5 text-stone-400 hover:text-stone-200" />
@@ -5058,7 +5183,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     )}
                     <button 
                       onClick={() => setShowFocusModal(false)} 
-                      className="p-2 hover:bg-stone-900 rounded-xl transition-colors border border-stone-850 active:scale-95"
+                      className="p-2 hover:bg-stone-900 rounded-xl transition-colors active:scale-95"
                       title="Salir"
                     >
                       <X className="w-5 h-5 text-stone-400 hover:text-stone-200" />
@@ -5070,34 +5195,24 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   <div className="flex-1 flex flex-col items-center justify-center space-y-4">
                     <div className="relative">
                       <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-2xl animate-pulse" />
-                      <div className="w-16 h-16 border-4 border-stone-850 border-t-amber-500 rounded-full animate-spin relative z-10" />
+                      <div className="w-16 h-16 border-4 border-transparent border-t-amber-500 rounded-full animate-spin relative z-10" />
                     </div>
                     <p className="text-xs text-amber-500 font-black uppercase tracking-widest animate-pulse mt-4">
                       Sebastian está preparando vuestro siguiente deber...
                     </p>
                   </div>
                 ) : (
-                  <div className="flex-1 flex flex-col justify-between py-4">
+                  <div className="flex-1 flex flex-col py-2">
                     {/* Sebastian's comment (motivational quote) */}
-                    <div className="flex flex-col items-center text-center space-y-4 max-w-sm mx-auto w-full">
-                      <div className="flex items-center gap-3 self-start">
-                        <div className="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-                          <Sparkles className="w-4 h-4 text-amber-500" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-none">Sebastian</p>
-                          <p className="text-[8px] text-stone-500 uppercase tracking-wider font-bold mt-0.5">Mayordomo del Reino</p>
-                        </div>
-                      </div>
-                      
-                      <div className="relative bg-stone-900/60 rounded-2xl p-4 border border-stone-850 shadow-inner w-full text-left">
-                        <p className="text-stone-300 text-xs leading-relaxed whitespace-pre-wrap italic">
+                    <div className="w-full max-w-sm mx-auto mb-0 shrink-0">
+                      <div className="relative bg-stone-900/40 rounded-2xl p-4 shadow-inner w-full text-left">
+                        <p className="text-stone-200 text-base leading-relaxed whitespace-pre-wrap italic font-medium">
                           {focusRecommendation || "Vuestras tareas requieren vuestra atención, mi señor."}
                         </p>
                       </div>
                     </div>
 
-                    {/* Centered Task & Huge Checkbox */}
+                    {/* Centered Task & Toggle Button */}
                     {(() => {
                       const recTask = getFocusRecommendedTask();
                       if (!recTask) return (
@@ -5141,55 +5256,78 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       const taskEmoji = getFocusTaskEmoji(recTask);
 
                       return (
-                        <div className="flex-1 flex flex-col items-center justify-center my-6 space-y-6 animate-in zoom-in-95 duration-300">
+                        <div className="flex-1 flex flex-col items-center justify-center my-auto space-y-6 animate-in zoom-in-95 duration-300">
                           {/* Task Category Tag */}
-                          <span className="px-4 py-1.5 bg-stone-900 border border-stone-850 text-[9px] font-black text-amber-500/80 uppercase tracking-[0.2em] rounded-full">
+                          <span className="px-4 py-1.5 bg-stone-900 text-[9px] font-black text-amber-500/80 uppercase tracking-[0.2em] rounded-full">
                             {recTask.typeName}
                           </span>
 
-                          {/* Huge Centered Emoji */}
-                          <div className="w-28 h-28 rounded-[2rem] bg-stone-900/40 border-2 border-stone-800 flex items-center justify-center text-5xl shadow-[0_0_30px_rgba(0,0,0,0.3)] select-none">
-                            {taskEmoji}
+                          {/* Huge Centered Emoji Container with Progress Ring */}
+                          <div className="relative w-56 h-56 flex items-center justify-center">
+                            {/* SVG Progress Ring */}
+                            <svg className="absolute inset-0 w-full h-full -rotate-90">
+                              <circle
+                                cx="112"
+                                cy="112"
+                                r="100"
+                                stroke="#292524" // stone-800
+                                strokeWidth="8"
+                                fill="transparent"
+                              />
+                              <circle
+                                cx="112"
+                                cy="112"
+                                r="100"
+                                stroke="#f59e0b" // amber-500
+                                strokeWidth="8"
+                                fill="transparent"
+                                strokeDasharray={2 * Math.PI * 100}
+                                strokeDashoffset={2 * Math.PI * 100 * (1 - focusTimerProgress)}
+                                strokeLinecap="round"
+                                className="transition-all duration-300 ease-linear"
+                              />
+                            </svg>
+
+                            <button
+                              onClick={() => {
+                                handlePriorityTaskToggle(focusRecommendedTaskId);
+                                // After 600ms, fetch the next task automatically!
+                                setTimeout(() => {
+                                  fetchFocusRecommendation();
+                                }, 600);
+                              }}
+                              className={`w-44 h-44 rounded-full flex items-center justify-center text-7xl select-none transition-all active:scale-95 duration-300 relative z-10 ${
+                                recTask.completed
+                                  ? 'bg-emerald-950/20 text-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.25)]'
+                                  : 'bg-stone-900/40 text-stone-300 hover:text-amber-500 shadow-[0_0_35px_rgba(0,0,0,0.35)]'
+                              }`}
+                            >
+                              {taskEmoji}
+                            </button>
                           </div>
 
                           {/* Task Description Text */}
                           <h3 className="text-xl font-black text-stone-100 text-center max-w-sm px-6 leading-snug tracking-tight">
                             {recTask.text}
                           </h3>
-
-                          {/* Huge Centered Checkbox Button */}
-                          <button
-                            onClick={() => {
-                              handlePriorityTaskToggle(focusRecommendedTaskId);
-                              // After 600ms, fetch the next task automatically!
-                              setTimeout(() => {
-                                fetchFocusRecommendation();
-                              }, 600);
-                            }}
-                            className={`group flex flex-col items-center justify-center space-y-2 p-5 rounded-2xl border transition-all duration-500 active:scale-95 ${
-                              recTask.completed
-                                ? 'bg-emerald-950/20 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
-                                : 'bg-stone-900 border-stone-850 text-stone-500 hover:border-amber-500/40 hover:bg-stone-900/80 hover:text-amber-500'
-                            }`}
-                          >
-                            <div className={`w-14 h-14 rounded-xl border flex items-center justify-center transition-all duration-300 ${
-                              recTask.completed
-                                ? 'bg-emerald-500 border-emerald-400 text-stone-950'
-                                : 'bg-stone-950 border-stone-750 group-hover:border-amber-500'
-                            }`}>
-                              {recTask.completed ? (
-                                <Check className="w-9 h-9 stroke-[3]" />
-                              ) : (
-                                <Check className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" />
-                              )}
-                            </div>
-                            <span className="text-[9px] font-black uppercase tracking-widest">
-                              {recTask.completed ? '¡Completada!' : 'Marcar Completada'}
-                            </span>
-                          </button>
                         </div>
                       );
                     })()}
+
+                    {/* Bottom Timer Icon */}
+                    <div className="flex justify-center pt-2 mt-auto shrink-0">
+                      <button
+                        onClick={toggleFocusTimer}
+                        className={`p-3 rounded-full transition-all active:scale-90 ${
+                          focusTimerEndTime !== null
+                            ? 'bg-amber-500/20 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)] animate-pulse'
+                            : 'bg-stone-900 text-stone-400 hover:text-stone-200'
+                        }`}
+                        title={focusTimerEndTime !== null ? "Cancelar Temporizador de 3 min" : "Iniciar Temporizador de 3 min"}
+                      >
+                        <Timer className="w-6 h-6" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

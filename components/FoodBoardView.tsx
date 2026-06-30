@@ -52,6 +52,12 @@ export const DEFAULT_MEALS = [
   { name: "Alubias", icon: "🍲", max: 2 }
 ];
 
+const FIXED_SPECIAL_MEALS = [
+  { name: 'Meh', max: 20, icon: '🤷' },
+  { name: 'Ayuno', max: 20, icon: '🧘' },
+  { name: 'A domicilio', max: 20, icon: '🛵' }
+];
+
 const defaultDailyScore: DailyFoodScore = {
   lunch: false,
   dinner: false,
@@ -63,8 +69,18 @@ const defaultDailyScore: DailyFoodScore = {
 
 export const calculateDailyScore = (score: DailyFoodScore, dateStr: string, allScores: Record<string, DailyFoodScore>) => {
   let total = 0;
-  if (score.lunch) total += 1;
-  if (score.dinner) total += 1;
+  if (score.lunch) {
+    if (score.lunchMeal === 'A domicilio') total -= 2;
+    else if (score.lunchMeal === 'Meh') total += 0;
+    else if (score.lunchMeal === 'Ayuno') total += 2;
+    else total += 1;
+  }
+  if (score.dinner) {
+    if (score.dinnerMeal === 'A domicilio') total -= 2;
+    else if (score.dinnerMeal === 'Meh') total += 0;
+    else if (score.dinnerMeal === 'Ayuno') total += 2;
+    else total += 1;
+  }
   if (score.fasting) total += 2;
   if (score.deliveryLunch) total -= 2;
   if (score.deliveryDinner) total -= 2;
@@ -85,8 +101,18 @@ export const calculateAllDaysTotal = (allScores: Record<string, DailyFoodScore>,
     }
     
     let dayTotal = 0;
-    if (score.lunch) dayTotal += 1;
-    if (score.dinner) dayTotal += 1;
+    if (score.lunch) {
+      if (score.lunchMeal === 'A domicilio') dayTotal -= 2;
+      else if (score.lunchMeal === 'Meh') dayTotal += 0;
+      else if (score.lunchMeal === 'Ayuno') dayTotal += 2;
+      else dayTotal += 1;
+    }
+    if (score.dinner) {
+      if (score.dinnerMeal === 'A domicilio') dayTotal -= 2;
+      else if (score.dinnerMeal === 'Meh') dayTotal += 0;
+      else if (score.dinnerMeal === 'Ayuno') dayTotal += 2;
+      else dayTotal += 1;
+    }
     if (score.fasting) dayTotal += 2;
     if (score.deliveryLunch) dayTotal -= 2;
     if (score.deliveryDinner) dayTotal -= 2;
@@ -98,6 +124,60 @@ export const calculateAllDaysTotal = (allScores: Record<string, DailyFoodScore>,
     total += Math.max(-4, Math.min(4, dayTotal));
   }
   return total;
+};
+
+const getDaysOfMonth = (offset: number) => {
+  const now = new Date();
+  const targetMonth = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const month = targetMonth.getMonth();
+  const year = targetMonth.getFullYear();
+  
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+  
+  // Day of week for 1st (0 is Sunday)
+  const firstDayWeekday = firstDayOfMonth.getDay();
+  
+  const days: (Date | null)[] = [];
+  
+  // Empty slots before 1st
+  for (let i = 0; i < firstDayWeekday; i++) {
+    days.push(null);
+  }
+  
+  // Days of the month
+  for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
+    days.push(new Date(year, month, i));
+  }
+  
+  // Empty slots after last day to fill the last row
+  while (days.length % 7 !== 0) {
+    days.push(null);
+  }
+  
+  return days;
+};
+
+const getDerivedBonusesForMonth = (scores: Record<string, DailyFoodScore>, monthOffsetVal: number) => {
+  const derived: Record<string, boolean[]> = {
+    organs: [false, false, false, false],
+    legumes: [false, false, false, false],
+    fast24: [false, false, false, false]
+  };
+
+  const days = getDaysOfMonth(monthOffsetVal);
+  days.forEach((date, index) => {
+    if (!date) return;
+    const weekIdx = Math.min(3, Math.floor(index / 7));
+    const scoreForDay = scores[date.toDateString()];
+    if (scoreForDay) {
+      if (scoreForDay.organs) derived.organs[weekIdx] = true;
+      if (scoreForDay.legumes) derived.legumes[weekIdx] = true;
+      if (scoreForDay.fast24) derived.fast24[weekIdx] = true;
+    }
+  });
+
+  return derived;
 };
 
 const DailyFoodScoreModal = ({ 
@@ -122,10 +202,50 @@ const DailyFoodScoreModal = ({
 
   const selectableMeals = [
     ...meals,
-    { name: "Ayuno", icon: "⏱️", max: 9999 }
+    { name: "Meh", icon: "🤷", max: 20 },
+    { name: "Ayuno", icon: "🧘", max: 20 },
+    { name: "A domicilio", icon: "🛵", max: 20 }
   ];
 
-  // --- MOBILE BACK BUTTON SUPPORT ---
+  const getLunchPointsLabel = () => {
+    if (!score.lunch) return "+1";
+    if (score.lunchMeal === 'A domicilio') return "-2";
+    if (score.lunchMeal === 'Meh') return "0";
+    if (score.lunchMeal === 'Ayuno') return "+2";
+    return "+1";
+  };
+
+  const getDinnerPointsLabel = () => {
+    if (!score.dinner) return "+1";
+    if (score.dinnerMeal === 'A domicilio') return "-2";
+    if (score.dinnerMeal === 'Meh') return "0";
+    if (score.dinnerMeal === 'Ayuno') return "+2";
+    return "+1";
+  };
+
+  const getDatesOfCurrentWeek = () => {
+    const nowForOffset = new Date();
+    const yearDiff = date.getFullYear() - nowForOffset.getFullYear();
+    const targetMonthOffset = date.getMonth() - nowForOffset.getMonth() + yearDiff * 12;
+    const days = getDaysOfMonth(targetMonthOffset);
+    const dateStr = date.toDateString();
+    const idx = days.findIndex(d => d && d.toDateString() === dateStr);
+    if (idx === -1) return [];
+    const weekIdx = Math.floor(idx / 7);
+    const weekDays = days.slice(weekIdx * 7, weekIdx * 7 + 7).filter(d => d !== null) as Date[];
+    return weekDays;
+  };
+
+  const weekDates = getDatesOfCurrentWeek();
+
+  const isWeeklyBonusDisabled = (field: 'organs' | 'legumes' | 'fast24') => {
+    if (score[field]) return false;
+    return weekDates.some(d => {
+      const dStr = d.toDateString();
+      if (dStr === date.toDateString()) return false;
+      return !!allScores[dStr]?.[field];
+    });
+  };
   useModalHistory(true, onClose, 'dailyFoodScore');
   useModalHistory(!!selectingMealFor, () => setSelectingMealFor(null), `selecting-${selectingMealFor}`);
   // ----------------------------------
@@ -235,7 +355,7 @@ const DailyFoodScoreModal = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 pb-24 animate-in fade-in duration-200"
       onClick={() => {
         if (selectingMealFor) {
           setSelectingMealFor(null);
@@ -245,17 +365,21 @@ const DailyFoodScoreModal = ({
       }}
     >
       <div 
-        className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[72vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-stone-800 flex items-center justify-between bg-stone-900/50 shrink-0">
-          <h2 className="text-lg font-bold text-stone-200">
+        <div className="px-6 py-4 border-b border-stone-800 flex items-center justify-between bg-stone-900/50 shrink-0">
+          <h2 className="text-base font-bold text-stone-200">
             {selectingMealFor ? (selectingMealFor === 'lunch' ? 'Elegir Almuerzo' : 'Elegir Cena') : date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
           </h2>
-          {selectingMealFor && (
+          {selectingMealFor ? (
             <button onClick={() => setSelectingMealFor(null)} className="p-2 rounded-full hover:bg-stone-800 text-stone-400 transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
+          ) : (
+            <span className={`text-2xl font-black tracking-tighter ${total > 0 ? 'text-lime-500' : total < 0 ? 'text-red-500' : 'text-stone-400'}`}>
+              {total > 0 ? `+${total}` : total}
+            </span>
           )}
         </div>
 
@@ -270,20 +394,33 @@ const DailyFoodScoreModal = ({
                 return 0;
               }).map(meal => {
                 const canSelect = canSelectMeal(meal.name, meal.max);
+                const isDelivery = meal.name === 'A domicilio';
+                const isFasting = meal.name === 'Ayuno';
+                const isMeh = meal.name === 'Meh';
                 return (
                   <button
                     key={meal.name}
                     disabled={!canSelect}
                     onClick={() => handleMealSelect(meal.name)}
                     className={`p-3 rounded-xl border flex items-center gap-3 transition-all text-left
-                      ${canSelect 
-                        ? 'bg-stone-950 border-stone-800 hover:bg-stone-800 text-stone-300' 
-                        : 'bg-stone-950/50 border-stone-900 text-stone-600 opacity-50 cursor-not-allowed'}`}
+                      ${isDelivery
+                        ? 'bg-red-950/80 border-red-900 text-white hover:bg-red-900'
+                        : canSelect 
+                          ? 'bg-stone-950 border-stone-800 hover:bg-stone-800 text-stone-300' 
+                          : 'bg-stone-950/50 border-stone-900 text-stone-600 opacity-50 cursor-not-allowed'}`}
                   >
-                    <span className="text-2xl">{meal.icon}</span>
+                    {isDelivery ? (
+                      <Bike className="w-7 h-7 text-white" />
+                    ) : isFasting ? (
+                      <Timer className="w-7 h-7 text-blue-400" />
+                    ) : isMeh ? (
+                      <span className="text-2xl w-7 h-7 flex items-center justify-center">🤷</span>
+                    ) : (
+                      <span className="text-2xl w-7 h-7 flex items-center justify-center">{meal.icon}</span>
+                    )}
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold">{meal.name}</span>
-                      <span className="text-[10px] text-stone-500">
+                      <span className={`text-xs font-bold ${isDelivery ? 'text-white' : ''}`}>{meal.name}</span>
+                      <span className={`text-[10px] ${isDelivery ? 'text-red-200' : 'text-stone-500'}`}>
                         {canSelect ? 'Disponible' : 'Agotado'}
                       </span>
                     </div>
@@ -293,52 +430,103 @@ const DailyFoodScoreModal = ({
             </div>
           ) : (
             <>
-              {/* 5 Action Buttons Row */}
+              {/* First Line: 3 Action Buttons + Eaten Dishes */}
               <div className="grid grid-cols-5 gap-2">
-                <button onClick={handleLunchClick} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.lunch ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
-                  {score.lunchMeal ? (
-                    <span className="text-xl leading-none">{selectableMeals.find(m => m.name === score.lunchMeal)?.icon || '🍽️'}</span>
-                  ) : (
-                    <UtensilsCrossed className="w-5 h-5" />
-                  )}
-                  <span className="text-[10px] font-black">+1</span>
-                </button>
-                <button onClick={handleDinnerClick} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.dinner ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
-                  {score.dinnerMeal ? (
-                    <span className="text-xl leading-none">{selectableMeals.find(m => m.name === score.dinnerMeal)?.icon || '🍽️'}</span>
-                  ) : (
-                    <UtensilsCrossed className="w-5 h-5" />
-                  )}
-                  <span className="text-[10px] font-black">+1</span>
-                </button>
+                {(() => {
+                  const isLunchDelivery = score.lunch && score.lunchMeal === 'A domicilio';
+                  const isDinnerDelivery = score.dinner && score.dinnerMeal === 'A domicilio';
+                  return (
+                    <>
+                      <button 
+                        onClick={handleLunchClick} 
+                        className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                          isLunchDelivery
+                            ? 'bg-red-500/20 border-red-500/50 text-red-400'
+                            : score.lunch 
+                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' 
+                              : 'bg-stone-950 border-stone-800 text-stone-500'
+                        }`}
+                      >
+                        {score.lunchMeal ? (
+                          score.lunchMeal === 'A domicilio' ? (
+                            <Bike className="w-5 h-5 text-red-400 shrink-0" />
+                          ) : score.lunchMeal === 'Ayuno' ? (
+                            <Timer className="w-5 h-5 text-blue-400 shrink-0" />
+                          ) : (
+                            <span className="text-xl leading-none">{selectableMeals.find(m => m.name === score.lunchMeal)?.icon || '🍽️'}</span>
+                          )
+                        ) : (
+                          <UtensilsCrossed className="w-5 h-5" />
+                        )}
+                        <span className="text-[10px] font-black">{getLunchPointsLabel()}</span>
+                      </button>
+                      <button 
+                        onClick={handleDinnerClick} 
+                        className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                          isDinnerDelivery
+                            ? 'bg-red-500/20 border-red-500/50 text-red-400'
+                            : score.dinner 
+                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' 
+                              : 'bg-stone-950 border-stone-800 text-stone-500'
+                        }`}
+                      >
+                        {score.dinnerMeal ? (
+                          score.dinnerMeal === 'A domicilio' ? (
+                            <Bike className="w-5 h-5 text-red-400 shrink-0" />
+                          ) : score.dinnerMeal === 'Ayuno' ? (
+                            <Timer className="w-5 h-5 text-blue-400 shrink-0" />
+                          ) : (
+                            <span className="text-xl leading-none">{selectableMeals.find(m => m.name === score.dinnerMeal)?.icon || '🍽️'}</span>
+                          )
+                        ) : (
+                          <UtensilsCrossed className="w-5 h-5" />
+                        )}
+                        <span className="text-[10px] font-black">{getDinnerPointsLabel()}</span>
+                      </button>
+                    </>
+                  );
+                })()}
                 <button onClick={() => toggle('fasting')} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.fasting ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
                   <Timer className="w-5 h-5" />
                   <span className="text-[10px] font-black">+2</span>
                 </button>
-                <button onClick={() => toggle('deliveryLunch')} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.deliveryLunch ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
-                  <Bike className="w-5 h-5" />
-                  <span className="text-[10px] font-black">-2</span>
-                </button>
-                <button onClick={() => toggle('deliveryDinner')} className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${score.deliveryDinner ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-stone-950 border-stone-800 text-stone-500'}`}>
-                  <Bike className="w-5 h-5" />
-                  <span className="text-[10px] font-black">-2</span>
-                </button>
-              </div>
-
-              {/* Selected Meals Info & Calories */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex flex-col justify-center min-h-[3rem]">
+                
+                {/* Eaten Dishes Box */}
+                <div className="col-span-2 bg-stone-950 border border-stone-800 rounded-xl p-2 flex flex-col justify-center min-h-[3rem]">
                   {score.lunchMeal && (
-                    <span className="text-emerald-400 font-bold text-sm truncate">{score.lunchMeal}</span>
+                    <span className={`font-bold text-[10px] truncate flex items-center gap-1 leading-tight ${score.lunchMeal === 'A domicilio' ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {score.lunchMeal === 'A domicilio' ? (
+                        <Bike className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      ) : score.lunchMeal === 'Ayuno' ? (
+                        <Timer className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      ) : (
+                        <span>{selectableMeals.find(m => m.name === score.lunchMeal)?.icon}</span>
+                      )}
+                      <span className="truncate">{score.lunchMeal}</span>
+                    </span>
                   )}
                   {score.dinnerMeal && (
-                    <span className="text-emerald-400 font-bold text-sm truncate">{score.dinnerMeal}</span>
+                    <span className={`font-bold text-[10px] truncate flex items-center gap-1 leading-tight mt-0.5 ${score.dinnerMeal === 'A domicilio' ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {score.dinnerMeal === 'A domicilio' ? (
+                        <Bike className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      ) : score.dinnerMeal === 'Ayuno' ? (
+                        <Timer className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      ) : (
+                        <span>{selectableMeals.find(m => m.name === score.dinnerMeal)?.icon}</span>
+                      )}
+                      <span className="truncate">{score.dinnerMeal}</span>
+                    </span>
                   )}
                   {!score.lunchMeal && !score.dinnerMeal && (
-                    <span className="text-stone-700 font-bold text-xs italic">Sin platos</span>
+                    <span className="text-stone-700 font-bold text-[10px] italic text-center">Sin platos</span>
                   )}
                 </div>
-                <div className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex items-center gap-2">
+              </div>
+
+              {/* Second Line: Calories + FAH Grid */}
+              <div className="grid grid-cols-2 gap-2 items-stretch">
+                {/* Calories Input */}
+                <div className="bg-stone-950 border border-stone-800 rounded-xl p-2 flex items-center justify-between h-[60px]">
                   <input
                     type="number"
                     step="50"
@@ -349,55 +537,77 @@ const DailyFoodScoreModal = ({
                       setScore(newScore);
                       onSave(newScore);
                     }}
-                    className="w-full bg-transparent text-stone-300 font-bold text-right outline-none placeholder:text-stone-700"
+                    className="w-full bg-transparent text-stone-300 font-bold text-right outline-none placeholder:text-stone-700 text-sm"
                   />
-                  <span className="text-stone-500 font-bold text-sm">kcal</span>
+                  <span className="text-stone-500 font-bold text-xs ml-1">kcal</span>
                 </div>
-              </div>
 
-              {/* FAH 4-button grid */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-2">
-                        <CakeSliceOff className="w-4 h-4 text-orange-500" />
-                        <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Azúcar / Fritos / Harinas</span>
-                    </div>
-                    <span className="text-[10px] font-black text-orange-600/80">-{Math.max(0, (score.fah || []).filter(v => v).length - 1)}</span>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                    {[0, 1, 2, 3].map(idx => {
-                        const isActive = (score.fah || [])[idx];
-                        const isFirst = idx === 0;
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => toggleFah(idx)}
-                                className={`aspect-square rounded-xl border flex items-center justify-center transition-all ${
-                                    isActive 
-                                        ? isFirst
-                                            ? 'bg-stone-100/20 border-stone-200 text-stone-100 shadow-[0_0_10px_rgba(255,255,255,0.1)]'
-                                            : 'bg-red-600/20 border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.1)]' 
-                                        : 'bg-stone-950 border-stone-800 text-stone-900'
-                                }`}
-                            >
-                                <CakeSliceOff className={`w-5 h-5 ${isActive ? 'opacity-100' : 'opacity-20'}`} />
-                            </button>
-                        );
-                    })}
+                {/* FAH 2x2 grid */}
+                <div className="grid grid-cols-2 gap-1 h-[60px]">
+                  {[0, 1, 2, 3].map(idx => {
+                      const isActive = (score.fah || [])[idx];
+                      const isFirst = idx === 0;
+                      return (
+                          <button
+                              key={idx}
+                              onClick={() => toggleFah(idx)}
+                              className={`h-full rounded-lg border flex items-center justify-center transition-all ${
+                                  isActive 
+                                      ? isFirst
+                                          ? 'bg-stone-100/20 border-stone-200 text-stone-100'
+                                          : 'bg-red-600/20 border-red-500 text-red-500' 
+                                      : 'bg-stone-950 border-stone-800 text-stone-900'
+                              }`}
+                          >
+                              <CakeSliceOff className={`w-3.5 h-3.5 ${isActive ? 'opacity-100' : 'opacity-25'}`} />
+                          </button>
+                      );
+                  })}
                 </div>
               </div>
-          </>
-        )}
+            </>
+          )}
         </div>
 
         {!selectingMealFor && (
-          <div className="p-4 border-t border-stone-800 bg-stone-900/50 flex items-center justify-center shrink-0">
-              <div className="flex flex-col items-center">
-                  <span className="text-[10px] text-stone-500 font-black uppercase tracking-[0.2em] mb-1">Total Día</span>
-                  <span className={`text-4xl font-black tracking-tighter ${total > 0 ? 'text-lime-500' : total < 0 ? 'text-red-500' : 'text-stone-400'}`}>
-                    {total > 0 ? `+${total}` : total}
-                  </span>
-              </div>
+          <div className="px-6 py-4 bg-stone-900/50 shrink-0">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'organs' as const, label: 'Órganos' },
+                { id: 'legumes' as const, label: 'Legumbres' },
+                { id: 'fast24' as const, label: 'Ayuno 24h' }
+              ].map(bonus => {
+                const checked = !!score[bonus.id];
+                const disabled = isWeeklyBonusDisabled(bonus.id);
+                return (
+                  <button
+                    key={bonus.id}
+                    disabled={disabled}
+                    onClick={() => {
+                      const newScore = { ...score, [bonus.id]: !checked };
+                      setScore(newScore);
+                      onSave(newScore);
+                    }}
+                    className={`py-2 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
+                      checked
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                        : disabled
+                          ? 'bg-stone-950/20 border-stone-900/50 text-stone-700 opacity-40 cursor-not-allowed'
+                          : 'bg-stone-950 border-stone-800 text-stone-500 hover:bg-stone-800'
+                    }`}
+                  >
+                    {bonus.id === 'organs' ? (
+                      <LiverIcon className={`w-5 h-5 ${checked ? 'text-red-400' : 'text-stone-500'}`} />
+                    ) : bonus.id === 'legumes' ? (
+                      <BeansIcon className={`w-5 h-5 ${checked ? 'text-amber-500' : 'text-stone-500'}`} />
+                    ) : (
+                      <Timer className={`w-5 h-5 ${checked ? 'text-blue-400' : 'text-stone-500'}`} />
+                    )}
+                    <span className="text-[8px] font-bold uppercase">{bonus.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -423,6 +633,38 @@ const CakeSliceOff = ({ className }: { className?: string }) => (
     <path d="m7.2 7.9-3.388 2.5A2 2 0 0 0 3 12.01V20a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-8.654c0-2-2.44-6.026-6.44-8.026a1 1 0 0 0-1.082.057L10.4 5.6" />
     <circle cx="9" cy="7" r="2" />
     <line x1="2" y1="2" x2="22" y2="22" />
+  </svg>
+);
+
+const LiverIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M20.25 9.75c-.3-1.6-1.5-3-3.15-3.5-2.25-.67-4.1.34-5.1 1.5-.9-1.16-2.85-2.17-5.1-1.5-1.65.5-2.85 1.9-3.15 3.5C3.3 12.3 5 15.8 12 18.75c7-2.95 8.7-6.45 8.25-9z" />
+    <path d="M12 7.5v3m0 0a1.5 1.5 0 0 1-1.5 1.5m1.5-1.5a1.5 1.5 0 0 0 1.5 1.5" />
+  </svg>
+);
+
+const BeansIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M5.5 10c0-2.5 2.5-4 4-2.5s.5 4-1 5-3 0-3-2.5z" />
+    <path d="M14.5 14c0-2.5 2.5-4 4-2.5s.5 4-1 5-3 0-3-2.5z" />
   </svg>
 );
 
@@ -529,31 +771,6 @@ interface FoodBoardViewProps {
                         }}
                       />
                   )}
-                  {/* Milestone Points */}
-                  {w > 0 && milestoneValues.map(mVal => {
-                      const point = getPoint(mVal / 200);
-                      const achieved = score >= mVal;
-                      return (
-                          <g key={mVal}>
-                            <circle
-                                cx={point.x}
-                                cy={point.y}
-                                r="6"
-                                className={`${achieved ? textColorClass : 'text-stone-700'} transition-colors duration-500`}
-                                fill="currentColor"
-                            />
-                            <circle
-                                cx={point.x}
-                                cy={point.y}
-                                r="8"
-                                className="text-stone-950/20"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                            />
-                          </g>
-                      );
-                  })}
               </svg>
           </div>
       );
@@ -646,37 +863,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     setShowConfigEditor(false);
   };
 
-  const getDaysOfMonth = (offset: number) => {
-    const now = new Date();
-    const targetMonth = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    const month = targetMonth.getMonth();
-    const year = targetMonth.getFullYear();
-    
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-    
-    // Day of week for 1st (0 is Sunday)
-    const firstDayWeekday = firstDayOfMonth.getDay();
-    
-    const days: (Date | null)[] = [];
-    
-    // Empty slots before 1st
-    for (let i = 0; i < firstDayWeekday; i++) {
-      days.push(null);
-    }
-    
-    // Days of the month
-    for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
-      days.push(new Date(year, month, i));
-    }
-    
-    // Empty slots after last day to fill the last row
-    while (days.length % 7 !== 0) {
-      days.push(null);
-    }
-    
-    return days;
-  };
+
 
   const currentMonthDate = new Date();
   currentMonthDate.setMonth(currentMonthDate.getMonth() + monthOffset);
@@ -780,25 +967,41 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     };
 
     // Always update dishes for the month that the date belongs to
+    const allConfigMeals = [...activeConfig.meals, ...FIXED_SPECIAL_MEALS];
     // Handle lunch meal changes
     if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
-        const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.lunchMeal);
+        const mealConfig = allConfigMeals.find(m => m.name === oldDailyScore.lunchMeal);
         if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
     if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
-        const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.lunchMeal);
+        const mealConfig = allConfigMeals.find(m => m.name === newDailyScore.lunchMeal);
         if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
 
     // Handle dinner meal changes
     if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
-        const mealConfig = activeConfig.meals.find(m => m.name === oldDailyScore.dinnerMeal);
+        const mealConfig = allConfigMeals.find(m => m.name === oldDailyScore.dinnerMeal);
         if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
     if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
-        const mealConfig = activeConfig.meals.find(m => m.name === newDailyScore.dinnerMeal);
+        const mealConfig = allConfigMeals.find(m => m.name === newDailyScore.dinnerMeal);
         if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
+
+    const targetMonthOffset = date.getMonth() - now.getMonth() + (date.getFullYear() - now.getFullYear()) * 12;
+    const oldDerived = getDerivedBonusesForMonth(dailyScores, targetMonthOffset);
+    const newDerived = getDerivedBonusesForMonth(newScores, targetMonthOffset);
+    
+    const getBonusPoints = (bObj: any) => {
+      let pts = 0;
+      if (bObj.organs) pts += bObj.organs.filter((s: boolean) => s).length * 3;
+      if (bObj.legumes) pts += bObj.legumes.filter((s: boolean) => s).length * 3;
+      if (bObj.fast24) pts += bObj.fast24.filter((s: boolean) => s).length * 4;
+      return pts;
+    };
+    
+    const bonusDiff = getBonusPoints(newDerived) - getBonusPoints(oldDerived);
+    const totalDiff = diff + bonusDiff;
 
     const isCurrentMonthDate = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     const isCurrentMonthView = monthOffset === 0;
@@ -806,10 +1009,11 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     if (isCurrentMonthDate) {
         onUpdate({
             ...foodState,
-            score: isCurrentMonthView ? updateScore(diff) : score,
+            score: isCurrentMonthView ? updateScore(totalDiff) : score,
             dailyScores: newScores,
             dishes: newDishes,
-            history: diff !== 0 ? addHistory(isCurrentMonthView ? `Día: ${date.getDate()}` : `Retro-Día: ${date.getDate()}`, diff) : history
+            monthlyBonuses: newDerived,
+            history: totalDiff !== 0 ? addHistory(isCurrentMonthView ? `Día: ${date.getDate()}` : `Retro-Día: ${date.getDate()}`, totalDiff) : history
         });
     } else {
         const history = foodState.monthlyHistory || {};
@@ -828,10 +1032,11 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                 ...history,
                 [monthKeyForDate]: {
                     ...oldMonthData,
+                    bonuses: newDerived,
                     dishes: newDishes
                 }
             },
-            history: diff !== 0 ? addHistory(`Retro-Día: ${date.getDate()} (${monthKeyForDate})`, diff) : history
+            history: totalDiff !== 0 ? addHistory(`Retro-Día: ${date.getDate()} (${monthKeyForDate})`, totalDiff) : history
         });
     }
   };
@@ -972,7 +1177,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-28 no-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-28 no-scrollbar">
         
         {/* Main Counter */}
         <div className="flex flex-col items-center justify-center py-6">
@@ -1095,9 +1300,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
       </div>
 
         {/* Habits Grouped Section */}
-        <div className="bg-stone-900/60 rounded-[2rem] border border-stone-800/50 overflow-hidden">
+        <div className="space-y-2">
             {/* Rueda Row */}
-            <div className="p-5 border-b border-stone-800/50">
+            <div className="py-1.5 px-0">
                 <div className="flex items-center justify-between mb-3 px-1">
                     <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">La Rueda</span>
                 </div>
@@ -1107,7 +1312,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                             key={item.id}
                             onClick={() => toggleWheelItem(item.id)}
                             className={`
-                                aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300
+                                aspect-square rounded-xl flex items-center justify-center text-[26px] transition-all duration-300
                                 ${currentWheel[item.id] 
                                     ? 'bg-lime-600/20 border border-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.1)] grayscale-0 scale-105' 
                                     : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
@@ -1124,7 +1329,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             </div>
 
             {/* Brócoli Row */}
-            <div className="p-5 border-b border-stone-800/50">
+            <div className="py-1.5 px-0">
                 <div className="flex items-center justify-between mb-3 px-1">
                     <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Brócoli</span>
                 </div>
@@ -1134,7 +1339,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                             key={item.id}
                             onClick={() => handleBroccoliClick(item.id)}
                             className={`
-                                aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300
+                                aspect-square rounded-xl flex items-center justify-center text-[26px] transition-all duration-300
                                 ${currentBroccoliWheel[item.id] 
                                     ? 'bg-emerald-600/20 border border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.1)] grayscale-0 scale-105' 
                                     : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
@@ -1151,7 +1356,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             </div>
 
             {/* Bonus Row */}
-            <div className="p-5">
+            <div className="py-1.5 px-0">
                 <div className="flex items-center justify-between mb-4 px-1">
                     <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Supervivencia</span>
                 </div>
@@ -1160,12 +1365,19 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                         const squares = effectiveBonuses[bonus.id] || [false, false, false, false];
                         return (
                             <div key={bonus.id} className="flex flex-col items-center gap-3">
-                                <div className="text-2xl filter drop-shadow-sm">{bonus.icon}</div>
+                                <div className="text-stone-300 filter drop-shadow-sm">
+                                  {bonus.id === 'organs' ? (
+                                    <LiverIcon className="w-7 h-7 text-red-400" />
+                                  ) : bonus.id === 'legumes' ? (
+                                    <BeansIcon className="w-7 h-7 text-amber-500" />
+                                  ) : (
+                                    <Timer className="w-7 h-7 text-blue-400" />
+                                  )}
+                                </div>
                                 <div className="grid grid-cols-2 gap-1.5">
                                     {squares.map((isActive, idx) => (
-                                        <button
+                                        <div
                                             key={`${bonus.id}-${idx}`}
-                                            onClick={() => handleBonus(bonus.id, idx, bonus.points)}
                                             className={`w-6 h-6 rounded-md border transition-all duration-300 ${
                                                 isActive 
                                                     ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]' 
@@ -1186,13 +1398,6 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
 
         {/* Meal Checklist (Platos Cocinados) */}
         <div className="space-y-4 pt-4 border-t border-stone-800">
-            <div className="flex items-center justify-between px-1">
-                <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-widest">Menú del Superviviente</h3>
-                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-red-500/80">
-                    <Bike className="w-3.5 h-3.5" />
-                    <span>Domicilio: {monthlyDeliveryCount}</span>
-                </div>
-            </div>
             <div className="bg-stone-900/60 rounded-3xl overflow-hidden border border-stone-800">
                 {[...activeConfig.meals].sort((a, b) => {
                     const aCount = getDishCount(a.name, a.max);
@@ -1208,41 +1413,90 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                     const bStatus = getStatus(bCount, b.max);
 
                     return aStatus - bStatus;
-                }).map((meal, index) => {
+                }).concat(FIXED_SPECIAL_MEALS).map((meal, index) => {
                     const count = getDishCount(meal.name, meal.max);
                     const isFull = count === meal.max;
                     const hasAny = count > 0;
+                    
+                    const isDelivery = meal.name === 'A domicilio';
+                    const isFasting = meal.name === 'Ayuno';
+                    const isMeh = meal.name === 'Meh';
+                    const isSpecial = isDelivery || isFasting || isMeh;
+
                     return (
                         <div
                             key={`${meal.name}-${index}`}
                             className={`
                                 w-full flex items-center justify-between p-3 border-b border-stone-800/50 last:border-0 transition-all
-                                ${isFull ? 'bg-emerald-600' : hasAny ? 'bg-yellow-900/20' : ''}
+                                ${isDelivery 
+                                  ? 'bg-red-950/80 text-white' 
+                                  : isFull 
+                                    ? 'bg-emerald-600' 
+                                    : hasAny 
+                                      ? 'bg-yellow-900/20' 
+                                      : ''}
                             `}
                         >
                             <button 
                                 onClick={() => decrementDish(meal.name, meal.max)}
                                 disabled={count === 0}
-                                className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-colors border ${isFull ? 'bg-emerald-700 border-emerald-500 text-emerald-950 hover:bg-emerald-800' : 'bg-stone-950 border-stone-800 text-stone-300 hover:bg-stone-800'}`}
+                                className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-colors border ${
+                                    isDelivery
+                                      ? 'bg-red-900 border-red-700 text-white hover:bg-red-800 disabled:opacity-20'
+                                      : isFull 
+                                        ? 'bg-emerald-700 border-emerald-500 text-emerald-950 hover:bg-emerald-800' 
+                                        : 'bg-stone-950 border-stone-800 text-stone-300 hover:bg-stone-800'
+                                  }`}
                             >
                                 -
                             </button>
                             
-                            <div className="flex-1 flex items-center gap-3 px-4">
-                                <span className="text-2xl">{meal.icon}</span>
-                                <span className={`text-sm font-bold tracking-tight transition-colors ${isFull ? 'text-stone-950' : hasAny ? 'text-yellow-400' : 'text-stone-300'}`}>
+                            <div className="flex-1 flex items-center gap-3 px-4 relative">
+                                {isDelivery ? (
+                                  <Bike className="w-6 h-6 text-red-400 shrink-0" />
+                                ) : isFasting ? (
+                                  <Timer className="w-6 h-6 text-blue-400 shrink-0" />
+                                ) : isMeh ? (
+                                  <span className="text-2xl w-6 h-6 flex items-center justify-center shrink-0">🤷</span>
+                                ) : (
+                                  <span className="text-2xl w-6 h-6 flex items-center justify-center shrink-0">{meal.icon}</span>
+                                )}
+                                <span className={`text-sm font-bold tracking-tight transition-colors ${
+                                    isSpecial 
+                                      ? 'flex-1 text-center pr-6' 
+                                      : isFull 
+                                        ? 'text-stone-950' 
+                                        : hasAny 
+                                          ? 'text-yellow-400' 
+                                          : 'text-stone-300'
+                                  } ${isDelivery ? 'text-white' : ''}`}
+                                >
                                     {meal.name}
                                 </span>
                             </div>
 
                             <div className="flex items-center gap-3">
-                                <span className={`text-xs font-bold ${isFull ? 'text-emerald-950' : hasAny ? 'text-yellow-500' : 'text-stone-500'}`}>
+                                <span className={`text-xs font-bold ${
+                                    isDelivery 
+                                      ? 'text-red-300' 
+                                      : isFull 
+                                        ? 'text-emerald-950' 
+                                        : hasAny 
+                                          ? 'text-yellow-500' 
+                                          : 'text-stone-500'
+                                  }`}>
                                     {count} de {meal.max}
                                 </span>
                                 <button 
                                     onClick={() => incrementDish(meal.name, meal.max)}
                                     disabled={isFull}
-                                    className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-colors border ${isFull ? 'bg-emerald-700 border-emerald-500 text-emerald-950 hover:bg-emerald-800' : 'bg-stone-950 border-stone-800 text-lime-500 hover:bg-stone-800'}`}
+                                    className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-colors border ${
+                                        isDelivery
+                                          ? 'bg-red-900 border-red-700 text-white hover:bg-red-800 disabled:opacity-20'
+                                          : isFull 
+                                            ? 'bg-emerald-700 border-emerald-500 text-emerald-950 hover:bg-emerald-800' 
+                                            : 'bg-stone-950 border-stone-800 text-lime-500 hover:bg-stone-800'
+                                      }`}
                                 >
                                     +
                                 </button>
