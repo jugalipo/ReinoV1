@@ -13,8 +13,8 @@ import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { ToolsView } from './components/ToolsView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen, Timer } from 'lucide-react';
-import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb } from './firebase';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
+import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
@@ -1013,7 +1013,9 @@ function App() {
   const [selectedEnergy, setSelectedEnergy] = useState<number | null>(null);
 
   // New Modo Telón form states
-  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food'>('energy');
+  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'diary'>('energy');
+  const [formDiaryContent, setFormDiaryContent] = useState<string>('');
+  const [focusCameFromTelon, setFocusCameFromTelon] = useState<boolean>(false);
   const [formEnergy, setFormEnergy] = useState<number | null>(null);
   const [formMovieWatched, setFormMovieWatched] = useState<boolean>(false);
   const [formMovieTitle, setFormMovieTitle] = useState<string>('');
@@ -2434,9 +2436,57 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
     // Update state to trigger Firestore sync
     setData(nextData);
+  };
 
-    // Call Gemini
-    await fetchGeminiRecommendation(formEnergy);
+  const saveDiaryToAspavientos = async (content: string) => {
+    if (!user) return;
+    try {
+      const metaDocRef = doc(aspavientosDb, 'metadata', 'meta');
+      const metaSnap = await getDoc(metaDocRef);
+      let lastEntryNumber = 0;
+      let totalEntries = 0;
+      let existingMeta = {};
+      
+      if (metaSnap.exists()) {
+        existingMeta = metaSnap.data();
+        lastEntryNumber = existingMeta.lastEntryNumber || 0;
+        totalEntries = existingMeta.totalEntries || 0;
+      }
+      
+      const newId = lastEntryNumber + 1;
+      const now = Date.now();
+      
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const year = yesterday.getFullYear();
+      const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+      const day = String(yesterday.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      const entry = {
+        id: newId,
+        date: dateStr,
+        content: content,
+        palabrario: [],
+        flores: "",
+        createdAt: now,
+        updatedAt: now
+      };
+      
+      const entryDocRef = doc(aspavientosDb, 'entries', newId.toString());
+      await setDoc(entryDocRef, entry);
+      
+      const updatedMeta = {
+        ...existingMeta,
+        lastEntryNumber: newId,
+        totalEntries: totalEntries + 1,
+        lastUpdated: now
+      };
+      await setDoc(metaDocRef, updatedMeta);
+      console.log("Guardada entrada en Aspavientos:", newId, dateStr);
+    } catch (e) {
+      console.error("Error guardando en la base de datos de Aspavientos:", e);
+    }
   };
 
   const triggerTelonManually = () => {
@@ -2462,6 +2512,8 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     setFormBookDiaryNumber('');
 
     setFormFoodChoice('saltar');
+    setFormDiaryContent('');
+    setFocusCameFromTelon(false);
     setSelectedEnergy(null);
     
     setShowHistory(false);
@@ -2617,6 +2669,56 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     }
   };
 
+  const handleTelonBack = () => {
+    if (telonStep === 'movie_ask') {
+      setTelonStep('energy');
+      setFormEnergy(null);
+    } else if (telonStep === 'movie_fields') {
+      setTelonStep('movie_ask');
+    } else if (telonStep === 'book_ask') {
+      if (formMovieWatched) {
+        setTelonStep('movie_fields');
+      } else {
+        setTelonStep('movie_ask');
+      }
+    } else if (telonStep === 'book_fields') {
+      setTelonStep('book_ask');
+    } else if (telonStep === 'food') {
+      if (shouldAskBookForm()) {
+        if (formBookRead) {
+          setTelonStep('book_fields');
+        } else {
+          setTelonStep('book_ask');
+        }
+      } else {
+        if (formMovieWatched) {
+          setTelonStep('movie_fields');
+        } else {
+          setTelonStep('movie_ask');
+        }
+      }
+    } else if (telonStep === 'diary') {
+      const unlogged = getUnloggedMealInfo();
+      if (unlogged) {
+        setTelonStep('food');
+      } else if (shouldAskBookForm()) {
+        if (formBookRead) {
+          setTelonStep('book_fields');
+        } else {
+          setTelonStep('book_ask');
+        }
+      } else {
+        if (formMovieWatched) {
+          setTelonStep('movie_fields');
+        } else {
+          setTelonStep('movie_ask');
+        }
+      }
+    } else if (telonStep === 'focus') {
+      setTelonStep('diary');
+    }
+  };
+
   const renderModoTelon = () => {
     const isCompleted = isPriorityTaskCompleted(priorityTaskId);
     const taskText = getPriorityTaskText(priorityTaskId);
@@ -2650,73 +2752,37 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-amber-500/5 blur-3xl rounded-full pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-yellow-500/5 blur-3xl rounded-full pointer-events-none" />
 
-        <header className="flex justify-between items-center z-10 mb-6 mt-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
-            <h2 className="text-xs font-black tracking-[0.2em] text-stone-400 uppercase">Modo Telón</h2>
+        <header className="flex justify-between items-center z-10 mb-6 mt-4 min-h-[32px]">
+          <div>
+            {telonStep !== 'energy' && (
+              <button
+                type="button"
+                onClick={handleTelonBack}
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Atrás
+              </button>
+            )}
           </div>
           <button
             onClick={() => {
               setModoTelonActive(false);
               setTelonDismissed(true);
             }}
-            className="text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors py-1.5 px-3 rounded-full border border-stone-850 hover:bg-stone-900/50"
+            className="text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors py-1.5 px-3 rounded-full hover:bg-stone-900/50"
           >
             Saltar a la App
           </button>
         </header>
 
         <div className="flex-1 flex flex-col justify-center items-center z-10 max-w-sm mx-auto w-full overflow-hidden">
-          {selectedEnergy === null ? (
-            <div className="w-full space-y-6 animate-in fade-in duration-300 pr-2">
-              {/* Back navigation */}
-              {telonStep !== 'energy' && (
-                <div className="w-full text-left">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (telonStep === 'movie_ask') {
-                        setTelonStep('energy');
-                        setFormEnergy(null);
-                      } else if (telonStep === 'movie_fields') {
-                        setTelonStep('movie_ask');
-                      } else if (telonStep === 'book_ask') {
-                        if (formMovieWatched) {
-                          setTelonStep('movie_fields');
-                        } else {
-                          setTelonStep('movie_ask');
-                        }
-                      } else if (telonStep === 'book_fields') {
-                        setTelonStep('book_ask');
-                      } else if (telonStep === 'food') {
-                        if (shouldAskBookForm()) {
-                          if (formBookRead) {
-                            setTelonStep('book_fields');
-                          } else {
-                            setTelonStep('book_ask');
-                          }
-                        } else {
-                          if (formMovieWatched) {
-                            setTelonStep('movie_fields');
-                          } else {
-                            setTelonStep('movie_ask');
-                          }
-                        }
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors"
-                  >
-                    <ArrowLeft className="w-3 h-3" />
-                    Atrás
-                  </button>
-                </div>
-              )}
-
+          <div className="w-full space-y-6 animate-in fade-in duration-300 pr-2">
               {telonStep === 'energy' && (
                 <div className="w-full text-center space-y-8 animate-in fade-in duration-500">
                   <div className="space-y-3">
                     <h1 className="text-3xl font-black text-stone-100 tracking-tighter uppercase italic">
-                      Nivel de Energía
+                      Energía
                     </h1>
                   </div>
 
@@ -3110,14 +3176,16 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
               {telonStep === 'food' && unloggedMeal && (
                 <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-lg mx-auto text-left">
                   <div className="space-y-1 text-center">
-                    <div className="w-12 h-12 bg-emerald-950/40 border border-emerald-500/30 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-                      <Utensils className="w-6 h-6" />
+                    <div className="flex items-center justify-center gap-3 mb-2">
+                      <div className="w-8 h-8 bg-emerald-950/40 border border-emerald-500/30 text-emerald-500 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.1)] shrink-0">
+                        <Utensils className="w-4 h-4" />
+                      </div>
+                      <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic leading-none">
+                        Jumangiare
+                      </h2>
                     </div>
-                    <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
-                      Jumangiare
-                    </h2>
-                    <p className="text-stone-400 text-xs font-medium leading-relaxed">
-                      {unloggedMeal.question}
+                    <p className="text-stone-400 text-xs font-medium text-center">
+                      ¿Qué comiste?
                     </p>
                   </div>
 
@@ -3127,7 +3195,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         <button
                           key={meal.name}
                           type="button"
-                          onClick={() => handleCompleteDailyForm(meal.name)}
+                          onClick={() => {
+                            setFormFoodChoice(meal.name);
+                            setTelonStep('diary');
+                          }}
                           className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-emerald-500 hover:bg-emerald-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                         >
                           <span className="text-sm">{meal.icon}</span>
@@ -3137,107 +3208,85 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
                       <button
                         type="button"
-                        onClick={() => handleCompleteDailyForm('ayuno')}
-                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-blue-500 hover:bg-blue-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                        onClick={() => {
+                          setFormFoodChoice('ayuno');
+                          setTelonStep('diary');
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-blue-950/30 border border-blue-900/30 text-blue-300 hover:border-blue-500 hover:bg-blue-950/50 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
-                        <span className="text-sm">⏱️</span>
+                        <Timer className="w-4 h-4 text-blue-400 shrink-0" />
                         <span>Ayuno</span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => handleCompleteDailyForm('delivery')}
-                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-red-500 hover:bg-red-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                        onClick={() => {
+                          setFormFoodChoice('delivery');
+                          setTelonStep('diary');
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-red-950/50 border border-red-900/40 text-red-300 hover:border-red-500 hover:bg-red-950/70 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
-                        <span className="text-sm">🚴</span>
+                        <Bike className="w-4 h-4 text-red-400 shrink-0" />
                         <span>A domicilio</span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => handleCompleteDailyForm('saltar')}
-                        className="px-3.5 py-2 rounded-xl bg-stone-900 border border-transparent text-stone-400 hover:border-stone-700 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
+                        onClick={() => {
+                          setFormFoodChoice('saltar');
+                          setTelonStep('diary');
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-400 hover:border-stone-600 hover:bg-stone-900/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
-                        <span className="text-sm">❌</span>
-                        <span>Saltar / No registrar</span>
+                        <span className="text-sm">🤷</span>
+                        <span>Meh</span>
                       </button>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="w-full space-y-6 animate-in fade-in zoom-in-95 duration-500">
-              {geminiLoading ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse" />
-                    <div className="w-16 h-16 border-2 border-stone-800 border-t-amber-500 rounded-full animate-spin relative z-10" />
+              {telonStep === 'diary' && (
+                <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
+                  <div className="space-y-1 text-center">
+                    <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
+                      Aspavientos
+                    </h2>
+                    <p className="text-stone-400 text-xs font-medium leading-relaxed">
+                      ¿Qué recuerdas de ayer?
+                    </p>
                   </div>
-                  <p className="text-stone-400 text-xs font-black uppercase tracking-widest animate-pulse">
-                    Consultando a Sebastian...
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {sebastianResponse && (
-                    <div className="bg-stone-900/40 backdrop-blur-md rounded-3xl p-6 relative overflow-hidden shadow-xl">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
-                      <div className="text-stone-300 italic text-sm leading-relaxed space-y-3">
-                        {sebastianResponse.split('\n').map((line, idx) => (
-                          <p key={idx} className={idx === 1 ? "font-medium" : ""}>
-                            {line}
-                          </p>
-                        ))}
-                      </div>
+
+                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div className="space-y-1">
+                      <textarea
+                        placeholder="Escribe aquí tus recuerdos de ayer..."
+                        value={formDiaryContent}
+                        onChange={(e) => setFormDiaryContent(e.target.value)}
+                        className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full min-h-[180px] resize-none transition-colors leading-relaxed"
+                      />
                     </div>
-                  )}
-
-                  {priorityTaskId && priorityTaskId !== 'none' && (
-                    <div className="bg-stone-900/70 backdrop-blur-md border border-stone-800 rounded-3xl p-6 shadow-xl flex flex-col items-center text-center space-y-4">
-                      <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
-                        Tarea Prioritaria · {taskType}
-                      </span>
-                      
-                      <h3 className={`text-xl font-black tracking-tight leading-tight max-w-[280px] ${isCompleted ? 'text-stone-500 line-through opacity-70' : 'text-stone-100'}`}>
-                        {taskText}
-                      </h3>
-
-                      <button
-                        onClick={() => handlePriorityTaskToggle(priorityTaskId)}
-                        className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
-                          isCompleted
-                            ? 'bg-amber-600 border-amber-500 text-stone-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] scale-105 hover:bg-amber-500'
-                            : 'border-stone-700 text-stone-400 bg-stone-950/50 hover:border-amber-500 hover:text-amber-200'
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <Check className="w-8 h-8 stroke-[4]" />
-                        ) : (
-                          <div className="w-3 h-3 rounded-full bg-stone-800" />
-                        )}
-                      </button>
-
-                      <p className="text-[9px] text-stone-500 font-bold uppercase tracking-wider">
-                        {isCompleted ? '¡Tarea Completada!' : 'Marcar como Completada'}
-                      </p>
-                    </div>
-                  )}
+                  </div>
 
                   <button
-                    onClick={() => {
+                    type="button"
+                    onClick={async () => {
+                      if (formDiaryContent.trim()) {
+                        await saveDiaryToAspavientos(formDiaryContent.trim());
+                      }
+                      await handleCompleteDailyForm(formFoodChoice, formMovieWatched, formBookRead);
                       setModoTelonActive(false);
                       setTelonDismissed(true);
+                      setFocusCameFromTelon(true);
+                      await fetchFocusRecommendation();
                     }}
-                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 font-black text-sm uppercase tracking-widest italic hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-amber-950/20"
+                    className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer text-center"
                   >
-                    Entrar al Reino
+                    Siguiente
                   </button>
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
         <footer className="mt-12 text-center text-stone-800 text-[10px] font-bold tracking-widest uppercase z-10 shrink-0">
           Sebastian · Reino de la Voluntad
@@ -5163,6 +5212,20 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                 {/* Header */}
                 <div className="flex justify-between items-center pb-2 mb-2">
                   <div className="flex items-center gap-3">
+                    {focusCameFromTelon && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModoTelonActive(true);
+                          setTelonStep('diary');
+                          setShowFocusModal(false);
+                        }}
+                        className="p-2 hover:bg-stone-900 rounded-xl transition-colors active:scale-95 shrink-0"
+                        title="Atrás"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-stone-400 hover:text-stone-200" />
+                      </button>
+                    )}
                     <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
                       <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
                     </div>
@@ -5483,7 +5546,10 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         {!hideFloatingButtons && (
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-stone-900/90 backdrop-blur-md border-t border-stone-800 border-x border-stone-900 px-6 py-4 flex gap-4 z-[90] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
             <button 
-              onClick={fetchFocusRecommendation} 
+              onClick={() => {
+                setFocusCameFromTelon(false);
+                fetchFocusRecommendation();
+              }}
               className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-stone-950/50 hover:bg-stone-950/80 text-amber-500 hover:text-amber-400 shadow-sm transition-all active:scale-95 font-bold text-sm uppercase tracking-tighter italic"
               title="Enfoque"
             >

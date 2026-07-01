@@ -21,6 +21,7 @@ export const db = initializeFirestore(app, {
 export const carteleraDb = getFirestore(app, "cartelera");
 export const bibliotecaDb = getFirestore(app, "biblioteca");
 export const bosqueDb = getFirestore(app, "sir-salud");
+export const aspavientosDb = getFirestore(app, "aspavientos");
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
