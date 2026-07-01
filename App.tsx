@@ -1391,10 +1391,13 @@ Ejemplo de respuesta en "text":
         throw new Error("GEMINI_API_KEY is not defined.");
       }
 
+      const energyLevel = data.energy;
       const promptText = `
 Eres Sebastian, el mayordomo del Reino. Tu señor te ha pedido una recomendación rápida ("Enfoque") para retomar el hilo del día.
 Analiza la lista de tareas pendientes en sus backlogs y selecciona una única tarea prioritaria para retomar el rumbo de forma inmediata.
 
+${energyLevel !== undefined && energyLevel !== null ? `El nivel de energía actual de tu señor para hoy es: ${energyLevel}/10. Selecciona una tarea acorde a este nivel de energía (por ejemplo, si su energía es baja, prioriza tareas más rápidas o simples; si su energía es alta, puedes proponer una tarea compleja o de mayor esfuerzo).
+` : ''}
 ${data.sebastianInstructions ? `Directrices y preferencias de tu señor:
 ${data.sebastianInstructions}
 
