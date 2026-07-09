@@ -152,13 +152,30 @@ function buildEmailHtml(task: Task | null, magicLink: string, appDomain: string)
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
   <title>El Reino — Boletín Diario</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      supported-color-schemes: dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #09090b !important;
+      }
+      .email-card {
+        background-color: #121214 !important;
+        color: #ffffff !important;
+      }
+    }
+  </style>
 </head>
 <body style="margin:0;padding:0;background-color:#09090b;font-family: Georgia, 'Times New Roman', serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #09090b; padding: 40px 0;">
     <tr>
       <td align="center">
-        <div style="max-width: 600px; width: 100%; border: 1px solid #3c352a; border-radius: 12px; overflow: hidden; background-color: #121214; color: #ffffff; box-shadow: 0 12px 40px rgba(0,0,0,0.6); text-align: left;">
+        <div class="email-card" style="max-width: 600px; width: 100%; border: 1px solid #3c352a; border-radius: 12px; overflow: hidden; background-color: #121214; color: #ffffff; box-shadow: 0 12px 40px rgba(0,0,0,0.6); text-align: left;">
           
           <!-- CABECERA -->
           <div style="background: linear-gradient(135deg, #1e1b18 0%, #0f0e0d 100%); padding: 35px 30px; text-align: center; border-bottom: 2px solid #c5a059;">
@@ -273,7 +290,7 @@ async function sendHunoReminder(): Promise<string> {
   const html = buildEmailHtml(criticalTask, magicLink, appDomain);
 
   const subject = criticalTask
-    ? `⚔️ Llevas ${criticalTask.missedDays} día${criticalTask.missedDays !== 1 ? "s" : ""} sin ${cleanTaskText(criticalTask.text)}`
+    ? `👑 Llevas ${criticalTask.missedDays} día${criticalTask.missedDays !== 1 ? "s" : ""} sin ${cleanTaskText(criticalTask.text)}`
     : `Boletín Diario (${getFormattedDate()})`;
 
   const { data, error } = await resend.emails.send({
