@@ -33,11 +33,118 @@ interface Task {
 // ─────────────────────────────────────────────
 // Email HTML Builder
 // ─────────────────────────────────────────────
-function buildEmailHtml(task: Task, magicLink: string): string {
-  const emoji = extractEmoji(task.text);
-  const missedDays = task.missedDays || 0;
-  const urgencyColor = missedDays >= 7 ? "#ff4757" : missedDays >= 3 ? "#ffa502" : "#2ed573";
-  const urgencyLabel = missedDays >= 7 ? "🔴 CRÍTICA" : missedDays >= 3 ? "🟠 ARRASTRADA" : "🟡 PENDIENTE";
+function getFormattedDate(): string {
+  const opcionesFecha: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+  let fechaDeHoy = new Date().toLocaleDateString('es-ES', opcionesFecha);
+  fechaDeHoy = fechaDeHoy.charAt(0).toUpperCase() + fechaDeHoy.slice(1);
+  return fechaDeHoy;
+}
+
+function extractEmoji(text: string): string {
+  // Regex supporting ZWJ, variation selectors, and modifiers
+  const emojiRegex = /[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:\ufe0f|\u200d|[\u{1F3FB}-\u{1F3FF}]|[\u{2600}-\u{27BF}]|\u2642|\u2640)*/gu;
+  const match = text.match(emojiRegex);
+  return match ? match[0] : "📋";
+}
+
+function cleanTaskText(text: string): string {
+  // 1. Remove tracking prefixes like T1, H3, etc. at the start (case-insensitive, followed by space or hyphen/dot)
+  let clean = text.replace(/^[a-zA-Z]\d+\b[\s-.]*/gi, '');
+
+  // 2. Remove all emojis, symbols, and pictographs
+  const emojiRegex = /[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:\ufe0f|\u200d|[\u{1F3FB}-\u{1F3FF}]|[\u{2600}-\u{27BF}]|\u2642|\u2640)*/gu;
+  clean = clean.replace(emojiRegex, '');
+
+  // 3. Remove trailing time annotations like 20', 20m, 30 min, 1h, etc.
+  clean = clean.replace(/\s*\d+\s*(?:'|’|min|mins|m|h|hr|hrs|hs|horas?)\s*$/gi, '');
+
+  // 4. Clean up multiple spaces and trim
+  clean = clean.replace(/\s+/g, ' ').trim();
+
+  if (!clean) return "";
+
+  // 5. Lowercase the first letter of the sentence
+  return clean.charAt(0).toLowerCase() + clean.slice(1);
+}
+
+function buildEmailHtml(task: Task | null, magicLink: string, appDomain: string): string {
+  const fechaDeHoy = getFormattedDate();
+
+  // Iconografía elegante para el boletín
+  const emojiLibro = "&#128214;"; // 📖
+  const emojiCirculoRojo = "&#128308;"; // 🔴
+  const emojiSeparador = "❖";
+
+  let taskCardHtml = "";
+
+  if (task) {
+    const emoji = extractEmoji(task.text);
+    const missedDays = task.missedDays || 0;
+    const urgencyColor = missedDays >= 7 ? "#ff4757" : missedDays >= 3 ? "#ffa502" : "#2ed573";
+
+    taskCardHtml = `
+        <!-- SEPARADOR -->
+        <div style="text-align: center; margin: 40px 0;">
+          <table cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
+            <tr>
+              <td style="border-bottom: 1px solid #3c352a; width: 45%;"></td>
+              <td style="text-align: center; color: #c5a059; font-size: 14px; width: 10%; padding: 0 10px; font-family: serif;">${emojiSeparador}</td>
+              <td style="border-bottom: 1px solid #3c352a; width: 45%;"></td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- TAREA CRÍTICA -->
+        <div style="background-color: #1a1815; border: 1px solid #c5a05940; border-radius: 12px; padding: 30px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center;">
+          <h3 style="font-family: Georgia, serif; font-weight: normal; font-size: 22px; color: #ffffff; margin: 0 0 30px 0; line-height: 1.6; text-align: center;">
+            Llevas <span style="font-weight: bold; color: ${urgencyColor};">${missedDays} día${missedDays !== 1 ? "s" : ""}</span> sin<br>
+            <span style="font-weight: bold; color: #ffffff;">${cleanTaskText(task.text)}</span>
+          </h3>
+
+          <div style="text-align: center; margin-bottom: 5px;">
+            <!-- Gran círculo con la tarea del día -->
+            <a href="${magicLink}" target="_blank" 
+               style="display: inline-block; width: 110px; height: 110px; border-radius: 50%; line-height: 110px; text-align: center; background-color: #1c1a17; border: 2px solid #c5a059; font-size: 54px; text-decoration: none; box-shadow: 0 6px 20px rgba(197, 160, 89, 0.3);">
+               ${emoji}
+            </a>
+
+            <!-- Pequeño círculo centrado bajo el gran círculo con emoji de corona -->
+            <div style="margin-top: 20px;">
+              <a href="${appDomain}" target="_blank" 
+                 style="display: inline-block; width: 50px; height: 50px; border-radius: 50%; line-height: 50px; text-align: center; background-color: #1c1a17; border: 1.5px solid #c5a059; font-size: 24px; text-decoration: none; box-shadow: 0 4px 10px rgba(197, 160, 89, 0.15);">
+                 👑
+              </a>
+            </div>
+          </div>
+        </div>
+    `;
+  } else {
+    taskCardHtml = `
+        <!-- SEPARADOR -->
+        <div style="text-align: center; margin: 40px 0;">
+          <table cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
+            <tr>
+              <td style="border-bottom: 1px solid #3c352a; width: 45%;"></td>
+              <td style="text-align: center; color: #c5a059; font-size: 14px; width: 10%; padding: 0 10px; font-family: serif;">${emojiSeparador}</td>
+              <td style="border-bottom: 1px solid #3c352a; width: 45%;"></td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- SIN TAREAS CRÍTICAS -->
+        <div style="background-color: #121814; border: 1px solid #2ed57330; border-radius: 8px; padding: 25px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center;">
+          <p style="margin: 0 0 20px 0; font-size: 14px; color: #a7f3d0; font-family: Georgia, serif; font-style: italic; line-height: 1.6;">
+            ✨ Excelente noticia, señor. No tiene ninguna tarea arrastrada pendiente en el Reino. Todo se encuentra al día.
+          </p>
+          <div style="text-align: center;">
+            <a href="${appDomain}" target="_blank" 
+               style="display: inline-block; width: 50px; height: 50px; border-radius: 50%; line-height: 50px; text-align: center; background-color: #121814; border: 1.5px solid #2ed573; font-size: 24px; text-decoration: none; box-shadow: 0 4px 10px rgba(46, 213, 115, 0.15);">
+               👑
+            </a>
+          </div>
+        </div>
+    `;
+  }
 
   return `
 <!DOCTYPE html>
@@ -45,93 +152,67 @@ function buildEmailHtml(task: Task, magicLink: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>El Reino — Recordatorio Diario</title>
+  <title>El Reino — Boletín Diario</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0f0f1a;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 50%,#16213e 100%);">
+<body style="margin:0;padding:0;background-color:#09090b;font-family: Georgia, 'Times New Roman', serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #09090b; padding: 40px 0;">
     <tr>
-      <td align="center" style="padding:40px 20px;">
-        <table role="presentation" width="480" cellspacing="0" cellpadding="0" style="max-width:480px;width:100%;">
+      <td align="center">
+        <div style="max-width: 600px; width: 100%; border: 1px solid #3c352a; border-radius: 12px; overflow: hidden; background-color: #121214; color: #ffffff; box-shadow: 0 12px 40px rgba(0,0,0,0.6); text-align: left;">
+          
+          <!-- CABECERA -->
+          <div style="background: linear-gradient(135deg, #1e1b18 0%, #0f0e0d 100%); padding: 35px 30px; text-align: center; border-bottom: 2px solid #c5a059;">
+            <h1 style="color: #c5a059; margin: 0; font-size: 26px; font-weight: normal; letter-spacing: 2px; font-family: Georgia, serif;">Buenos días tenga usted</h1>
+            <p style="color: #8e8270; margin: 10px 0 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 3px; font-family: 'Segoe UI', Arial, sans-serif;">${fechaDeHoy}</p>
+          </div>
 
-          <!-- Header -->
-          <tr>
-            <td align="center" style="padding-bottom:32px;">
-              <div style="font-size:14px;letter-spacing:3px;color:#ffffff60;text-transform:uppercase;">El Reino</div>
-            </td>
-          </tr>
-
-          <!-- Emoji Hero -->
-          <tr>
-            <td align="center" style="padding-bottom:24px;">
-              <div style="font-size:64px;line-height:1;">${emoji}</div>
-            </td>
-          </tr>
-
-          <!-- Urgency Badge -->
-          <tr>
-            <td align="center" style="padding-bottom:16px;">
-              <span style="display:inline-block;background:${urgencyColor}20;color:${urgencyColor};font-size:12px;font-weight:700;letter-spacing:1.5px;padding:6px 16px;border-radius:20px;border:1px solid ${urgencyColor}40;">
-                ${urgencyLabel} · ${missedDays} DÍA${missedDays !== 1 ? "S" : ""} ARRASTRADO${missedDays !== 1 ? "S" : ""}
-              </span>
-            </td>
-          </tr>
-
-          <!-- Task Name -->
-          <tr>
-            <td align="center" style="padding-bottom:8px;">
-              <div style="font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">
-                ${task.text}
-              </div>
-            </td>
-          </tr>
-
-          <!-- Subtitle -->
-          <tr>
-            <td align="center" style="padding-bottom:32px;">
-              <div style="font-size:14px;color:#ffffff80;line-height:1.5;">
-                Esta es tu tarea más arrastrada. Un clic para completarla.
-              </div>
-            </td>
-          </tr>
-
-          <!-- CTA Button -->
-          <tr>
-            <td align="center" style="padding-bottom:40px;">
-              <a href="${magicLink}" target="_blank" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:16px 48px;border-radius:12px;letter-spacing:0.5px;box-shadow:0 4px 24px rgba(102,126,234,0.4);">
-                ✅ Completar Tarea
+          <!-- CUERPO PRINCIPAL -->
+          <div style="padding: 40px 35px; line-height: 1.8;">
+            
+            <!-- BOTÓN PRINCIPAL: GEMINI -->
+            <div style="text-align: center; margin: 10px 0 20px 0;">
+              <a href="https://gemini.google.com/gem/57fd6345e586/b8d22ffe8e46ae7d" 
+                 style="background-color: #c5a059; color: #121214; padding: 16px 35px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-family: 'Segoe UI', Arial, sans-serif; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25); text-transform: uppercase; font-size: 14px;">
+                 ${emojiLibro} Su periódico, señor
               </a>
-            </td>
-          </tr>
+            </div>
 
-          <!-- Divider -->
-          <tr>
-            <td style="padding-bottom:24px;">
-              <div style="height:1px;background:linear-gradient(90deg,transparent,#ffffff15,transparent);"></div>
-            </td>
-          </tr>
+            ${taskCardHtml}
 
-          <!-- Footer -->
-          <tr>
-            <td align="center">
-              <div style="font-size:12px;color:#ffffff30;line-height:1.6;">
-                El Reino · Recordatorio automático diario<br>
-                <span style="font-size:11px;">Enviado a las 07:00 · Zona horaria Europa/Madrid</span>
-              </div>
-            </td>
-          </tr>
+            <!-- RECORDATORIO DEL POEMA -->
+            <div style="background-color: #1e1313; padding: 25px; border-left: 4px solid #b91c1c; border-radius: 6px; margin: 30px 0 40px 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);">
+              <p style="margin: 0; font-weight: bold; color: #fecdd3; font-size: 15px; letter-spacing: 1.5px; font-family: 'Segoe UI', Arial, sans-serif; text-transform: uppercase;">
+                ${emojiCirculoRojo} No olvide su POEMA, señor
+              </p>
+            </div>
 
-        </table>
+            <!-- FIRMA -->
+            <table cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 30px;">
+              <tr>
+                <td style="width: 50%;"></td>
+                <td style="text-align: right; font-family: Georgia, serif; font-style: italic; color: #9ca3af; font-size: 15px; line-height: 1.6;">
+                  <span style="color: #c5a059; font-weight: bold; font-style: normal; font-size: 18px; letter-spacing: 0.5px; display: inline-block; margin-top: 5px;">Sebastian</span><br>
+                  <span style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; font-family: 'Segoe UI', Arial, sans-serif; display: inline-block; margin-top: 2px;">Su mayordomo</span>
+                </td>
+              </tr>
+            </table>
+
+          </div>
+
+          <!-- PIE DE PÁGINA -->
+          <div style="background-color: #0c0c0d; padding: 25px 20px; text-align: center; border-top: 1px solid #1a1a1f;">
+            <p style="margin: 0; font-size: 11px; color: #4b5563; letter-spacing: 4px; font-family: Georgia, serif; font-weight: bold; text-transform: uppercase;">
+              SEMPER ITERVM RVDIS
+            </p>
+          </div>
+
+        </div>
       </td>
     </tr>
   </table>
 </body>
-</html>`;
-}
-
-function extractEmoji(text: string): string {
-  const emojiRegex = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu;
-  const match = text.match(emojiRegex);
-  return match ? match[0] : "📋";
+</html>
+  `;
 }
 
 // ─────────────────────────────────────────────
@@ -166,34 +247,39 @@ async function sendHunoReminder(): Promise<string> {
 
   const items: Task[] = hunosSnap.data()?.items || [];
 
-  if (items.length === 0) {
-    return "ℹ️ Hunos list is empty. No email sent.";
-  }
-
   const missedTasks = items.filter(
     (t) => !t.completed && (t.missedDays ?? 0) > 0
   );
 
-  if (missedTasks.length === 0) {
-    return "✅ No missed tasks found. Great job! No email sent.";
+  const criticalTask = missedTasks.length > 0
+    ? missedTasks.reduce((worst, current) =>
+        (current.missedDays ?? 0) > (worst.missedDays ?? 0) ? current : worst
+      )
+    : null;
+
+  if (criticalTask) {
+    logger.info(
+      `Critical task selected: "${criticalTask.text}" (ID: ${criticalTask.id}, missedDays: ${criticalTask.missedDays})`
+    );
+  } else {
+    logger.info("No critical task found today. Sending generic newsletter.");
   }
 
-  const criticalTask = missedTasks.reduce((worst, current) =>
-    (current.missedDays ?? 0) > (worst.missedDays ?? 0) ? current : worst
-  );
+  const magicLink = criticalTask
+    ? `${appDomain}/?magicTask=${encodeURIComponent(criticalTask.id)}`
+    : appDomain;
 
-  logger.info(
-    `Critical task selected: "${criticalTask.text}" (ID: ${criticalTask.id}, missedDays: ${criticalTask.missedDays})`
-  );
-
-  const magicLink = `${appDomain}/?magicTask=${encodeURIComponent(criticalTask.id)}`;
   const resend = new Resend(apiKey);
-  const html = buildEmailHtml(criticalTask, magicLink);
+  const html = buildEmailHtml(criticalTask, magicLink, appDomain);
+
+  const subject = criticalTask
+    ? `⚔️ Llevas ${criticalTask.missedDays} día${criticalTask.missedDays !== 1 ? "s" : ""} sin ${cleanTaskText(criticalTask.text)}`
+    : `Boletín Diario (${getFormattedDate()})`;
 
   const { data, error } = await resend.emails.send({
     from: "El Reino <onboarding@resend.dev>",
     to: [userEmail],
-    subject: `⚔️ ${criticalTask.text} — ${criticalTask.missedDays} día${(criticalTask.missedDays ?? 0) !== 1 ? "s" : ""} arrastrado${(criticalTask.missedDays ?? 0) !== 1 ? "s" : ""}`,
+    subject: subject,
     html: html,
   });
 
@@ -202,7 +288,9 @@ async function sendHunoReminder(): Promise<string> {
     return `❌ Resend error: ${JSON.stringify(error)}`;
   }
 
-  const msg = `✅ Email sent! Task: "${criticalTask.text}" (${criticalTask.missedDays} days). Resend ID: ${data?.id}`;
+  const msg = criticalTask
+    ? `✅ Email sent! Task: "${criticalTask.text}" (${criticalTask.missedDays} days). Resend ID: ${data?.id}`
+    : `✅ Email sent! Newsletter without tasks. Resend ID: ${data?.id}`;
   logger.info(msg);
   return msg;
 }
