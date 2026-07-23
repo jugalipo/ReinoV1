@@ -23,7 +23,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   const [isEditing, setIsEditing] = useState(false);
   const [editMonthlyTasks, setEditMonthlyTasks] = useState<Task[]>([]);
   const [editAnnualTasks, setEditAnnualTasks] = useState<Task[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'star' | 'foot' | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'star' | 'foot' | 'subtasks' | null>(null);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
   useModalHistory(isEditing, () => setIsEditing(false));
@@ -44,7 +44,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
       }).join('\n');
   };
 
-  const textToTasks = (text: string, existingTasks: Task[], phase?: 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4'): Task[] => {
+  const textToTasks = (text: string, existingTasks: Task[]): Task[] => {
       const lines = text.split('\n').map(l => l.trim()).filter(l => l);
       const newTasks: Task[] = [];
       let currentTask: Task | null = null;
@@ -58,8 +58,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                   id: existing ? existing.id : Date.now().toString() + Math.random().toString(),
                   text: line,
                   completed: existing ? existing.completed : false,
-                  subtasks: existing?.subtasks?.filter(s => s.isProvisional) || [],
-                  phase: (phase || existing?.phase || 'Fase 1') as 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4'
+                  subtasks: existing?.subtasks?.filter(s => s.isProvisional) || []
               };
               newTasks.push(currentTask);
           } else {
@@ -78,8 +77,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                       id: existing ? existing.id : Date.now().toString() + Math.random().toString(),
                       text: line,
                       completed: existing ? existing.completed : false,
-                      subtasks: existing?.subtasks?.filter(s => s.isProvisional) || [],
-                      phase: (phase || existing?.phase || 'Fase 1') as 'Fase 1' | 'Fase 2' | 'Fase 3' | 'Fase 4'
+                      subtasks: existing?.subtasks?.filter(s => s.isProvisional) || []
                   };
                   newTasks.push(currentTask);
               }
@@ -373,7 +371,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   );
 
   const renderTaskList = (list: Task[], isAnnual: boolean) => {
-      if (activeFilter && !isEditing) {
+      if ((activeFilter === 'star' || activeFilter === 'foot') && !isEditing) {
           const emoji = activeFilter === 'star' ? '⭐' : '🦶';
           const allSubtasks: Array<{taskId: string, sub: any}> = [];
           list.forEach(task => {
@@ -524,62 +522,98 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
             {list.map((task) => {
                const { name, duration, accentColor } = parseTrainInfo(task.text);
                const finalAccentColor = isAnnual ? 'bg-stone-200' : accentColor;
+               const hasSubtasks = task.subtasks && task.subtasks.length > 0;
 
                return (
-                <div
-                    key={task.id}
-                    className={`relative flex items-center p-4 rounded-2xl transition-all overflow-hidden border border-stone-800 shadow-sm ${
-                    task.completed && !isEditing
-                        ? 'bg-stone-900/40 opacity-50'
-                        : 'bg-stone-900 hover:bg-stone-800'
-                    }`}
-                    onClick={() => !isEditing && setActiveTaskId(task.id)}
-                >
-                    {/* Left Accent Line */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${finalAccentColor} h-full`} />
+                <div key={task.id} className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden shadow-sm">
+                    <div
+                        className={`relative flex items-center p-4 transition-all ${
+                        task.completed && !isEditing
+                            ? 'bg-stone-900/40 opacity-50'
+                            : 'bg-stone-900 hover:bg-stone-800 cursor-pointer'
+                        }`}
+                        onClick={() => !isEditing && setActiveTaskId(task.id)}
+                    >
+                        {/* Left Accent Line */}
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${finalAccentColor} h-full`} />
 
-                    {/* Checkbox (Hidden in Edit Mode) */}
-                    {!isEditing && (
-                        <button
-                            onClick={(e) => { 
-                                e.stopPropagation(); 
-                                // In filtered mode, we toggle the task in the ORIGINAL list by ID
-                                toggleTask(task.id, isAnnual); 
-                            }}
-                            className={`ml-4 flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors z-10 ${
-                            task.completed
-                                ? 'bg-stone-700 border-stone-700 text-stone-400'
-                                : 'border-stone-600 hover:border-stone-500'
-                            }`}
-                        >
-                            {task.completed && <Check className="w-3.5 h-3.5" />}
-                        </button>
-                    )}
-
-                    {/* Content (Input in Edit Mode, Text in View Mode) */}
-                    <div className="flex-1 ml-4 mr-2 min-w-0">
-                        <span className={`block font-bold text-lg truncate ${task.completed ? 'line-through text-stone-500' : 'text-stone-200'}`}>
-                            {name}
-                        </span>
-                        {task.subtasks && task.subtasks.length > 0 && (
-                            <div className="mt-2 w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-green-500 transition-all duration-300" 
-                                    style={{ width: `${(task.subtasks.filter(s => s.completed).length / task.subtasks.length) * 100}%` }}
-                                />
-                            </div>
+                        {/* Checkbox (Hidden in Edit Mode) */}
+                        {!isEditing && (
+                            <button
+                                onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    toggleTask(task.id, isAnnual); 
+                                }}
+                                className={`ml-4 flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors z-10 ${
+                                task.completed
+                                    ? 'bg-stone-700 border-stone-700 text-stone-400'
+                                    : 'border-stone-600 hover:border-stone-500'
+                                }`}
+                            >
+                                {task.completed && <Check className="w-3.5 h-3.5" />}
+                            </button>
                         )}
-                    </div>
 
-                    {/* Right Side: Delete in Edit Mode, Info in View Mode */}
-                    <div className="flex items-center gap-3">
-                        {duration && (
-                            <span className="flex items-center gap-1 text-xs font-mono font-bold text-stone-400 bg-stone-800 px-3 py-1.5 rounded-full border border-stone-700">
-                                {duration}
+                        {/* Content (Input in Edit Mode, Text in View Mode) */}
+                        <div className="flex-1 ml-4 mr-2 min-w-0">
+                            <span className={`block font-bold text-lg truncate ${task.completed ? 'line-through text-stone-500' : 'text-stone-200'}`}>
+                                {name}
                             </span>
-                        )}
-                        <ChevronRight className="w-5 h-5 text-stone-600" />
+                            {hasSubtasks && (
+                                <div className="mt-2 w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-green-500 transition-all duration-300" 
+                                        style={{ width: `${(task.subtasks!.filter(s => s.completed).length / task.subtasks!.length) * 100}%` }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right Side: Delete in Edit Mode, Info in View Mode */}
+                        <div className="flex items-center gap-3">
+                            {duration && (
+                                <span className="flex items-center gap-1 text-xs font-mono font-bold text-stone-400 bg-stone-800 px-3 py-1.5 rounded-full border border-stone-700">
+                                    {duration}
+                                </span>
+                            )}
+                            <ChevronRight className="w-5 h-5 text-stone-600" />
+                        </div>
                     </div>
+
+                    {/* Subtasks Inline List when activeFilter === 'subtasks' */}
+                    {activeFilter === 'subtasks' && hasSubtasks && !isEditing && (
+                        <div className="border-t border-stone-800/80 bg-stone-950/60 p-3 pl-6 pr-4 space-y-2">
+                            {[...task.subtasks!]
+                                .sort((a, b) => Number(a.completed) - Number(b.completed))
+                                .map((sub) => (
+                                <div
+                                    key={sub.id}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleSubtask(task.id, sub.id, isAnnual);
+                                    }}
+                                    className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                                        sub.completed
+                                            ? 'bg-stone-900/40 border-stone-800/60 opacity-60'
+                                            : 'bg-stone-900 border-stone-800 hover:border-stone-700 shadow-sm'
+                                    }`}
+                                >
+                                    <div
+                                        className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                                            sub.completed
+                                                ? 'bg-blue-600 border-blue-600 text-white'
+                                                : 'border-stone-600 hover:border-blue-400'
+                                        }`}
+                                    >
+                                        {sub.completed && <Check className="w-3.5 h-3.5 text-white" />}
+                                    </div>
+                                    <span className={`text-sm font-semibold truncate ${sub.completed ? 'line-through text-stone-500' : 'text-stone-200'}`}>
+                                        {sub.text}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
               );
             })}
@@ -651,7 +685,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
       <div className="flex-1 overflow-y-auto p-4 pb-28 bg-blue-950/20">
         {/* Train Visualization (Hidden when Editing to reduce clutter) */}
         {!isEditing && (
-            <div className="mb-8 p-6 bg-stone-900 rounded-2xl shadow-sm border border-blue-900/50">
+            <div className="mb-8 py-2">
                 {/* Monthly Progress Information Bullets (Above the SVG) */}
                 <div className="flex justify-center flex-wrap gap-2 mb-4">
                     {/* Month Bullet */}
@@ -717,7 +751,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                 </div>
 
                 {/* Annual Progress (Simple Bar) */}
-                <div className="border-t border-stone-800 pt-4 mt-2">
+                <div className="pt-2">
                     <div className="flex justify-between items-end mb-2">
                          <span className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1">
                              <span className="text-sm">🌍</span> Anuales
@@ -736,38 +770,46 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
         {/* Next Annual Train Highlight */}
         {!isEditing && sortedAnnualTasks.find(t => !t.completed) && (
-            <div className="mb-6 bg-stone-900 rounded-2xl p-4 border border-indigo-500/30 shadow-lg shadow-indigo-500/5">
-                <h3 className="text-xs font-bold text-indigo-400 mb-3 uppercase tracking-wider flex items-center gap-2">
-                    <span>🎯</span> Próximo Tren Anual
-                </h3>
+            <div className="mb-6">
                 {renderTaskList([sortedAnnualTasks.find(t => !t.completed)!], true)}
             </div>
         )}
 
-        {/* Emoji Grouping Buttons */}
+        {/* Emoji / Subtask Grouping Buttons */}
         {!isEditing && (
             <div className="flex gap-2 mb-6">
                 <button
                     onClick={() => setActiveFilter(activeFilter === 'star' ? null : 'star')}
-                    className={`flex-1 py-3 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold ${
+                    title="Locomotora"
+                    className={`flex-1 py-3 rounded-2xl border transition-all flex items-center justify-center font-bold ${
                         activeFilter === 'star' 
                         ? 'bg-amber-500/20 border-amber-500 text-amber-500 shadow-lg shadow-amber-500/10' 
                         : 'bg-stone-900 border-stone-800 text-stone-500 hover:border-stone-700'
                     }`}
                 >
                     <span className="text-xl">⭐</span>
-                    <span className="text-xs uppercase tracking-widest">Locomotora</span>
                 </button>
                 <button
                     onClick={() => setActiveFilter(activeFilter === 'foot' ? null : 'foot')}
-                    className={`flex-1 py-3 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold ${
+                    title="Passeggiata"
+                    className={`flex-1 py-3 rounded-2xl border transition-all flex items-center justify-center font-bold ${
                         activeFilter === 'foot' 
                         ? 'bg-blue-500/20 border-blue-500 text-blue-400 shadow-lg shadow-blue-500/10' 
                         : 'bg-stone-900 border-stone-800 text-stone-500 hover:border-stone-700'
                     }`}
                 >
                     <span className="text-xl">🦶</span>
-                    <span className="text-xs uppercase tracking-widest">Passeggiata</span>
+                </button>
+                <button
+                    onClick={() => setActiveFilter(activeFilter === 'subtasks' ? null : 'subtasks')}
+                    title="Subtareas"
+                    className={`flex-1 py-3 rounded-2xl border transition-all flex items-center justify-center font-bold ${
+                        activeFilter === 'subtasks' 
+                        ? 'bg-purple-500/20 border-purple-500 text-purple-400 shadow-lg shadow-purple-500/10' 
+                        : 'bg-stone-900 border-stone-800 text-stone-500 hover:border-stone-700'
+                    }`}
+                >
+                    <span className="text-xl">📋</span>
                 </button>
             </div>
         )}
@@ -775,161 +817,118 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
         {/* Task List (Monthly) */}
         <div className="mb-8">
             {isEditing ? (
-                <div className="space-y-8">
-                    {(['Fase 1', 'Fase 2', 'Fase 3', 'Fase 4'] as const).map((phase) => {
-                        const phaseLabels: Record<string, string> = {
-                            'Fase 1': 'Arranque',
-                            'Fase 2': 'Alternancias',
-                            'Fase 3': 'Mantenimiento',
-                            'Fase 4': 'Cierre'
-                        };
-                        const phaseTasks = editMonthlyTasks.filter(t => (t.phase || 'Fase 1') === phase);
+                <div className="space-y-4">
+                    {editMonthlyTasks.map((task, taskIdx) => {
+                        const fixedSubtasks = (task.subtasks || []).filter(s => !s.isProvisional);
+                        const provisionalCount = (task.subtasks || []).filter(s => s.isProvisional).length;
                         return (
-                            <div key={phase}>
-                                <h3 className="text-sm font-bold text-blue-400 mb-3 uppercase tracking-wider">{phase}: {phaseLabels[phase]}</h3>
-                                <div className="space-y-3">
-                                    {phaseTasks.map((task) => {
-                                        const taskIdx = editMonthlyTasks.findIndex(t => t.id === task.id);
-                                        const fixedSubtasks = (task.subtasks || []).filter(s => !s.isProvisional);
-                                        const provisionalCount = (task.subtasks || []).filter(s => s.isProvisional).length;
-                                        return (
-                                            <div key={task.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 flex flex-col gap-3 relative">
-                                                <button
-                                                    onClick={() => setTaskToDelete({ id: task.id, isAnnual: false })}
-                                                    className="absolute top-4 right-4 p-2 text-stone-600 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                            <div key={task.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 flex flex-col gap-3 relative">
+                                <button
+                                    onClick={() => setTaskToDelete({ id: task.id, isAnnual: false })}
+                                    className="absolute top-4 right-4 p-2 text-stone-600 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
 
-                                                {/* Train name */}
-                                                <div className="pr-12">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1 block">Nombre del Tren</label>
+                                {/* Train name */}
+                                <div className="pr-12">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1 block">Nombre del Tren</label>
+                                    <input
+                                        value={task.text}
+                                        onChange={(e) => {
+                                            const updated = [...editMonthlyTasks];
+                                            updated[taskIdx] = { ...updated[taskIdx], text: e.target.value };
+                                            setEditMonthlyTasks(updated);
+                                        }}
+                                        placeholder="Ej: 🦁 Leones 2h"
+                                        className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 font-bold"
+                                    />
+                                </div>
+
+                                {/* Fixed subtasks */}
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-2 block">Subtareas Fijas</label>
+                                    <div className="space-y-2">
+                                        {fixedSubtasks.map((sub) => {
+                                            const subIdx = (editMonthlyTasks[taskIdx].subtasks || []).findIndex(s => s.id === sub.id);
+                                            return (
+                                                <div key={sub.id} className="flex gap-2 items-center">
                                                     <input
-                                                        value={task.text}
+                                                        value={sub.text}
                                                         onChange={(e) => {
                                                             const updated = [...editMonthlyTasks];
-                                                            updated[taskIdx] = { ...updated[taskIdx], text: e.target.value };
+                                                            const subs = [...(updated[taskIdx].subtasks || [])];
+                                                            subs[subIdx] = { ...subs[subIdx], text: e.target.value };
+                                                            updated[taskIdx] = { ...updated[taskIdx], subtasks: subs };
                                                             setEditMonthlyTasks(updated);
                                                         }}
-                                                        placeholder="Ej: 🦁 Leones 2h"
-                                                        className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-200 focus:outline-none focus:border-blue-500 font-bold"
+                                                        className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-300 text-sm focus:outline-none focus:border-blue-500"
                                                     />
+                                                    <button
+                                                        onClick={() => {
+                                                            const updated = [...editMonthlyTasks];
+                                                            updated[taskIdx] = {
+                                                                ...updated[taskIdx],
+                                                                subtasks: updated[taskIdx].subtasks?.filter(s => s.id !== sub.id)
+                                                            };
+                                                            setEditMonthlyTasks(updated);
+                                                        }}
+                                                        className="p-1.5 text-red-500 hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
                                                 </div>
-
-                                                {/* Phase selector */}
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-2 block">Fase</label>
-                                                    <div className="flex gap-1.5 flex-wrap">
-                                                        {(['Fase 1', 'Fase 2', 'Fase 3', 'Fase 4'] as const).map((p) => (
-                                                            <button
-                                                                key={p}
-                                                                onClick={() => {
-                                                                    const updated = [...editMonthlyTasks];
-                                                                    updated[taskIdx] = { ...updated[taskIdx], phase: p };
-                                                                    setEditMonthlyTasks(updated);
-                                                                }}
-                                                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${
-                                                                    (task.phase || 'Fase 1') === p
-                                                                        ? 'bg-blue-600 border-blue-500 text-white'
-                                                                        : 'bg-stone-950 border-stone-800 text-stone-500 hover:border-stone-600'
-                                                                }`}
-                                                            >
-                                                                {p}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {/* Fixed subtasks */}
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-2 block">Subtareas Fijas</label>
-                                                    <div className="space-y-2">
-                                                        {fixedSubtasks.map((sub) => {
-                                                            const subIdx = (editMonthlyTasks[taskIdx].subtasks || []).findIndex(s => s.id === sub.id);
-                                                            return (
-                                                                <div key={sub.id} className="flex gap-2 items-center">
-                                                                    <input
-                                                                        value={sub.text}
-                                                                        onChange={(e) => {
-                                                                            const updated = [...editMonthlyTasks];
-                                                                            const subs = [...(updated[taskIdx].subtasks || [])];
-                                                                            subs[subIdx] = { ...subs[subIdx], text: e.target.value };
-                                                                            updated[taskIdx] = { ...updated[taskIdx], subtasks: subs };
-                                                                            setEditMonthlyTasks(updated);
-                                                                        }}
-                                                                        className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-300 text-sm focus:outline-none focus:border-blue-500"
-                                                                    />
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const updated = [...editMonthlyTasks];
-                                                                            updated[taskIdx] = {
-                                                                                ...updated[taskIdx],
-                                                                                subtasks: updated[taskIdx].subtasks?.filter(s => s.id !== sub.id)
-                                                                            };
-                                                                            setEditMonthlyTasks(updated);
-                                                                        }}
-                                                                        className="p-1.5 text-red-500 hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
-                                                                    >
-                                                                        <X className="w-4 h-4" />
-                                                                    </button>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                        {/* Add fixed subtask */}
-                                                        <input
-                                                            placeholder="Nueva subtarea fija (Enter para añadir)..."
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    const val = e.currentTarget.value.trim();
-                                                                    if (!val) return;
-                                                                    const updated = [...editMonthlyTasks];
-                                                                    updated[taskIdx] = {
-                                                                        ...updated[taskIdx],
-                                                                        subtasks: [...(updated[taskIdx].subtasks || []), {
-                                                                            id: `sub-${Date.now()}-${Math.random()}`,
-                                                                            text: val,
-                                                                            completed: false,
-                                                                            isProvisional: false
-                                                                        }]
-                                                                    };
-                                                                    setEditMonthlyTasks(updated);
-                                                                    e.currentTarget.value = '';
-                                                                }
-                                                            }}
-                                                            className="w-full bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-400 text-sm focus:outline-none focus:border-blue-500"
-                                                        />
-                                                        <p className="text-[10px] text-stone-600">Añade 🦶 para Passeggiata o ⭐ para Locomotora.</p>
-                                                        {provisionalCount > 0 && (
-                                                            <p className="text-[10px] text-indigo-400/70">
-                                                                {provisionalCount} subtarea{provisionalCount > 1 ? 's' : ''} provisional{provisionalCount > 1 ? 'es' : ''} (se borran al resetear el mes).
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-
-                                    {/* Add train to this phase */}
-                                    <button
-                                        onClick={() => {
-                                            setEditMonthlyTasks(prev => [...prev, {
-                                                id: `monthly-${Date.now()}-${Math.random()}`,
-                                                text: '🚂 Nuevo Tren',
-                                                completed: false,
-                                                subtasks: [],
-                                                phase
-                                            }]);
-                                        }}
-                                        className="w-full py-3 border-2 border-dashed border-stone-700 hover:border-blue-500 hover:text-blue-400 text-stone-500 rounded-2xl flex items-center justify-center gap-2 transition-colors font-bold uppercase tracking-widest text-xs"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Añadir Tren a {phase}
-                                    </button>
+                                            );
+                                        })}
+                                        {/* Add fixed subtask */}
+                                        <input
+                                            placeholder="Nueva subtarea fija (Enter para añadir)..."
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const val = e.currentTarget.value.trim();
+                                                    if (!val) return;
+                                                    const updated = [...editMonthlyTasks];
+                                                    updated[taskIdx] = {
+                                                        ...updated[taskIdx],
+                                                        subtasks: [...(updated[taskIdx].subtasks || []), {
+                                                            id: `sub-${Date.now()}-${Math.random()}`,
+                                                            text: val,
+                                                            completed: false,
+                                                            isProvisional: false
+                                                        }]
+                                                    };
+                                                    setEditMonthlyTasks(updated);
+                                                    e.currentTarget.value = '';
+                                                }
+                                            }}
+                                            className="w-full bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-stone-400 text-sm focus:outline-none focus:border-blue-500"
+                                        />
+                                        <p className="text-[10px] text-stone-600">Añade 🦶 para Passeggiata o ⭐ para Locomotora.</p>
+                                        {provisionalCount > 0 && (
+                                            <p className="text-[10px] text-indigo-400/70">
+                                                {provisionalCount} subtarea{provisionalCount > 1 ? 's' : ''} provisional{provisionalCount > 1 ? 'es' : ''} (se borran al resetear el mes).
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );
                     })}
+
+                    <button
+                        onClick={() => {
+                            setEditMonthlyTasks(prev => [...prev, {
+                                id: `monthly-${Date.now()}-${Math.random()}`,
+                                text: '🚂 Nuevo Tren',
+                                completed: false,
+                                subtasks: []
+                            }]);
+                        }}
+                        className="w-full py-4 border-2 border-dashed border-stone-700 hover:border-blue-500 hover:text-blue-400 text-stone-500 rounded-2xl flex items-center justify-center gap-2 transition-colors font-bold uppercase tracking-widest text-xs"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Añadir Tren Mensual
+                    </button>
                 </div>
             ) : activeFilter ? (
                 <div className="mb-6">
@@ -937,33 +936,26 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                 </div>
             ) : (
                 <>
-                    {['Fase 1', 'Fase 2', 'Fase 3', 'Fase 4'].map((phaseCode) => {
-                        const phaseTasks = currentMonthlyTasks.filter(t => !t.completed && (t.phase || 'Fase 1') === phaseCode);
-                        if (phaseTasks.length === 0) return null;
-                        const titles = {
-                            'Fase 1': 'Fase 1: Arranque',
-                            'Fase 2': 'Fase 2: Alternancias',
-                            'Fase 3': 'Fase 3: Mantenimiento',
-                            'Fase 4': 'Fase 4: Cierre'
-                        };
-                        return (
-                            <div key={phaseCode} className="mb-6">
-                                <h3 className="text-lg font-bold text-stone-400 mb-3 ml-1">{titles[phaseCode as keyof typeof titles]}</h3>
-                                {renderTaskList(phaseTasks, false)}
-                            </div>
-                        );
-                    })}
                     {(() => {
+                        const pendingTasks = currentMonthlyTasks.filter(t => !t.completed);
                         const completedTasks = currentMonthlyTasks.filter(t => t.completed);
-                        if (completedTasks.length === 0) return null;
                         return (
-                            <div className="mt-8 border-t border-stone-800 pt-6">
-                                <h3 className="text-sm font-bold text-stone-500 mb-3 ml-1 uppercase tracking-wider">Completadas</h3>
-                                {renderTaskList(completedTasks, false)}
-                            </div>
+                            <>
+                                {pendingTasks.length > 0 && (
+                                    <div className="mb-6">
+                                        {renderTaskList(pendingTasks, false)}
+                                    </div>
+                                )}
+                                {completedTasks.length > 0 && (
+                                    <div className="mt-8 border-t border-stone-800 pt-6">
+                                        <h3 className="text-sm font-bold text-stone-500 mb-3 ml-1 uppercase tracking-wider">Completadas</h3>
+                                        {renderTaskList(completedTasks, false)}
+                                    </div>
+                                )}
+                                {currentMonthlyTasks.length === 0 && <p className="text-center text-stone-600 py-4">Sin tareas.</p>}
+                            </>
                         );
                     })()}
-                    {currentMonthlyTasks.length === 0 && <p className="text-center text-stone-600 py-4">Sin tareas.</p>}
                 </>
             )}
         </div>
