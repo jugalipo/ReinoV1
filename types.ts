@@ -14,6 +14,7 @@ export interface Task {
   hunoType?: 'fantastico' | 'enanito' | 'fondo';
   shortcut?: string;
   notes?: string; // Additional details for AI recommendations
+  isMain?: boolean;
 }
 
 export interface GympiezaTask {

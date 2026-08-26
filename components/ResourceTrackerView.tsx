@@ -106,6 +106,12 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
     }
   }, [selectedObjective, isEditingInPopup]);
 
+  useEffect(() => {
+    if (!selectedObjectiveId) {
+      setIsEditingInPopup(false);
+    }
+  }, [selectedObjectiveId]);
+
   const saveMainChanges = () => {
       const updatedTask: ResourceTask = {
           ...mainTask,
@@ -361,11 +367,21 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
   return (
     <div className={`fixed inset-0 max-w-md mx-auto z-50 flex flex-col animate-in fade-in duration-200 ${theme.bg}`}>
-      <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800 shrink-0">
-        <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
-          <ArrowLeft className={`w-6 h-6 ${theme.accent}`} />
-        </button>
-        <h1 className={`text-xl font-bold ${theme.text}`}>{title}</h1>
+      <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
+            <ArrowLeft className={`w-6 h-6 ${theme.accent}`} />
+          </button>
+          <h1 className={`text-xl font-bold ${theme.text}`}>{title}</h1>
+        </div>
+        {title === 'Leones' && !isEditingMain && (
+          <button 
+            onClick={() => setIsEditingMain(true)}
+            className="p-2 hover:bg-stone-800 rounded-full transition-colors"
+          >
+            <Edit2 className={`w-6 h-6 ${theme.accent}`} />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col p-6 items-center space-y-4 overflow-y-auto pb-28 no-scrollbar">
@@ -445,25 +461,12 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                     </button>
                 </div>
             ) : (
-                /* VIEW MODE MAIN - Compacted */
-                <div className="flex flex-col items-center justify-center w-full space-y-4 py-2">
+                /* VIEW MODE MAIN - Compacted */                 <div className="flex flex-col items-center justify-center w-full space-y-4 py-2">
                     <div className="text-center w-full relative px-8">
                         <h2 className="text-2xl font-black text-stone-100 mb-1 leading-tight">{mainTask.name}</h2>
-                        {mainTask.notes && (
-                            <p className="text-xs text-stone-400 bg-stone-950/45 border border-stone-850 p-3 rounded-2xl italic leading-relaxed text-center mx-auto mb-3 max-w-[280px]">
-                                "{mainTask.notes}"
-                            </p>
-                        )}
                         <p className={`text-base font-mono ${theme.accent} opacity-80`}>
                             {mainTask.current} <span className="text-stone-500">/</span> {mainTask.target} <span className="text-xs text-stone-600">{mainTask.unit}</span>
                         </p>
-                        
-                        <button 
-                            onClick={() => setIsEditingMain(true)}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 text-stone-600 hover:text-stone-300 transition-colors bg-stone-900/50 rounded-full border border-stone-800/50"
-                        >
-                            <Edit2 className="w-3.5 h-3.5" />
-                        </button>
                     </div>
 
                     <div className="w-full">
@@ -499,7 +502,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
         {/* BILLETES SECTION (Leones ONLY) */}
         {title === 'Leones' && (
-            <div className="w-full bg-stone-900 p-4 rounded-3xl border border-stone-800 shadow-sm space-y-4">
+            <div className="w-full space-y-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
                         <Banknote className="w-3 h-3" /> Billetes
@@ -535,16 +538,12 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                         <Plus className="w-6 h-6" />
                     </button>
                 </div>
-                
-                <p className="text-[8px] text-stone-600 text-center font-bold tracking-widest uppercase">
-                    Completa 20 para sumar a la hucha
-                </p>
             </div>
         )}
 
         {/* LEONES SECTION (Leones ONLY) */}
         {title === 'Leones' && (
-            <div className="w-full bg-stone-900 p-4 rounded-3xl border border-stone-800 shadow-sm space-y-4">
+            <div className="w-full space-y-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
                         <Cat className="w-3 h-3" /> Leones (24h)
@@ -571,10 +570,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                         </button>
                     ))}
                 </div>
-                
-                <p className="text-[8px] text-stone-600 text-center font-bold tracking-widest uppercase">
-                    Completa 20 para sumar un trofeo
-                </p>
             </div>
         )}
 
@@ -582,7 +577,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
         {/* SEASONAL TREE (ROBLE ONLY) */}
         {title === 'Roble' && (
-            <div className="w-full flex justify-center py-6">
+            <div className="w-full flex justify-center !mt-3">
                 {(() => {
                     const month = new Date().getMonth(); // 0-11
                     let TreeIcon = TreePine;
@@ -720,12 +715,11 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
         {/* STACKED BUTTONS (ROBLE ONLY) */}
         {title === 'Roble' && quarterlyTasks.length > 0 && (
-            <div className="w-full pt-4 space-y-3">
+            <div className="w-full !mt-3">
                 <div className="flex flex-col gap-3">
                     {quarterlyTasks.map((task, i) => {
                          const colors = getQuarterlyColors(task.id);
-                         const qPercent = Math.min(100, (task.current / task.target) * 100);
-
+                         const qPercent = Math.min(100, (task.current / task.target) * 100); 
                          return (
                             <button 
                                 key={task.id}
@@ -935,12 +929,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                              <span className="text-stone-500 font-bold text-lg">{selectedObjective.target}</span>
                              <span className="text-stone-700 text-xs uppercase font-black">{selectedObjective.unit}</span>
                         </div>
-
-                        {selectedObjective.notes && (
-                            <p className="text-xs text-stone-400 bg-stone-950/45 border border-stone-850 p-3.5 rounded-2xl italic leading-relaxed text-center mx-auto mb-6 max-w-[280px]">
-                                "{selectedObjective.notes}"
-                            </p>
-                        )}
 
                         <div className="flex items-center justify-center gap-6 w-full mb-4">
                             <button 

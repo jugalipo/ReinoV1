@@ -16,18 +16,18 @@ export default defineConfig(({ mode }) => {
           registerType: 'autoUpdate',
           includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
           manifest: {
-            name: 'El Reino',
-            short_name: 'Reino',
+            name: 'Reino | de Roade',
+            short_name: 'R El Reino',
             description: 'Aplicación de hábitos y tareas',
             theme_color: '#0c0a09',
             icons: [
               {
-                src: 'pwa-192x192.png',
+                src: 'icon-192.png',
                 sizes: '192x192',
                 type: 'image/png'
               },
               {
-                src: 'pwa-512x512.png',
+                src: 'icon-512.png',
                 sizes: '512x512',
                 type: 'image/png'
               }

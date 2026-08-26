@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FoodState, FoodWheel, FoodBonuses, DailyFoodScore, FoodConfig } from '../types';
 import { ArrowLeft, ArrowRight, History, UtensilsCrossed, Timer, Bike, Edit2, Flame, Trophy, Award, Medal, Star, Gem, Check, X, Plus, Minus, Settings } from 'lucide-react';
-import { FoodConfigEditor } from './FoodConfigEditor';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 const DEFAULT_WHEEL = [
@@ -21,9 +20,9 @@ const DEFAULT_BROCCOLI = [
 ];
 
 const DEFAULT_BONUSES = [
-  { id: 'organs', icon: '🥩', label: 'ÓRGANOS', points: 3 },
+  { id: 'organs', icon: '❤️', label: 'ÓRGANOS', points: 3 },
   { id: 'legumes', icon: '🫘', label: 'LEGUMBRES', points: 3 },
-  { id: 'fast24', icon: '🌑', label: 'AYUNO 24H', points: 4 }
+  { id: 'fast24', icon: '🚫', label: 'AYUNO 24H', points: 4 }
 ];
 
 export const DEFAULT_MEALS = [
@@ -82,8 +81,8 @@ export const calculateDailyScore = (score: DailyFoodScore, dateStr: string, allS
     else total += 1;
   }
   if (score.fasting) total += 2;
-  if (score.deliveryLunch) total -= 2;
-  if (score.deliveryDinner) total -= 2;
+  if (score.deliveryLunch && score.lunchMeal !== 'A domicilio') total -= 2;
+  if (score.deliveryDinner && score.dinnerMeal !== 'A domicilio') total -= 2;
   
   const fahCheckedCount = (score.fah || []).filter(v => v).length;
   if (fahCheckedCount > 1) total -= (fahCheckedCount - 1);
@@ -114,8 +113,8 @@ export const calculateAllDaysTotal = (allScores: Record<string, DailyFoodScore>,
       else dayTotal += 1;
     }
     if (score.fasting) dayTotal += 2;
-    if (score.deliveryLunch) dayTotal -= 2;
-    if (score.deliveryDinner) dayTotal -= 2;
+    if (score.deliveryLunch && score.lunchMeal !== 'A domicilio') dayTotal -= 2;
+    if (score.deliveryDinner && score.dinnerMeal !== 'A domicilio') dayTotal -= 2;
     
     const fahCheckedCount = (score.fah || []).filter(v => v).length;
     if (fahCheckedCount > 1) dayTotal -= (fahCheckedCount - 1);
@@ -300,6 +299,9 @@ const DailyFoodScoreModal = ({
   };
 
   const canSelectMeal = (mealName: string, max: number) => {
+    if (mealName === 'A domicilio' || mealName === 'Ayuno' || mealName === 'Meh') {
+      return true;
+    }
     let effectiveCount = getDishCountLocal(mealName, max);
     if (initialScore.lunchMeal === mealName) effectiveCount--;
     if (initialScore.dinnerMeal === mealName) effectiveCount--;
@@ -316,9 +318,19 @@ const DailyFoodScoreModal = ({
   const handleMealSelect = (mealName: string) => {
     let newScore = score;
     if (selectingMealFor === 'lunch') {
-      newScore = { ...score, lunch: true, lunchMeal: mealName };
+      newScore = { 
+        ...score, 
+        lunch: true, 
+        lunchMeal: mealName,
+        deliveryLunch: mealName === 'A domicilio'
+      };
     } else if (selectingMealFor === 'dinner') {
-      newScore = { ...score, dinner: true, dinnerMeal: mealName };
+      newScore = { 
+        ...score, 
+        dinner: true, 
+        dinnerMeal: mealName,
+        deliveryDinner: mealName === 'A domicilio'
+      };
     }
     setScore(newScore);
     onSave(newScore);
@@ -357,11 +369,8 @@ const DailyFoodScoreModal = ({
     <div 
       className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 pb-24 animate-in fade-in duration-200"
       onClick={() => {
-        if (selectingMealFor) {
-          setSelectingMealFor(null);
-        } else {
-          onClose();
-        }
+        onSave(score);
+        onClose();
       }}
     >
       <div 
@@ -526,7 +535,7 @@ const DailyFoodScoreModal = ({
               {/* Second Line: Calories + FAH Grid */}
               <div className="grid grid-cols-2 gap-2 items-stretch">
                 {/* Calories Input */}
-                <div className="bg-stone-950 border border-stone-800 rounded-xl p-2 flex items-center justify-between h-[60px]">
+                <div className="bg-stone-950 border border-stone-800 rounded-xl py-1 px-2 flex items-center justify-between h-[32px]">
                   <input
                     type="number"
                     step="50"
@@ -542,8 +551,8 @@ const DailyFoodScoreModal = ({
                   <span className="text-stone-500 font-bold text-xs ml-1">kcal</span>
                 </div>
 
-                {/* FAH 2x2 grid */}
-                <div className="grid grid-cols-2 gap-1 h-[60px]">
+                {/* FAH 1x4 grid */}
+                <div className="grid grid-cols-4 gap-1 h-[32px]">
                   {[0, 1, 2, 3].map(idx => {
                       const isActive = (score.fah || [])[idx];
                       const isFirst = idx === 0;
@@ -565,51 +574,42 @@ const DailyFoodScoreModal = ({
                   })}
                 </div>
               </div>
+
+              {/* Third Line: Survival Buttons (formerly bonuses in footer) */}
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'organs' as const, label: 'Órganos', emoji: '❤️' },
+                  { id: 'legumes' as const, label: 'Legumbres', emoji: '🫘' },
+                  { id: 'fast24' as const, label: 'Ayuno 24h', emoji: '🚫' }
+                ].map(bonus => {
+                  const checked = !!score[bonus.id];
+                  const disabled = isWeeklyBonusDisabled(bonus.id);
+                  return (
+                    <button
+                      key={bonus.id}
+                      disabled={disabled}
+                      onClick={() => {
+                        const newScore = { ...score, [bonus.id]: !checked };
+                        setScore(newScore);
+                        onSave(newScore);
+                      }}
+                      className={`py-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                        checked
+                          ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                          : disabled
+                            ? 'bg-stone-950/20 border-stone-900/50 text-stone-700 opacity-40 cursor-not-allowed'
+                            : 'bg-stone-950 border-stone-800 text-stone-500 hover:bg-stone-800'
+                      }`}
+                    >
+                      <span className="text-xl leading-none">{bonus.emoji}</span>
+                      <span className="text-[8px] font-bold uppercase">{bonus.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </>
           )}
         </div>
-
-        {!selectingMealFor && (
-          <div className="px-6 py-4 bg-stone-900/50 shrink-0">
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'organs' as const, label: 'Órganos' },
-                { id: 'legumes' as const, label: 'Legumbres' },
-                { id: 'fast24' as const, label: 'Ayuno 24h' }
-              ].map(bonus => {
-                const checked = !!score[bonus.id];
-                const disabled = isWeeklyBonusDisabled(bonus.id);
-                return (
-                  <button
-                    key={bonus.id}
-                    disabled={disabled}
-                    onClick={() => {
-                      const newScore = { ...score, [bonus.id]: !checked };
-                      setScore(newScore);
-                      onSave(newScore);
-                    }}
-                    className={`py-2 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      checked
-                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-                        : disabled
-                          ? 'bg-stone-950/20 border-stone-900/50 text-stone-700 opacity-40 cursor-not-allowed'
-                          : 'bg-stone-950 border-stone-800 text-stone-500 hover:bg-stone-800'
-                    }`}
-                  >
-                    {bonus.id === 'organs' ? (
-                      <LiverIcon className={`w-5 h-5 ${checked ? 'text-red-400' : 'text-stone-500'}`} />
-                    ) : bonus.id === 'legumes' ? (
-                      <BeansIcon className={`w-5 h-5 ${checked ? 'text-amber-500' : 'text-stone-500'}`} />
-                    ) : (
-                      <Timer className={`w-5 h-5 ${checked ? 'text-blue-400' : 'text-stone-500'}`} />
-                    )}
-                    <span className="text-[8px] font-bold uppercase">{bonus.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -778,9 +778,19 @@ interface FoodBoardViewProps {
 
 export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdate, onBack }) => {
   const { score, history, wheel, broccoliWheel, monthlyBonuses, wheelPlenoCount, broccoliPlenoCount, dishes = {}, dailyScores = {}, config } = foodState;
+
+  const addHistory = (action: string, delta: number) => {
+      return [
+        { action, timestamp: Date.now(), delta },
+        ...history
+      ].slice(0, 50);
+  };
+
+  const updateScore = (delta: number) => {
+      return score + delta;
+  };
   const [showWheelConfirm, setShowWheelConfirm] = useState(false);
   const [showBroccoliConfirm, setShowBroccoliConfirm] = useState(false);
-  const [showConfigEditor, setShowConfigEditor] = useState(false);
   const [lastToggledItem, setLastToggledItem] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
@@ -798,8 +808,8 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     if (monthOffset === 0) {
         onUpdate({ ...foodState, ...changes });
     } else {
-        const history = foodState.monthlyHistory || {};
-        const oldMonthData = history[monthKey] || {
+        const monthlyHistoryMap = foodState.monthlyHistory || {};
+        const oldMonthData = monthlyHistoryMap[monthKey] || {
             wheelPlenoCount: 0,
             broccoliPlenoCount: 0,
             bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
@@ -819,7 +829,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         
         onUpdate({
             ...foodState,
-            monthlyHistory: { ...history, [monthKey]: updatedMonthData }
+            monthlyHistory: { ...monthlyHistoryMap, [monthKey]: updatedMonthData }
         });
     }
   };
@@ -854,13 +864,12 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const cancelBroccoliPleno = () => {
+    if (lastToggledItem) {
+      const resetWheel = { ...currentBroccoliWheel, [lastToggledItem]: false };
+      updateMonthData({ broccoliWheel: resetWheel });
+    }
     setShowBroccoliConfirm(false);
     setLastToggledItem(null);
-  };
-
-  const handleSaveConfig = (newConfig: FoodConfig) => {
-    onUpdate({ ...foodState, config: newConfig });
-    setShowConfigEditor(false);
   };
 
 
@@ -1016,9 +1025,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             history: totalDiff !== 0 ? addHistory(isCurrentMonthView ? `Día: ${date.getDate()}` : `Retro-Día: ${date.getDate()}`, totalDiff) : history
         });
     } else {
-        const history = foodState.monthlyHistory || {};
+        const monthlyHistoryObj = foodState.monthlyHistory || {};
         const monthKeyForDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-        const oldMonthData = history[monthKeyForDate] || {
+        const oldMonthData = monthlyHistoryObj[monthKeyForDate] || {
             wheelPlenoCount: 0,
             broccoliPlenoCount: 0,
             bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
@@ -1029,7 +1038,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
             ...foodState,
             dailyScores: newScores,
             monthlyHistory: {
-                ...history,
+                ...monthlyHistoryObj,
                 [monthKeyForDate]: {
                     ...oldMonthData,
                     bonuses: newDerived,
@@ -1041,16 +1050,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
     }
   };
 
-  const addHistory = (action: string, delta: number) => {
-      return [
-        { action, timestamp: Date.now(), delta },
-        ...history
-      ].slice(0, 50);
-  };
 
-  const updateScore = (delta: number) => {
-      return score + delta;
-  };
 
   const handleBonus = (type: string, index: number, points: number) => {
       const currentSquares = effectiveBonuses[type] || [false, false, false, false];
@@ -1132,6 +1132,10 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const cancelWheelPleno = () => {
+      if (lastToggledItem) {
+          const resetWheel = { ...currentWheel, [lastToggledItem]: false };
+          updateMonthData({ wheel: resetWheel });
+      }
       setShowWheelConfirm(false);
       setLastToggledItem(null);
   };
@@ -1169,11 +1173,6 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                 <ArrowLeft className={`w-6 h-6 ${isLegendary ? 'text-stone-950' : 'text-lime-500'}`} />
             </button>
             <h1 className={`text-xl font-bold uppercase tracking-tighter transition-colors ${isLegendary ? 'text-stone-950' : 'text-lime-200'}`}>Jumangiare</h1>
-        </div>
-        <div className="flex items-center gap-2">
-            <button onClick={() => setShowConfigEditor(true)} className={`p-2 rounded-full transition-colors ${isLegendary ? 'text-stone-900 hover:bg-black/10' : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'}`}>
-                <Edit2 className="w-5 h-5" />
-            </button>
         </div>
       </div>
 
@@ -1308,18 +1307,23 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                 </div>
                 <div className="grid grid-cols-6 gap-2">
                     {activeConfig.wheel.map((item) => (
-                        <button 
-                            key={item.id}
-                            onClick={() => toggleWheelItem(item.id)}
-                            className={`
-                                aspect-square rounded-xl flex items-center justify-center text-[26px] transition-all duration-300
-                                ${currentWheel[item.id] 
-                                    ? 'bg-lime-600/20 border border-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.1)] grayscale-0 scale-105' 
-                                    : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
-                            `}
-                        >
-                            {item.icon}
-                        </button>
+                        <div key={item.id} className="relative group">
+                            <button 
+                                onClick={() => toggleWheelItem(item.id)}
+                                className={`
+                                    w-full aspect-square rounded-xl flex items-center justify-center text-[26px] transition-all duration-300
+                                    ${currentWheel[item.id] 
+                                        ? 'bg-lime-600/20 border border-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.1)] grayscale-0 scale-105' 
+                                        : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
+                                `}
+                            >
+                                {item.icon}
+                            </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-stone-900 text-stone-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border border-stone-800 whitespace-nowrap z-50 pointer-events-none shadow-md">
+                                {item.label}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-stone-900" />
+                            </div>
+                        </div>
                     ))}
                     <div className="aspect-square rounded-xl bg-stone-950/50 border border-stone-800/50 flex flex-col items-center justify-center gap-0.5 opacity-50">
                         <span className="text-[8px] font-black text-stone-600 uppercase">Total</span>
@@ -1335,18 +1339,23 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                 </div>
                 <div className="grid grid-cols-6 gap-2">
                     {activeConfig.broccoli.map((item) => (
-                        <button 
-                            key={item.id}
-                            onClick={() => handleBroccoliClick(item.id)}
-                            className={`
-                                aspect-square rounded-xl flex items-center justify-center text-[26px] transition-all duration-300
-                                ${currentBroccoliWheel[item.id] 
-                                    ? 'bg-emerald-600/20 border border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.1)] grayscale-0 scale-105' 
-                                    : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
-                            `}
-                        >
-                            {item.icon}
-                        </button>
+                        <div key={item.id} className="relative group">
+                            <button 
+                                onClick={() => handleBroccoliClick(item.id)}
+                                className={`
+                                    w-full aspect-square rounded-xl flex items-center justify-center text-[26px] transition-all duration-300
+                                    ${currentBroccoliWheel[item.id] 
+                                        ? 'bg-emerald-600/20 border border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.1)] grayscale-0 scale-105' 
+                                        : 'bg-stone-950 border border-stone-800 grayscale opacity-40'}
+                                `}
+                            >
+                                {item.icon}
+                            </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-stone-900 text-stone-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border border-stone-800 whitespace-nowrap z-50 pointer-events-none shadow-md">
+                                {item.label}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-stone-900" />
+                            </div>
+                        </div>
                     ))}
                     <div className="aspect-square rounded-xl bg-stone-950/50 border border-stone-800/50 flex flex-col items-center justify-center gap-0.5 opacity-50">
                         <span className="text-[8px] font-black text-stone-600 uppercase">Total</span>
@@ -1365,14 +1374,8 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
                         const squares = effectiveBonuses[bonus.id] || [false, false, false, false];
                         return (
                             <div key={bonus.id} className="flex flex-col items-center gap-3">
-                                <div className="text-stone-300 filter drop-shadow-sm">
-                                  {bonus.id === 'organs' ? (
-                                    <LiverIcon className="w-7 h-7 text-red-400" />
-                                  ) : bonus.id === 'legumes' ? (
-                                    <BeansIcon className="w-7 h-7 text-amber-500" />
-                                  ) : (
-                                    <Timer className="w-7 h-7 text-blue-400" />
-                                  )}
+                                <div className="text-2xl filter drop-shadow-sm select-none">
+                                  {bonus.icon}
                                 </div>
                                 <div className="grid grid-cols-2 gap-1.5">
                                     {squares.map((isActive, idx) => (
@@ -1588,13 +1591,6 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
         />
       )}
 
-      {showConfigEditor && (
-        <FoodConfigEditor
-          initialConfig={activeConfig}
-          onSave={handleSaveConfig}
-          onClose={() => setShowConfigEditor(false)}
-        />
-      )}
 
     </div>
   );

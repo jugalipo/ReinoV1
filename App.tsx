@@ -14,7 +14,7 @@ import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { ToolsView } from './components/ToolsView';
 import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Mic, MicOff, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
-import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb } from './firebase';
+import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
@@ -876,6 +876,12 @@ const processResets = (parsed: AppData): AppData => {
     result.food.lastMonthlyDishesReset = Date.now();
   }
 
+  if (result.food) {
+    if (!Array.isArray(result.food.history)) {
+      result.food.history = [];
+    }
+  }
+
   // Special correction for Mon May 18 2026: recover Day 2 of the firewall
   if (today === "Mon May 18 2026") {
     if (result.firewallDay === 1 && (!result.firewallLastCompletedDate || result.firewallLastCompletedDate === "")) {
@@ -901,13 +907,13 @@ const processResets = (parsed: AppData): AppData => {
   return result;
 };
 
-const processBosqueData = (bosqueData: any) => {
-  if (!bosqueData) return { trainedToday: false, weeklyMinutes: 0 };
+const processBosqueData = (bosqueData: any, desencadenadoData?: any) => {
+  if (!bosqueData && !desencadenadoData) return { trainedToday: false, weeklyMinutes: 0, exercises: [] };
   
   const now = new Date();
   const startOfWeek = new Date(now);
-  const dayOfWeek = startOfWeek.getDay(); 
-  startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
+  const day = now.getDay() || 7; // Monday = 1, Sunday = 7
+  startOfWeek.setDate(now.getDate() - day + 1);
   startOfWeek.setHours(0,0,0,0);
 
   const endOfWeek = new Date(startOfWeek);
@@ -920,38 +926,48 @@ const processBosqueData = (bosqueData: any) => {
   const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
 
   const finalExercises: any[] = [];
+  const seenIds = new Set<string>();
 
-  // Bosque saves exercises inside dailyLogs[].exercises (not in the top-level exercise array,
-  // which is always emptied before saving to Firestore).
-  if (Array.isArray(bosqueData.dailyLogs)) {
+  // 1. Bosque saves exercises inside dailyLogs[].exercises (or legacy log.exercise)
+  if (bosqueData && Array.isArray(bosqueData.dailyLogs)) {
     bosqueData.dailyLogs.forEach((log: any) => {
       const dateStr = log.date;
       if (!dateStr) return;
-      // New format: exercises array
       if (Array.isArray(log.exercises)) {
-        log.exercises.forEach((ex: any) => {
-          finalExercises.push({ date: dateStr, duration: ex.duration || 0 });
+        log.exercises.forEach((ex: any, exIdx: number) => {
+          const id = ex.id || `bosque_${dateStr}_${exIdx}_${ex.name || 'ex'}`;
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            finalExercises.push({ id, date: dateStr, duration: ex.duration || 0, name: ex.name, type: ex.type });
+          }
         });
       }
-      // Old legacy format: single exercise object
       if (log.exercise && typeof log.exercise === 'object') {
-        finalExercises.push({ date: dateStr, duration: log.exercise.duration || 0 });
+        const id = log.exercise.id || log.id || `bosque_${dateStr}_legacy`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          finalExercises.push({ id, date: dateStr, duration: log.exercise.duration || 0, name: log.exercise.name, type: log.exercise.type });
+        }
       }
     });
   }
 
-  // Also check Desencadenado workouts (stored separately in bosqueData.desencadenado)
-  const processDesenWorkouts = (workouts: any[]) => {
+  // 2. Helper for Desencadenado workouts
+  const processDesenWorkouts = (workouts: any[], programId = 'current') => {
     workouts.forEach(w => {
       if (w.sessionLogs && w.sessionLogs.length > 0) {
-        w.sessionLogs.forEach((log: any) => {
+        w.sessionLogs.forEach((log: any, logIdx: number) => {
           let dateStr = log.date;
           if (!dateStr && w.date) {
             const d = new Date(w.date);
             dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
           }
-          const mins = Math.round((log.durationSeconds || 0) / 60) || 1;
-          finalExercises.push({ date: dateStr, duration: mins });
+          const id = `desen_${programId}_${w.id || 'w'}_log_${logIdx}`;
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            const mins = Math.round((log.durationSeconds || 0) / 60) || 1;
+            finalExercises.push({ id, date: dateStr, duration: mins, name: w.type || w.name || 'Desencadenado', type: 'fuerza', subtype: 'desencadenado' });
+          }
         });
       } else {
         const isEligible = w.status === 'completed' || w.status === 'in_progress' || w.status === 'in-progress' || (w.durationSeconds && w.durationSeconds > 0);
@@ -964,20 +980,29 @@ const processBosqueData = (bosqueData: any) => {
              const d = new Date(w.createdAt);
              dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
           }
-          const mins = Math.round((w.durationSeconds || 0) / 60) || w.duration || w.minutes || 15;
-          finalExercises.push({ date: dateStr, duration: mins });
+          const id = `desen_${programId}_${w.id || dateStr || 'w'}`;
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            const mins = Math.round((w.durationSeconds || 0) / 60) || w.duration || w.minutes || 15;
+            finalExercises.push({ id, date: dateStr, duration: mins, name: w.type || w.name || 'Desencadenado', type: 'fuerza', subtype: 'desencadenado' });
+          }
         }
       }
     });
   };
 
-  if (bosqueData.desencadenado) {
-    if (Array.isArray(bosqueData.desencadenado.workouts)) {
-      processDesenWorkouts(bosqueData.desencadenado.workouts);
+  // Determine single source of truth for Desencadenado (prefer direct desencadenado database doc)
+  const desenSource = (desencadenadoData && ((desencadenadoData.workouts && desencadenadoData.workouts.length > 0) || (desencadenadoData.completedPrograms && desencadenadoData.completedPrograms.length > 0)))
+    ? desencadenadoData
+    : (bosqueData?.desencadenado || desencadenadoData);
+
+  if (desenSource) {
+    if (Array.isArray(desenSource.workouts)) {
+      processDesenWorkouts(desenSource.workouts, 'current');
     }
-    if (Array.isArray(bosqueData.desencadenado.completedPrograms)) {
-      bosqueData.desencadenado.completedPrograms.forEach((p: any) => {
-        if (Array.isArray(p.workouts)) processDesenWorkouts(p.workouts);
+    if (Array.isArray(desenSource.completedPrograms)) {
+      desenSource.completedPrograms.forEach((p: any, pIdx: number) => {
+        if (Array.isArray(p.workouts)) processDesenWorkouts(p.workouts, p.id || `prog_${pIdx}`);
       });
     }
   }
@@ -2152,26 +2177,21 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         let question = '';
         const isToday = cand.dayOffset === 0;
         const isYesterday = cand.dayOffset === 1;
+        const dayName = cand.date.toLocaleDateString('es-ES', { weekday: 'long' });
         
         if (cand.mealType === 'lunch') {
           if (isToday) {
-            question = '¿Qué comiste hoy?';
+            question = '¿Qué almorzaste?';
           } else if (isYesterday) {
-            question = '¿Qué comiste ayer?';
+            question = '¿Qué almorzaste ayer?';
           } else {
-            const options: Intl.DateTimeFormatOptions = { weekday: 'long' };
-            const dayName = cand.date.toLocaleDateString('es-ES', options);
-            const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-            question = `¿Qué comiste el ${dayCapitalized}?`;
+            question = `¿Qué almorzaste el ${dayName}?`;
           }
         } else {
           if (isYesterday) {
-            question = '¿Qué cenaste ayer?';
+            question = '¿Qué cenaste?';
           } else {
-            const options: Intl.DateTimeFormatOptions = { weekday: 'long' };
-            const dayName = cand.date.toLocaleDateString('es-ES', options);
-            const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-            question = `¿Qué cenaste el ${dayCapitalized}?`;
+            question = `¿Qué cenaste el ${dayName}?`;
           }
         }
         
@@ -2215,9 +2235,11 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     } else if (choice === 'delivery') {
       if (mealType === 'lunch') {
         newDailyScore.lunch = true;
+        newDailyScore.lunchMeal = 'A domicilio';
         newDailyScore.deliveryLunch = true;
       } else {
         newDailyScore.dinner = true;
+        newDailyScore.dinnerMeal = 'A domicilio';
         newDailyScore.deliveryDinner = true;
       }
     } else {
@@ -2235,11 +2257,11 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     const newTotal = calculateAllDaysTotal(newScores);
     const diff = newTotal - oldTotal;
 
-    const activeConfig = currentFoodState.config || {
-      wheel: [],
-      broccoli: [],
-      bonuses: [],
-      meals: DEFAULT_MEALS
+    const activeConfig = {
+      wheel: currentFoodState.config?.wheel || [],
+      broccoli: currentFoodState.config?.broccoli || [],
+      bonuses: currentFoodState.config?.bonuses || [],
+      meals: currentFoodState.config?.meals || DEFAULT_MEALS
     };
 
     const now = new Date();
@@ -2439,6 +2461,18 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
 
     // Update state to trigger Firestore sync
     setData(nextData);
+  };
+
+  const handleFinishTelon = async (
+    foodChoice: string = 'saltar',
+    movieWatched: boolean = formMovieWatched,
+    bookRead: boolean = formBookRead
+  ) => {
+    await handleCompleteDailyForm(foodChoice, movieWatched, bookRead);
+    setModoTelonActive(false);
+    setTelonDismissed(true);
+    setFocusCameFromTelon(true);
+    await fetchFocusRecommendation();
   };
 
   const saveDiaryToAspavientos = async (content: string) => {
@@ -2728,11 +2762,11 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     const taskType = getPriorityTaskType(priorityTaskId);
     const unloggedMeal = getUnloggedMealInfo();
 
-    const activeConfig = data.food?.config || {
-      wheel: [],
-      broccoli: [],
-      bonuses: [],
-      meals: DEFAULT_MEALS
+    const activeConfig = {
+      wheel: data.food?.config?.wheel || [],
+      broccoli: data.food?.config?.broccoli || [],
+      bonuses: data.food?.config?.bonuses || [],
+      meals: data.food?.config?.meals || DEFAULT_MEALS
     };
 
     const targetDate = unloggedMeal?.date;
@@ -2798,6 +2832,15 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           type="button"
                           onClick={() => {
                             setFormEnergy(val);
+                            const todayStr = new Date().toDateString();
+                            setData(prev => ({
+                              ...prev,
+                              energy: val,
+                              energyHistory: {
+                                ...(prev.energyHistory || {}),
+                                [todayStr]: val
+                              }
+                            }));
                             setTelonStep('movie_ask');
                           }}
                           className="aspect-square rounded-full border-2 border-amber-900/40 bg-stone-900 text-amber-200 hover:border-amber-500 hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.05)] hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
@@ -2839,7 +2882,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         setFormMovieWatched(false);
                         if (shouldAskBookForm()) {
                           setTelonStep('book_ask');
@@ -2848,7 +2891,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           if (unlogged) {
                             setTelonStep('food');
                           } else {
-                            handleCompleteDailyForm('saltar', false, false);
+                            await handleFinishTelon('saltar', false, false);
                           }
                         }
                       }}
@@ -2933,7 +2976,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   <button
                     type="button"
                     disabled={!formMovieTitle.trim() || !formMovieYear.trim()}
-                    onClick={() => {
+                    onClick={async () => {
                       if (shouldAskBookForm()) {
                         setTelonStep('book_ask');
                       } else {
@@ -2941,7 +2984,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         if (unlogged) {
                           setTelonStep('food');
                         } else {
-                          handleCompleteDailyForm('saltar', true, false);
+                          await handleFinishTelon('saltar', true, false);
                         }
                       }
                     }}
@@ -2984,13 +3027,13 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                     
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         setFormBookRead(false);
                         const unlogged = getUnloggedMealInfo();
                         if (unlogged) {
                           setTelonStep('food');
                         } else {
-                          handleCompleteDailyForm('saltar', formMovieWatched, false);
+                          await handleFinishTelon('saltar', formMovieWatched, false);
                         }
                       }}
                       className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
@@ -3158,12 +3201,12 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   <button
                     type="button"
                     disabled={!formBookTitle.trim() || !formBookAuthor.trim()}
-                    onClick={() => {
+                    onClick={async () => {
                       const unlogged = getUnloggedMealInfo();
                       if (unlogged) {
                         setTelonStep('food');
                       } else {
-                        handleCompleteDailyForm('saltar', formMovieWatched, true);
+                        await handleFinishTelon('saltar', formMovieWatched, true);
                       }
                     }}
                     className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
@@ -3188,7 +3231,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       </h2>
                     </div>
                     <p className="text-stone-400 text-xs font-medium text-center">
-                      ¿Qué comiste?
+                      {unloggedMeal.question}
                     </p>
                   </div>
 
@@ -3236,7 +3279,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       <button
                         type="button"
                         onClick={() => {
-                          setFormFoodChoice('saltar');
+                          setFormFoodChoice('Meh');
                           setTelonStep('diary');
                         }}
                         className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-400 hover:border-stone-600 hover:bg-stone-900/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
@@ -3276,11 +3319,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       if (formDiaryContent.trim()) {
                         await saveDiaryToAspavientos(formDiaryContent.trim());
                       }
-                      await handleCompleteDailyForm(formFoodChoice, formMovieWatched, formBookRead);
-                      setModoTelonActive(false);
-                      setTelonDismissed(true);
-                      setFocusCameFromTelon(true);
-                      await fetchFocusRecommendation();
+                      await handleFinishTelon(formFoodChoice, formMovieWatched, formBookRead);
                     }}
                     className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer text-center"
                   >
@@ -3388,28 +3427,25 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
   };
 
   const calculateStreak = () => {
-    const history = data.hunosHistory || {};
+    const reviews = data.streakReviewedDays || {};
     const todayStr = new Date().toDateString();
     
-    const isLogged = (dateStr: string) => {
-      if (dateStr === todayStr) {
-        return data.hunos.some(t => t.completed) || (history[todayStr] && history[todayStr].length > 0);
-      }
-      return history[dateStr] && history[dateStr].length > 0;
+    const isReviewed = (dateStr: string) => {
+      return !!reviews[dateStr];
     };
 
     let streak = 0;
     const checkDate = new Date();
     
-    if (isLogged(todayStr)) {
-      while (isLogged(checkDate.toDateString())) {
+    if (isReviewed(todayStr)) {
+      while (isReviewed(checkDate.toDateString())) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
       }
     } else {
       checkDate.setDate(checkDate.getDate() - 1);
-      if (isLogged(checkDate.toDateString())) {
-        while (isLogged(checkDate.toDateString())) {
+      if (isReviewed(checkDate.toDateString())) {
+        while (isReviewed(checkDate.toDateString())) {
           streak++;
           checkDate.setDate(checkDate.getDate() - 1);
         }
@@ -3680,8 +3716,9 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     }
 
     const habitsRef = collection(db, 'users', user.uid, 'habits');
-    let unsubscribe: () => void;
-    let unsubscribeBosque: () => void;
+    let unsubscribe: (() => void) | undefined;
+    let unsubscribeBosque: (() => void) | undefined;
+    let unsubscribeDesencadenado: (() => void) | undefined;
 
     const initializeData = async () => {
       setIsInitializing(true);
@@ -3770,17 +3807,32 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
           handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
         });
 
+        let latestBosqueData: any = null;
+        let latestDesencadenadoData: any = null;
+
+        const updateBosqueStats = () => {
+          const { trainedToday, weeklyMinutes, exercises } = processBosqueData(latestBosqueData, latestDesencadenadoData);
+          setBosqueTrainedToday(trainedToday);
+          setBosqueWeeklyMinutes(weeklyMinutes);
+          setBosqueExercises(exercises);
+        };
+
         unsubscribeBosque = onSnapshot(doc(bosqueDb, 'users', user.uid), (snapshot) => {
           if (snapshot.exists()) {
-            const bosqueData = snapshot.data();
-            const todayStr = new Date().toISOString().split('T')[0];
-            const { trainedToday, weeklyMinutes, exercises } = processBosqueData(bosqueData);
-            setBosqueTrainedToday(trainedToday);
-            setBosqueWeeklyMinutes(weeklyMinutes);
-            setBosqueExercises(exercises);
+            latestBosqueData = snapshot.data();
+            updateBosqueStats();
           }
         }, (error) => {
           console.error('Bosque Firestore sync error:', error);
+        });
+
+        unsubscribeDesencadenado = onSnapshot(doc(desencadenadoDb, 'state', user.uid), (snapshot) => {
+          if (snapshot.exists()) {
+            latestDesencadenadoData = snapshot.data();
+            updateBosqueStats();
+          }
+        }, (error) => {
+          console.error('Desencadenado Firestore sync error:', error);
         });
       }
     };
@@ -3790,22 +3842,87 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     return () => {
       if (unsubscribe) unsubscribe();
       if (unsubscribeBosque) unsubscribeBosque();
+      if (unsubscribeDesencadenado) unsubscribeDesencadenado();
     };
   }, [user, authReady]);
 
   useEffect(() => {
-    if (bosqueTrainedToday && !isInitializing && loaded) {
+    if (!isInitializing && loaded && (bosqueTrainedToday || bosqueExercises.length > 0)) {
       setData(prev => {
-        const gimIndex = prev.hunos.findIndex(h => h.text.includes('Gim'));
-        if (gimIndex !== -1 && !prev.hunos[gimIndex].completed) {
-          const newHunos = [...prev.hunos];
-          newHunos[gimIndex] = { ...newHunos[gimIndex], completed: true };
-          return { ...prev, hunos: newHunos };
+        const gimHuno = prev.hunos.find(h => h.shortcut === 'exercise' || h.text.toLowerCase().includes('gim'));
+        if (!gimHuno) return prev;
+
+        let changed = false;
+        let newHunos = prev.hunos;
+        let newHistory = prev.hunosHistory ? { ...prev.hunosHistory } : {};
+
+        // 1. Auto-mark today if trainedToday
+        if (bosqueTrainedToday) {
+          const gimIndex = prev.hunos.findIndex(h => h.id === gimHuno.id);
+          if (gimIndex !== -1 && !prev.hunos[gimIndex].completed) {
+            newHunos = [...newHunos];
+            newHunos[gimIndex] = { ...newHunos[gimIndex], completed: true };
+            changed = true;
+          }
         }
+
+        // 2. Check historical exercises: for each date in bosqueExercises, ensure gimHuno is in hunosHistory
+        const todayKey = new Date().toDateString();
+        bosqueExercises.forEach(ex => {
+          if (!ex.date) return;
+          const d = new Date(ex.date + 'T12:00:00');
+          const dateKey = d.toDateString();
+          if (dateKey !== todayKey) {
+            const completedList = newHistory[dateKey] || [];
+            if (!completedList.includes(gimHuno.id)) {
+              newHistory[dateKey] = [...completedList, gimHuno.id];
+              changed = true;
+            }
+          }
+        });
+
+        if (changed) {
+          // Recalculate missedDays & failedYesterday for all hunos based on updated history
+          const historyDates = Object.keys(newHistory).map(d => new Date(d).getTime());
+          const oldestHistoryDate = historyDates.length > 0 ? Math.min(...historyDates) : new Date().getTime();
+
+          newHunos = newHunos.map(t => {
+            let missedCount = 0;
+            let checkDate = new Date();
+            checkDate.setDate(checkDate.getDate() - 1);
+            checkDate.setHours(0, 0, 0, 0);
+
+            while (checkDate.getTime() >= oldestHistoryDate) {
+              const checkString = checkDate.toDateString();
+              const completedOnCheckDate = (newHistory[checkString] || []).includes(t.id);
+              if (completedOnCheckDate) {
+                break;
+              } else {
+                missedCount++;
+                checkDate.setDate(checkDate.getDate() - 1);
+                checkDate.setHours(0, 0, 0, 0);
+                if (missedCount >= 30) break;
+              }
+            }
+
+            return {
+              ...t,
+              failedYesterday: missedCount > 0,
+              missedDays: missedCount
+            };
+          });
+
+          return {
+            ...prev,
+            hunos: newHunos,
+            hunosHistory: newHistory
+          };
+        }
+
         return prev;
       });
     }
-  }, [bosqueTrainedToday, isInitializing, loaded]);
+  }, [bosqueTrainedToday, bosqueExercises, isInitializing, loaded]);
 
   useEffect(() => {
     if (isInitializing || !loaded || !user) return;
@@ -4402,7 +4519,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                 </button>
               </div>
             </header>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-2 gap-2 mb-2">
               <button
                 onClick={() => setView('trains')}
                 className={`aspect-[4/3] rounded-2xl p-4 flex items-center justify-center transition-all duration-700 border shadow-sm group ${isTrainPleno
