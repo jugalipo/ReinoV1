@@ -2554,10 +2554,6 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         dailyLogs.push(log);
       }
       
-      const previousYesterdayWorkout = log.yesterdayWorkout;
-      const wasCompletedBefore = previousYesterdayWorkout?.completed === true;
-      const isCompletedNow = completed === true;
-      
       // Update daily logs yesterdayWorkout
       log.yesterdayWorkout = {
         type: workoutType,
@@ -2580,16 +2576,13 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
         bodyEntries.push(bodyEntry);
       }
       
-      // Update counters in the body entry
-      if (wasCompletedBefore !== isCompletedNow) {
-        const field = workoutType === 'impulso' ? 'impulso' : 'peso';
-        const currentCount = bodyEntry[field] || 0;
-        if (isCompletedNow) {
-          bodyEntry[field] = currentCount + 1;
-        } else {
-          bodyEntry[field] = Math.max(0, currentCount - 1);
-        }
-      }
+      // Calculate total completed days for this month from dailyLogs
+      const monthLogs = dailyLogs.filter((l: any) => l.date && l.date.startsWith(monthPrefix));
+      const impulsoCount = monthLogs.filter((l: any) => l.yesterdayWorkout?.type === 'impulso' && l.yesterdayWorkout?.completed === true).length;
+      const pesoCount = monthLogs.filter((l: any) => l.yesterdayWorkout?.type === 'peso' && l.yesterdayWorkout?.completed === true).length;
+      
+      bodyEntry.impulso = impulsoCount;
+      bodyEntry.peso = pesoCount;
       
       await setDoc(docRef, { ...bosqueData, dailyLogs, body: bodyEntries }, { merge: true });
       console.log("Guardado registro de impulso/peso en Bosque:", dateStr, log.yesterdayWorkout, "y actualizado cuerpo:", bodyEntry);
