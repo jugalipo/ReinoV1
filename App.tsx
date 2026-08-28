@@ -1038,7 +1038,7 @@ function App() {
   const [selectedEnergy, setSelectedEnergy] = useState<number | null>(null);
 
   // New Modo Telón form states
-  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'diary'>('energy');
+  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'workout_ask' | 'diary'>('energy');
   const [formDiaryContent, setFormDiaryContent] = useState<string>('');
   const [focusCameFromTelon, setFocusCameFromTelon] = useState<boolean>(false);
   const [formEnergy, setFormEnergy] = useState<number | null>(null);
@@ -2526,6 +2526,44 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
     }
   };
 
+  const handleSaveWorkoutToBosque = async (workoutType: string, completed: boolean) => {
+    if (!user) return;
+    try {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const year = yesterday.getFullYear();
+      const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+      const day = String(yesterday.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      const docRef = doc(bosqueDb, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      
+      let bosqueData: any = { dailyLogs: [] };
+      if (docSnap.exists()) {
+        bosqueData = docSnap.data();
+      }
+      
+      const dailyLogs = bosqueData.dailyLogs || [];
+      let log = dailyLogs.find((l: any) => l.date === dateStr);
+      if (!log) {
+        log = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), date: dateStr };
+        dailyLogs.push(log);
+      }
+      
+      log.yesterdayWorkout = {
+        type: workoutType,
+        completed: completed,
+        timestamp: Date.now()
+      };
+      
+      await setDoc(docRef, { ...bosqueData, dailyLogs }, { merge: true });
+      console.log("Guardado registro de impulso/peso en Bosque:", dateStr, log.yesterdayWorkout);
+    } catch (e) {
+      console.error("Error guardando registro en Bosque:", e);
+    }
+  };
+
   const triggerTelonManually = () => {
     setTelonStep('energy');
     setFormEnergy(null);
@@ -2734,7 +2772,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
           setTelonStep('movie_ask');
         }
       }
-    } else if (telonStep === 'diary') {
+    } else if (telonStep === 'workout_ask') {
       const unlogged = getUnloggedMealInfo();
       if (unlogged) {
         setTelonStep('food');
@@ -2751,6 +2789,8 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
           setTelonStep('movie_ask');
         }
       }
+    } else if (telonStep === 'diary') {
+      setTelonStep('workout_ask');
     } else if (telonStep === 'focus') {
       setTelonStep('diary');
     }
@@ -2891,7 +2931,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           if (unlogged) {
                             setTelonStep('food');
                           } else {
-                            await handleFinishTelon('saltar', false, false);
+                            setTelonStep('workout_ask');
                           }
                         }
                       }}
@@ -2984,7 +3024,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         if (unlogged) {
                           setTelonStep('food');
                         } else {
-                          await handleFinishTelon('saltar', true, false);
+                          setTelonStep('workout_ask');
                         }
                       }
                     }}
@@ -3033,7 +3073,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         if (unlogged) {
                           setTelonStep('food');
                         } else {
-                          await handleFinishTelon('saltar', formMovieWatched, false);
+                          setTelonStep('workout_ask');
                         }
                       }}
                       className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
@@ -3206,7 +3246,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                       if (unlogged) {
                         setTelonStep('food');
                       } else {
-                        await handleFinishTelon('saltar', formMovieWatched, true);
+                        setTelonStep('workout_ask');
                       }
                     }}
                     className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
@@ -3243,7 +3283,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                           type="button"
                           onClick={() => {
                             setFormFoodChoice(meal.name);
-                            setTelonStep('diary');
+                            setTelonStep('workout_ask');
                           }}
                           className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-emerald-500 hover:bg-emerald-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                         >
@@ -3256,7 +3296,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         type="button"
                         onClick={() => {
                           setFormFoodChoice('ayuno');
-                          setTelonStep('diary');
+                          setTelonStep('workout_ask');
                         }}
                         className="px-3.5 py-2 rounded-xl bg-blue-950/30 border border-blue-900/30 text-blue-300 hover:border-blue-500 hover:bg-blue-950/50 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
@@ -3268,7 +3308,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         type="button"
                         onClick={() => {
                           setFormFoodChoice('delivery');
-                          setTelonStep('diary');
+                          setTelonStep('workout_ask');
                         }}
                         className="px-3.5 py-2 rounded-xl bg-red-950/50 border border-red-900/40 text-red-300 hover:border-red-500 hover:bg-red-950/70 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
@@ -3280,7 +3320,7 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                         type="button"
                         onClick={() => {
                           setFormFoodChoice('Meh');
-                          setTelonStep('diary');
+                          setTelonStep('workout_ask');
                         }}
                         className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-400 hover:border-stone-600 hover:bg-stone-900/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
@@ -3291,6 +3331,57 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
                   </div>
                 </div>
               )}
+              {telonStep === 'workout_ask' && (() => {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const dayNum = yesterday.getDate();
+                const isOdd = dayNum % 2 !== 0;
+                const workoutType = isOdd ? 'impulso' : 'peso';
+                const emoji = isOdd ? '🏃' : '🏋️';
+                const label = isOdd ? 'Impulso (Día Impar)' : 'Peso (Día Par)';
+
+                return (
+                  <div className="w-full text-center space-y-8 animate-in fade-in duration-500 max-w-xs mx-auto">
+                    <div className="space-y-3">
+                      <div className="w-12 h-12 bg-amber-950/40 border border-amber-500/30 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                        <span className="text-2xl">{emoji}</span>
+                      </div>
+                      <h1 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic leading-none">
+                        {label}
+                      </h1>
+                      <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
+                        ¿Hiciste ayer el entrenamiento de **{workoutType}**?
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleSaveWorkoutToBosque(workoutType, true);
+                          setTelonStep('diary');
+                        }}
+                        className="py-4 px-6 rounded-2xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-stone-950 font-black text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2 shadow-lg shadow-amber-950/20"
+                      >
+                        <Check className="w-5 h-5 stroke-[3]" />
+                        Sí, completado
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleSaveWorkoutToBosque(workoutType, false);
+                          setTelonStep('diary');
+                        }}
+                        className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
+                      >
+                        <X className="w-5 h-5 text-stone-500 stroke-[3]" />
+                        No lo hice
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
               {telonStep === 'diary' && (
                 <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
                   <div className="space-y-1 text-center">
