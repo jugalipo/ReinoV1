@@ -2535,30 +2535,64 @@ Por favor, procesa el audio y genera el JSON según el esquema indicado.
       const month = String(yesterday.getMonth() + 1).padStart(2, '0');
       const day = String(yesterday.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
+      const monthPrefix = `${year}-${month}`;
 
       const docRef = doc(bosqueDb, 'users', user.uid);
       const docSnap = await getDoc(docRef);
       
-      let bosqueData: any = { dailyLogs: [] };
+      let bosqueData: any = { dailyLogs: [], body: [] };
       if (docSnap.exists()) {
         bosqueData = docSnap.data();
       }
       
       const dailyLogs = bosqueData.dailyLogs || [];
+      const bodyEntries = bosqueData.body || [];
+      
       let log = dailyLogs.find((l: any) => l.date === dateStr);
       if (!log) {
         log = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), date: dateStr };
         dailyLogs.push(log);
       }
       
+      const previousYesterdayWorkout = log.yesterdayWorkout;
+      const wasCompletedBefore = previousYesterdayWorkout?.completed === true;
+      const isCompletedNow = completed === true;
+      
+      // Update daily logs yesterdayWorkout
       log.yesterdayWorkout = {
         type: workoutType,
         completed: completed,
         timestamp: Date.now()
       };
       
-      await setDoc(docRef, { ...bosqueData, dailyLogs }, { merge: true });
-      console.log("Guardado registro de impulso/peso en Bosque:", dateStr, log.yesterdayWorkout);
+      // Find or create monthly body entry
+      let bodyEntry = bodyEntries.find((b: any) => b.date && b.date.startsWith(monthPrefix) && b.date.endsWith('-01'));
+      if (!bodyEntry) {
+        bodyEntry = bodyEntries.find((b: any) => b.date && b.date.startsWith(monthPrefix));
+      }
+      if (!bodyEntry) {
+        bodyEntry = {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+          date: `${monthPrefix}-01`,
+          impulso: 0,
+          peso: 0
+        };
+        bodyEntries.push(bodyEntry);
+      }
+      
+      // Update counters in the body entry
+      if (wasCompletedBefore !== isCompletedNow) {
+        const field = workoutType === 'impulso' ? 'impulso' : 'peso';
+        const currentCount = bodyEntry[field] || 0;
+        if (isCompletedNow) {
+          bodyEntry[field] = currentCount + 1;
+        } else {
+          bodyEntry[field] = Math.max(0, currentCount - 1);
+        }
+      }
+      
+      await setDoc(docRef, { ...bosqueData, dailyLogs, body: bodyEntries }, { merge: true });
+      console.log("Guardado registro de impulso/peso en Bosque:", dateStr, log.yesterdayWorkout, "y actualizado cuerpo:", bodyEntry);
     } catch (e) {
       console.error("Error guardando registro en Bosque:", e);
     }
