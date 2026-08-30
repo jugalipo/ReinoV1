@@ -4364,10 +4364,7 @@ Ejemplo de respuesta en "text":
                 data.hunosHistory || {},
                 data.hunos.filter(t => t.completed).map(t => t.id)
               );
-              const combinedPendingHunoIds = Array.from(new Set([
-                ...pendingHunoIds,
-                ...(pendingVoiceUpdates?.tasks?.map((t: any) => t.id) || [])
-              ]));
+              const combinedPendingHunoIds = pendingHunoIds;
               return (
                 <DailyHunos
                   tasks={data.hunos}
