@@ -14,8 +14,8 @@ import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { ToolsView } from './components/ToolsView';
 import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
-import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb } from './firebase';
-import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
+import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 enum OperationType {
@@ -1043,24 +1043,11 @@ function App() {
   const [focusCameFromTelon, setFocusCameFromTelon] = useState<boolean>(false);
   const [formEnergy, setFormEnergy] = useState<number | null>(null);
   const [formMovieWatched, setFormMovieWatched] = useState<boolean>(false);
-  const [formMovieTitle, setFormMovieTitle] = useState<string>('');
-  const [formMovieYear, setFormMovieYear] = useState<string>('');
-  const [formMovieStars, setFormMovieStars] = useState<number>(3);
-  const [formMovieIsSerie, setFormMovieIsSerie] = useState<boolean>(false);
+  const [formMovieNote, setFormMovieNote] = useState<string>('');
   
   // Book states
   const [formBookRead, setFormBookRead] = useState<boolean>(false);
-  const [formBookTitle, setFormBookTitle] = useState<string>('');
-  const [formBookAuthor, setFormBookAuthor] = useState<string>('');
-  const [formBookPubYear, setFormBookPubYear] = useState<string>('');
-  const [formBookPubYearUncertain, setFormBookPubYearUncertain] = useState<boolean>(false);
-  const [formBookReadYear, setFormBookReadYear] = useState<string>(new Date().getFullYear().toString());
-  const [formBookReadYearUncertain, setFormBookReadYearUncertain] = useState<boolean>(false);
-  const [formBookAuthorAge, setFormBookAuthorAge] = useState<string>('');
-  const [formBookAuthorAgeUncertain, setFormBookAuthorAgeUncertain] = useState<boolean>(false);
-  const [formBookRating, setFormBookRating] = useState<number>(4);
-  const [formBookReadCount, setFormBookReadCount] = useState<string>('1');
-  const [formBookDiaryNumber, setFormBookDiaryNumber] = useState<string>('');
+  const [formBookNote, setFormBookNote] = useState<string>('');
 
   const [formFoodChoice, setFormFoodChoice] = useState<string>('saltar');
   const [geminiLoading, setGeminiLoading] = useState(false);
@@ -1090,10 +1077,9 @@ function App() {
       setTelonStep('energy');
       setFormEnergy(null);
       setFormMovieWatched(false);
-      setFormMovieTitle('');
-      setFormMovieYear('');
-      setFormMovieStars(3);
-      setFormMovieIsSerie(false);
+      setFormMovieNote('');
+      setFormBookRead(false);
+      setFormBookNote('');
       setFormFoodChoice('saltar');
       setModoTelonActive(true);
     }
@@ -1841,63 +1827,53 @@ Ejemplo de respuesta en "text":
     };
 
     // 2. Process Movie (Cartelera)
-    if (movieWatchedParam && formMovieTitle.trim()) {
+    // 2. Process Movie (Send note to Puerto)
+    if (movieWatchedParam && formMovieNote.trim()) {
       try {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const newMovie = {
-          id: 'visa-' + Date.now(),
-          title: formMovieTitle.trim(),
-          author: '-',
-          pubYear: formMovieYear ? parseInt(formMovieYear, 10) : '',
-          pubYearUncertain: false,
-          readYear: yesterday.getFullYear(),
-          readYearUncertain: false,
-          authorAge: '',
-          authorAgeUncertain: false,
-          rating: formMovieStars,
-          readCount: 1,
-          diaryNumber: '',
-          serie: formMovieIsSerie ? 's' : '-'
-        };
-        
         if (user) {
-          await setDoc(doc(carteleraDb, 'users', user.uid, 'cartelera_visa', newMovie.id), newMovie);
-          await setDoc(doc(carteleraDb, 'users', user.uid, 'cartelera_state', 'meta'), { lastUpdated: Date.now() });
+          await addDoc(collection(puertoDb, 'notes'), {
+            title: 'Película / Serie (Modo Telón)',
+            text: formMovieNote.trim(),
+            category: 'Inbox',
+            color: 'default',
+            isPinned: false,
+            isArchived: false,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            userId: user.uid,
+            images: [],
+            tags: ['Cartelera', 'Modo Telón']
+          });
         }
       } catch (err) {
-        console.error("Error saving movie to Cartelera DB:", err);
+        console.error("Error saving movie note to Puerto DB:", err);
       }
     }
 
-    // 3. Process Book (Biblioteca)
+    // 3. Process Book (Send note to Puerto)
     const sundayKey = getPrecedingSunday(new Date()).toDateString();
     if (shouldAskBookForm()) {
       nextData.lastBookFormSunday = sundayKey;
       
-      if (bookReadParam && formBookTitle.trim() && formBookAuthor.trim()) {
+      if (bookReadParam && formBookNote.trim()) {
         try {
-          const today = new Date();
-          const newBook = {
-            id: 'lecta-' + Date.now(),
-            title: formBookTitle.trim(),
-            author: formBookAuthor.trim(),
-            pubYear: formBookPubYear ? parseInt(formBookPubYear, 10) : '',
-            pubYearUncertain: formBookPubYearUncertain,
-            readYear: formBookReadYear ? parseInt(formBookReadYear, 10) : today.getFullYear(),
-            readYearUncertain: formBookReadYearUncertain,
-            authorAge: formBookAuthorAge ? parseInt(formBookAuthorAge, 10) : '',
-            authorAgeUncertain: formBookAuthorAgeUncertain,
-            rating: formBookRating,
-            readCount: formBookReadCount ? parseInt(formBookReadCount, 10) : 1,
-            diaryNumber: formBookDiaryNumber ? parseInt(formBookDiaryNumber, 10) : ''
-          };
-          
           if (user) {
-            await setDoc(doc(bibliotecaDb, 'users', user.uid, 'books_lecta', newBook.id), newBook);
+            await addDoc(collection(puertoDb, 'notes'), {
+              title: 'Libro (Modo Telón)',
+              text: formBookNote.trim(),
+              category: 'Inbox',
+              color: 'default',
+              isPinned: false,
+              isArchived: false,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              userId: user.uid,
+              images: [],
+              tags: ['Biblioteca', 'Modo Telón']
+            });
           }
         } catch (err) {
-          console.error("Error saving book to Biblioteca DB:", err);
+          console.error("Error saving book note to Puerto DB:", err);
         }
       }
     }
@@ -2051,23 +2027,10 @@ Ejemplo de respuesta en "text":
     setTelonStep('energy');
     setFormEnergy(null);
     setFormMovieWatched(false);
-    setFormMovieTitle('');
-    setFormMovieYear('');
-    setFormMovieStars(3);
-    setFormMovieIsSerie(false);
+    setFormMovieNote('');
     
     setFormBookRead(false);
-    setFormBookTitle('');
-    setFormBookAuthor('');
-    setFormBookPubYear('');
-    setFormBookPubYearUncertain(false);
-    setFormBookReadYear(new Date().getFullYear().toString());
-    setFormBookReadYearUncertain(false);
-    setFormBookAuthorAge('');
-    setFormBookAuthorAgeUncertain(false);
-    setFormBookRating(4);
-    setFormBookReadCount('1');
-    setFormBookDiaryNumber('');
+    setFormBookNote('');
 
     setFormFoodChoice('saltar');
     setFormDiaryContent('');
@@ -2303,8 +2266,8 @@ Ejemplo de respuesta en "text":
       return count < meal.max;
     });
 
-    const isMovieFormValid = !formMovieWatched || (formMovieTitle.trim().length > 0 && formMovieYear.trim().length > 0);
-    const isBookFormValid = !formBookRead || (formBookTitle.trim().length > 0 && formBookAuthor.trim().length > 0);
+    const isMovieFormValid = !formMovieWatched || formMovieNote.trim().length > 0;
+    const isBookFormValid = !formBookRead || formBookNote.trim().length > 0;
     const isFormValid = formEnergy !== null && isMovieFormValid && isBookFormValid;
 
     return (
@@ -2434,71 +2397,26 @@ Ejemplo de respuesta en "text":
                       CARTELERA
                     </h2>
                     <p className="text-stone-400 text-xs font-medium leading-relaxed">
-                      Introduce los datos para la ficha de Cartelera.
+                      Explica de forma natural qué viste y tus notas o impresiones. Se enviará como nota a Puerto.
                     </p>
                   </div>
 
                   <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Título</label>
-                      <input 
-                        type="text"
-                        placeholder="Título de la película o serie"
-                        value={formMovieTitle}
-                        onChange={(e) => setFormMovieTitle(e.target.value)}
-                        className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full transition-colors"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Año de estreno</label>
-                        <input 
-                          type="number"
-                          placeholder="Ej: 2024"
-                          value={formMovieYear}
-                          onChange={(e) => setFormMovieYear(e.target.value)}
-                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full transition-colors"
-                        />
-                      </div>
-                      <div className="flex flex-col justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setFormMovieIsSerie(!formMovieIsSerie)}
-                          className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 text-center select-none ${
-                            formMovieIsSerie
-                              ? 'bg-amber-600 text-stone-950 font-black'
-                              : 'bg-stone-950 text-stone-400 hover:text-stone-300'
-                          }`}
-                        >
-                          Serie
-                        </button>
-                      </div>
-                    </div>
-
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Estrellas</label>
-                      <div className="flex items-center gap-2">
-                        {[1, 2, 3, 4, 5].map((star) => {
-                          const active = star <= formMovieStars;
-                          return (
-                            <button
-                              key={star}
-                              type="button"
-                              onClick={() => setFormMovieStars(star)}
-                              className="p-0.5 hover:scale-110 active:scale-95 transition-transform"
-                            >
-                              <Star className={`w-7 h-7 ${active ? 'text-amber-500 fill-current drop-shadow-[0_0_5px_rgba(245,158,11,0.2)]' : 'text-stone-700'}`} />
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Película / Serie y detalles</label>
+                      <textarea 
+                        rows={4}
+                        placeholder="Ej: Ayer vi 'Diarios de una niñera', divertida comedia con Scarlett Johansson, le pongo un 4/5..."
+                        value={formMovieNote}
+                        onChange={(e) => setFormMovieNote(e.target.value)}
+                        className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl p-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full transition-colors resize-none leading-relaxed"
+                      />
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    disabled={!formMovieTitle.trim() || !formMovieYear.trim()}
+                    disabled={!formMovieNote.trim()}
                     onClick={async () => {
                       if (shouldAskBookForm()) {
                         setTelonStep('book_ask');
@@ -2512,7 +2430,7 @@ Ejemplo de respuesta en "text":
                       }
                     }}
                     className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
-                      ${(formMovieTitle.trim() && formMovieYear.trim())
+                      ${formMovieNote.trim()
                         ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer'
                         : 'bg-stone-950 text-stone-700 cursor-not-allowed'}`}
                   >
@@ -2572,158 +2490,29 @@ Ejemplo de respuesta en "text":
                 <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-xs mx-auto text-left">
                   <div className="space-y-1 text-center">
                     <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
-                      Detalles del Libro
+                      BIBLIOTECA
                     </h2>
                     <p className="text-stone-400 text-xs font-medium leading-relaxed">
-                      Introduce los datos para el registro en tu Lecta.
+                      Explica de forma natural qué libro leíste y tus notas o impresiones. Se enviará como nota a Puerto.
                     </p>
                   </div>
 
-                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl max-h-[360px] overflow-y-auto pr-1">
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Título *</label>
-                        <input 
-                          type="text"
-                          placeholder="Título del libro"
-                          value={formBookTitle}
-                          onChange={(e) => setFormBookTitle(e.target.value)}
-                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors"
-                        />
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Autor *</label>
-                        <input 
-                          type="text"
-                          placeholder="Autor del libro"
-                          value={formBookAuthor}
-                          onChange={(e) => setFormBookAuthor(e.target.value)}
-                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 pt-1">
-                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Año Publicación</label>
-                      <div className="flex gap-2 items-center">
-                        <input 
-                          type="number"
-                          placeholder="Ej: 1984"
-                          value={formBookPubYear}
-                          onChange={(e) => setFormBookPubYear(e.target.value)}
-                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 flex-1 transition-colors"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFormBookPubYearUncertain(!formBookPubYearUncertain)}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 text-center select-none shrink-0 ${
-                            formBookPubYearUncertain
-                              ? 'bg-indigo-600 text-stone-950 font-black'
-                              : 'bg-stone-950 text-stone-400 hover:text-stone-300'
-                          }`}
-                        >
-                          Dudoso
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 pt-1">
-                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Año Lectura</label>
-                      <div className="flex gap-2 items-center">
-                        <input 
-                          type="number"
-                          placeholder="Ej: 2026"
-                          value={formBookReadYear}
-                          onChange={(e) => setFormBookReadYear(e.target.value)}
-                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 flex-1 transition-colors"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFormBookReadYearUncertain(!formBookReadYearUncertain)}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 text-center select-none shrink-0 ${
-                            formBookReadYearUncertain
-                              ? 'bg-indigo-600 text-stone-950 font-black'
-                              : 'bg-stone-950 text-stone-400 hover:text-stone-300'
-                          }`}
-                        >
-                          Dudoso
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 pt-1">
-                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Edad Autor</label>
-                      <div className="flex gap-2 items-center">
-                        <input 
-                          type="number"
-                          placeholder="Edad al escribir"
-                          value={formBookAuthorAge}
-                          onChange={(e) => setFormBookAuthorAge(e.target.value)}
-                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 flex-1 transition-colors"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFormBookAuthorAgeUncertain(!formBookAuthorAgeUncertain)}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 text-center select-none shrink-0 ${
-                            formBookAuthorAgeUncertain
-                              ? 'bg-indigo-600 text-stone-950 font-black'
-                              : 'bg-stone-950 text-stone-400 hover:text-stone-300'
-                          }`}
-                        >
-                          Dudoso
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5 pt-1">
-                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Nota (1-5)</label>
-                      <div className="flex items-center gap-2">
-                        {[1, 2, 3, 4, 5].map((star) => {
-                          const active = star <= formBookRating;
-                          return (
-                            <button
-                              key={star}
-                              type="button"
-                              onClick={() => setFormBookRating(star)}
-                              className="p-0.5 hover:scale-110 active:scale-95 transition-transform"
-                            >
-                              <Star className={`w-7 h-7 ${active ? 'text-indigo-500 fill-current drop-shadow-[0_0_5px_rgba(99,102,241,0.2)]' : 'text-stone-700'}`} />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Veces leído</label>
-                        <input 
-                          type="number"
-                          min="1"
-                          placeholder="1"
-                          value={formBookReadCount}
-                          onChange={(e) => setFormBookReadCount(e.target.value)}
-                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors"
-                        />
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Nº Diario</label>
-                        <input 
-                          type="number"
-                          placeholder="Opcional"
-                          value={formBookDiaryNumber}
-                          onChange={(e) => setFormBookDiaryNumber(e.target.value)}
-                          className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors"
-                        />
-                      </div>
+                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Libro y detalles</label>
+                      <textarea 
+                        rows={4}
+                        placeholder="Ej: He terminado 'El guardián entre el centeno' de Salinger, muy buena prosa..."
+                        value={formBookNote}
+                        onChange={(e) => setFormBookNote(e.target.value)}
+                        className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl p-3 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors resize-none leading-relaxed"
+                      />
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    disabled={!formBookTitle.trim() || !formBookAuthor.trim()}
+                    disabled={!formBookNote.trim()}
                     onClick={async () => {
                       const unlogged = getUnloggedMealInfo();
                       if (unlogged) {
@@ -2733,7 +2522,7 @@ Ejemplo de respuesta en "text":
                       }
                     }}
                     className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
-                      ${(formBookTitle.trim() && formBookAuthor.trim())
+                      ${formBookNote.trim()
                         ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.2)] cursor-pointer'
                         : 'bg-stone-950 text-stone-700 cursor-not-allowed'}`}
                   >
