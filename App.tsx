@@ -1826,14 +1826,13 @@ Ejemplo de respuesta en "text":
       [todayStr]: formEnergy
     };
 
-    // 2. Process Movie (Cartelera)
     // 2. Process Movie (Send note to Puerto)
     if (movieWatchedParam && formMovieNote.trim()) {
       try {
         if (user) {
           await addDoc(collection(puertoDb, 'notes'), {
-            title: 'Película / Serie (Modo Telón)',
-            text: formMovieNote.trim(),
+            title: '',
+            content: formMovieNote.trim(),
             category: 'Inbox',
             color: 'default',
             isPinned: false,
@@ -1842,7 +1841,7 @@ Ejemplo de respuesta en "text":
             updatedAt: serverTimestamp(),
             userId: user.uid,
             images: [],
-            tags: ['Cartelera', 'Modo Telón']
+            tags: []
           });
         }
       } catch (err) {
@@ -1859,8 +1858,8 @@ Ejemplo de respuesta en "text":
         try {
           if (user) {
             await addDoc(collection(puertoDb, 'notes'), {
-              title: 'Libro (Modo Telón)',
-              text: formBookNote.trim(),
+              title: '',
+              content: formBookNote.trim(),
               category: 'Inbox',
               color: 'default',
               isPinned: false,
@@ -1869,7 +1868,7 @@ Ejemplo de respuesta en "text":
               updatedAt: serverTimestamp(),
               userId: user.uid,
               images: [],
-              tags: ['Biblioteca', 'Modo Telón']
+              tags: []
             });
           }
         } catch (err) {
@@ -2392,26 +2391,20 @@ Ejemplo de respuesta en "text":
 
               {telonStep === 'movie_fields' && (
                 <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-xs mx-auto text-left">
-                  <div className="space-y-1 text-center">
+                  <div className="text-center">
                     <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
-                      CARTELERA
+                      Cartelera
                     </h2>
-                    <p className="text-stone-400 text-xs font-medium leading-relaxed">
-                      Explica de forma natural qué viste y tus notas o impresiones. Se enviará como nota a Puerto.
-                    </p>
                   </div>
 
-                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Película / Serie y detalles</label>
-                      <textarea 
-                        rows={4}
-                        placeholder="Ej: Ayer vi 'Diarios de una niñera', divertida comedia con Scarlett Johansson, le pongo un 4/5..."
-                        value={formMovieNote}
-                        onChange={(e) => setFormMovieNote(e.target.value)}
-                        className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl p-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full transition-colors resize-none leading-relaxed"
-                      />
-                    </div>
+                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 shadow-xl">
+                    <textarea 
+                      rows={4}
+                      placeholder="Ejemplo: Ayer vi..."
+                      value={formMovieNote}
+                      onChange={(e) => setFormMovieNote(e.target.value)}
+                      className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl p-3.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full transition-colors resize-none leading-relaxed border border-stone-800/60"
+                    />
                   </div>
 
                   <button
@@ -2488,26 +2481,20 @@ Ejemplo de respuesta en "text":
 
               {telonStep === 'book_fields' && (
                 <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-xs mx-auto text-left">
-                  <div className="space-y-1 text-center">
+                  <div className="text-center">
                     <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
-                      BIBLIOTECA
+                      Biblioteca
                     </h2>
-                    <p className="text-stone-400 text-xs font-medium leading-relaxed">
-                      Explica de forma natural qué libro leíste y tus notas o impresiones. Se enviará como nota a Puerto.
-                    </p>
                   </div>
 
-                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Libro y detalles</label>
-                      <textarea 
-                        rows={4}
-                        placeholder="Ej: He terminado 'El guardián entre el centeno' de Salinger, muy buena prosa..."
-                        value={formBookNote}
-                        onChange={(e) => setFormBookNote(e.target.value)}
-                        className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl p-3 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors resize-none leading-relaxed"
-                      />
-                    </div>
+                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 shadow-xl">
+                    <textarea 
+                      rows={4}
+                      placeholder="Ejemplo: Esta semana he leído..."
+                      value={formBookNote}
+                      onChange={(e) => setFormBookNote(e.target.value)}
+                      className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl p-3.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-full transition-colors resize-none leading-relaxed border border-stone-800/60"
+                    />
                   </div>
 
                   <button
