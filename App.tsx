@@ -2411,6 +2411,26 @@ Ejemplo de respuesta en "text":
                     type="button"
                     disabled={!formMovieNote.trim()}
                     onClick={async () => {
+                      if (formMovieNote.trim() && user) {
+                        try {
+                          await addDoc(collection(puertoDb, 'notes'), {
+                            title: '',
+                            content: formMovieNote.trim(),
+                            category: 'Inbox',
+                            color: 'default',
+                            isPinned: false,
+                            isArchived: false,
+                            createdAt: serverTimestamp(),
+                            updatedAt: serverTimestamp(),
+                            userId: user.uid,
+                            images: [],
+                            tags: []
+                          });
+                          setFormMovieNote('');
+                        } catch (err) {
+                          console.error("Error saving movie note to Puerto DB:", err);
+                        }
+                      }
                       if (shouldAskBookForm()) {
                         setTelonStep('book_ask');
                       } else {
@@ -2501,6 +2521,26 @@ Ejemplo de respuesta en "text":
                     type="button"
                     disabled={!formBookNote.trim()}
                     onClick={async () => {
+                      if (formBookNote.trim() && user) {
+                        try {
+                          await addDoc(collection(puertoDb, 'notes'), {
+                            title: '',
+                            content: formBookNote.trim(),
+                            category: 'Inbox',
+                            color: 'default',
+                            isPinned: false,
+                            isArchived: false,
+                            createdAt: serverTimestamp(),
+                            updatedAt: serverTimestamp(),
+                            userId: user.uid,
+                            images: [],
+                            tags: []
+                          });
+                          setFormBookNote('');
+                        } catch (err) {
+                          console.error("Error saving book note to Puerto DB:", err);
+                        }
+                      }
                       const unlogged = getUnloggedMealInfo();
                       if (unlogged) {
                         setTelonStep('food');
