@@ -315,10 +315,10 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                                     className={`
                                         aspect-square flex items-center justify-center text-3xl relative transition-all duration-300 overflow-hidden rounded-full
                                         ${task.completed
-                                            ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
+                                            ? 'border-2 bg-emerald-500 hover:bg-emerald-400 dark:bg-emerald-600 border-emerald-400 dark:border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-95'
                                             : isFailed
-                                                ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${isBlinkingRed ? 'bg-red-600 animate-blink' : 'bg-red-900/50'}`
-                                                : 'border-2 bg-stone-800/80 border-stone-700/50 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
+                                                ? `border-4 border-red-500 text-red-700 dark:text-red-100 shadow-[0_0_15px_rgba(239,68,68,0.3)] ${isBlinkingRed ? 'bg-red-500 animate-blink' : 'bg-red-100 dark:bg-red-900/50'}`
+                                                : 'border-2 bg-white dark:bg-stone-800/80 border-stone-200 dark:border-stone-700/50 text-stone-800 dark:text-stone-200 hover:border-stone-400 hover:bg-stone-50 dark:hover:bg-stone-700 shadow-sm'
                                         }
                                     `}
                                 >
@@ -393,12 +393,12 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                             className={`
                                 aspect-square flex items-center justify-center text-3xl relative transition-all duration-300 overflow-hidden rounded-2xl
                                 ${task.completed
-                                    ? 'border-2 bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)] scale-95'
+                                    ? 'border-2 bg-emerald-500 hover:bg-emerald-400 dark:bg-emerald-600 border-emerald-400 dark:border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-95'
                                     : isFailed
-                                        ? `border-8 border-red-600 text-red-100 shadow-[0_0_20px_rgba(220,38,38,0.4)] ${isBlinkingRed ? 'bg-red-600 animate-blink' : 'bg-red-900/50'}`
+                                        ? `border-4 border-red-500 text-red-700 dark:text-red-100 shadow-[0_0_15px_rgba(239,68,68,0.3)] ${isBlinkingRed ? 'bg-red-500 animate-blink' : 'bg-red-100 dark:bg-red-900/50'}`
                                         : isLastSeven 
-                                            ? 'border-0 bg-transparent border-transparent text-stone-400 hover:text-stone-200 hover:bg-stone-800/30' 
-                                            : 'border-2 bg-stone-800 border-stone-700 text-stone-200 hover:border-stone-500 hover:bg-stone-700 shadow-sm'
+                                            ? 'border-0 bg-transparent border-transparent text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-200/50 dark:hover:bg-stone-800/30' 
+                                            : 'border-2 bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:border-stone-400 hover:bg-stone-50 dark:hover:bg-stone-700 shadow-sm'
                                 }
                             `}
                         >
@@ -427,14 +427,14 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                         </div>
                         <span className="text-xs font-black text-stone-500 uppercase tracking-widest">Energía del día</span>
                     </div>
-                    <div className="px-3 py-1 bg-stone-950 rounded-full border border-stone-800">
+                    <div className="px-3 py-1 bg-white dark:bg-stone-950 rounded-full border border-stone-200 dark:border-stone-800 shadow-sm">
                         <span className="text-sm font-black text-orange-500 font-mono">{energy} / 10</span>
                     </div>
                 </div>
                 
                 <div className="relative h-12 flex items-center group/slider">
                     {/* Background Track */}
-                    <div className="absolute inset-0 h-2 my-auto bg-stone-950 rounded-full border border-stone-800 overflow-hidden">
+                    <div className="absolute inset-0 h-2 my-auto bg-stone-200 dark:bg-stone-950 rounded-full border border-stone-300 dark:border-stone-800 overflow-hidden">
                         {/* Fill Gradient */}
                         <div 
                             className="h-full bg-gradient-to-r from-orange-600 via-orange-500 to-red-500 shadow-[0_0_20px_rgba(249,115,22,0.3)] transition-all duration-300 ease-out"
@@ -465,7 +465,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
 
                     {/* Visual Thumb */}
                     <div 
-                        className="absolute w-8 h-8 rounded-full bg-stone-100 border-4 border-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.6)] pointer-events-none z-10 transition-all duration-300 ease-out group-active/slider:scale-110"
+                        className="absolute w-8 h-8 rounded-full bg-white dark:bg-stone-100 border-4 border-orange-500 shadow-md pointer-events-none z-10 transition-all duration-300 ease-out group-active/slider:scale-110"
                         style={{ 
                             left: `calc(${(energy - 1) / 9 * 100}% - 16px)`,
                             transition: 'left 0.1s ease-out, transform 0.2s ease'

@@ -135,21 +135,21 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                   <path
                     key={task.id}
                     d={createCapSlicePath(index, tasks.length, 90, 100, 100)}
-                    fill={task.completed ? '#ef4444' : '#450a0a'}
-                    stroke="#1c1917"
+                    fill={task.completed ? '#ef4444' : 'var(--mushroom-empty, #450a0a)'}
+                    stroke="var(--mushroom-stroke, #1c1917)"
                     strokeWidth="2.5"
                     className="transition-all duration-300 ease-in-out"
                   />
                 ))}
                 
                 {/* Flat base of the cap */}
-                <line x1="10" y1="100" x2="190" y2="100" stroke="#1c1917" strokeWidth="3" />
+                <line x1="10" y1="100" x2="190" y2="100" stroke="var(--mushroom-stroke, #1c1917)" strokeWidth="3" />
 
                 {/* Mushroom Stem */}
                 <path 
                   d={stemPath} 
-                  fill="#ffffff" 
-                  stroke="#1c1917" 
+                  fill="var(--mushroom-stem, #ffffff)" 
+                  stroke="var(--mushroom-stroke, #1c1917)" 
                   strokeWidth="2.5" 
                 />
               </svg>

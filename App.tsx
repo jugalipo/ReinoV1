@@ -2328,7 +2328,7 @@ Ejemplo de respuesta en "text":
                             }));
                             setTelonStep('movie_ask');
                           }}
-                          className="aspect-square rounded-full border-2 border-amber-900/40 bg-stone-900 text-amber-200 hover:border-amber-500 hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.05)] hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                          className="aspect-square rounded-full border-2 border-amber-300 dark:border-amber-900/40 bg-amber-50 dark:bg-stone-900 text-amber-900 dark:text-amber-200 hover:border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-sm hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
                         >
                           {val}
                         </button>
@@ -3741,14 +3741,14 @@ Ejemplo de respuesta en "text":
             <path
                 key={task.id}
                 d={createCapSlicePath(index, tasksCount, 90, 100, 100)}
-                fill={task.completed ? '#ef4444' : '#450a0a'}
-                stroke="#1c1917"
+                fill={task.completed ? '#ef4444' : 'var(--mushroom-empty, #450a0a)'}
+                stroke="var(--mushroom-stroke, #1c1917)"
                 strokeWidth="2.5"
                 className="transition-all duration-300 ease-in-out"
             />
         ))}
-        <line x1="10" y1="100" x2="190" y2="100" stroke="#1c1917" strokeWidth="3" />
-        <path d={stemPath} fill="#ffffff" stroke="#1c1917" strokeWidth="2.5" />
+        <line x1="10" y1="100" x2="190" y2="100" stroke="var(--mushroom-stroke, #1c1917)" strokeWidth="3" />
+        <path d={stemPath} fill="var(--mushroom-stem, #ffffff)" stroke="var(--mushroom-stroke, #1c1917)" strokeWidth="2.5" />
       </svg>
     );
   };
@@ -3914,7 +3914,7 @@ Ejemplo de respuesta en "text":
                 onClick={() => setView('trains')}
                 className={`aspect-[4/3] rounded-2xl p-4 flex items-center justify-center transition-all duration-700 border shadow-sm group ${isTrainPleno
                     ? 'bg-blue-600/30 border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.4)] ring-2 ring-blue-500/20 scale-[1.02] animate-pulse'
-                    : 'bg-blue-950/30 border-blue-900/50 hover:bg-blue-900/50'
+                    : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/50'
                   }`}
               >
                 <div className={`w-full h-full flex items-center justify-center transition-all ${isTrainPleno ? 'brightness-125 saturate-150' : ''}`}>
@@ -3925,7 +3925,7 @@ Ejemplo de respuesta en "text":
                 onClick={() => setView('sets')}
                 className={`aspect-[4/3] rounded-2xl p-4 flex items-center justify-center transition-all duration-700 border shadow-sm group ${isSetsPleno
                     ? 'bg-red-600/30 border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.4)] ring-2 ring-red-500/20 scale-[1.02] animate-pulse'
-                    : 'bg-red-950/30 border-red-900/50 hover:bg-red-900/50'
+                    : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/50'
                   }`}
               >
                 <div className={`w-full h-full flex items-center justify-center transition-all ${isSetsPleno ? 'brightness-125 saturate-150' : ''}`}>
@@ -3934,18 +3934,18 @@ Ejemplo de respuesta en "text":
               </button>
             </div>
             <div className="grid grid-cols-4 gap-2 mb-2">
-              <button onClick={() => setView('love')} className="aspect-square bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-900/50 transition-colors border border-pink-900/50 group relative">
+              <button onClick={() => setView('love')} className="aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
                   <Heart className={`w-8 h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
                 </div>
-                <div className="w-full h-1 bg-pink-900/40 rounded-full overflow-hidden">
+                <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
                   <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
                 </div>
               </button>
-              <button onClick={() => setView('leones')} className="aspect-square bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-900/50 transition-colors border border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
-              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-900/50 transition-colors border border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><TreeDeciduous className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
-              <button onClick={() => setView('yunque')} className="aspect-square bg-slate-950/30 rounded-xl flex flex-col items-center justify-center p-2 hover:bg-slate-900/50 transition-colors border border-slate-900/50 group relative">
-                <Anvil className="w-8 h-8 text-slate-500 group-hover:text-slate-400 transition-colors" />
+              <button onClick={() => setView('leones')} className="aspect-square bg-amber-50 dark:bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors border border-amber-200 dark:border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-200 dark:bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
+              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-50 dark:bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><TreeDeciduous className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-200 dark:bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
+              <button onClick={() => setView('yunque')} className="aspect-square bg-slate-100 dark:bg-slate-950/30 rounded-xl flex flex-col items-center justify-center p-2 hover:bg-slate-200 dark:hover:bg-slate-900/50 transition-colors border border-slate-300 dark:border-slate-900/50 group relative">
+                <Anvil className="w-8 h-8 text-slate-600 dark:text-slate-500 group-hover:text-slate-800 dark:group-hover:text-slate-400 transition-colors" />
               </button>
             </div>
             <div className="grid grid-cols-4 gap-2 mb-6">
@@ -3967,7 +3967,7 @@ Ejemplo de respuesta en "text":
                     <div className="flex-1 flex items-center justify-center">
                       <Footprints className="w-8 h-8 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
                     </div>
-                    <div className="w-full h-1 bg-emerald-900/40 rounded-full overflow-hidden">
+                    <div className="w-full h-1 bg-emerald-200 dark:bg-emerald-900/40 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${footProgress * 100}%` }}></div>
                     </div>
                   </button>
@@ -3980,7 +3980,7 @@ Ejemplo de respuesta en "text":
                   <div className="flex gap-1 w-full">
                     {Array.from({ length: 6 }).map((_, i) => {
                       const isFilled = i < Math.floor(bosqueWeeklyMinutes / 20);
-                      const bgClass = isFilled ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-emerald-950/40 border border-emerald-900/30';
+                      const bgClass = isFilled ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-200 dark:bg-emerald-950/40 border border-slate-300 dark:border-emerald-900/30';
                       return <div key={i} className={`flex-1 aspect-square rounded-md transition-all duration-300 ${bgClass}`} />;
                     })}
                   </div>
@@ -3988,7 +3988,7 @@ Ejemplo de respuesta en "text":
                     {Array.from({ length: 6 }).map((_, i) => {
                       const absIndex = i + 6;
                       const isFilled = absIndex < Math.floor(bosqueWeeklyMinutes / 20);
-                      const bgClass = isFilled ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]' : 'bg-emerald-950/40 border border-emerald-900/30';
+                      const bgClass = isFilled ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'bg-slate-200 dark:bg-emerald-950/40 border border-slate-300 dark:border-emerald-900/30';
                       return <div key={i} className={`flex-1 aspect-square rounded-md transition-all duration-300 ${bgClass}`} />;
                     })}
                   </div>
@@ -4057,7 +4057,7 @@ Ejemplo de respuesta en "text":
                             }
                           }))
                         }}
-                        className="bg-stone-200 text-stone-900 font-black px-6 py-3 rounded-xl text-xs hover:bg-white transition-all hover:scale-105 active:scale-95 shadow-xl uppercase tracking-widest flex items-center gap-2"
+                        className="bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-3 rounded-xl text-xs transition-all hover:scale-105 active:scale-95 shadow-xl uppercase tracking-widest flex items-center gap-2"
                       >
                          <Plus className="w-4 h-4" /> Nuevas Tareas
                       </button>
