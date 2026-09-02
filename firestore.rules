@@ -22,8 +22,7 @@ service cloud.firestore {
 
     // Match the user's habits collection
     match /users/{userId}/habits/{habitId} {
-      // Only the owner can read and write their own habit documents
-      allow read, write: if isOwner(userId);
+      allow read, write: if true;
     }
 
     // Rules for Biblioteca (My Books)

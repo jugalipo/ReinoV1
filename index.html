@@ -3,24 +3,84 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#0c0a09" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0a09" />
     <title>EL REINO</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="manifest" href="/manifest.json" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              stone: {
+                950: 'rgb(var(--stone-950) / <alpha-value>)',
+                900: 'rgb(var(--stone-900) / <alpha-value>)',
+                800: 'rgb(var(--stone-800) / <alpha-value>)',
+                700: 'rgb(var(--stone-700) / <alpha-value>)',
+                600: 'rgb(var(--stone-600) / <alpha-value>)',
+                500: 'rgb(var(--stone-500) / <alpha-value>)',
+                400: 'rgb(var(--stone-400) / <alpha-value>)',
+                300: 'rgb(var(--stone-300) / <alpha-value>)',
+                200: 'rgb(var(--stone-200) / <alpha-value>)',
+                100: 'rgb(var(--stone-100) / <alpha-value>)',
+                50:  'rgb(var(--stone-50) / <alpha-value>)',
+              }
+            }
+          }
+        }
+      }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        /* Tema oscuro original */
+        --stone-950: 12 10 9;      /* #0c0a09 */
+        --stone-900: 28 25 23;     /* #1c1917 */
+        --stone-800: 41 37 36;     /* #292524 */
+        --stone-700: 68 64 60;     /* #44403c */
+        --stone-600: 87 83 78;     /* #57534e */
+        --stone-500: 120 113 108;  /* #78716c */
+        --stone-400: 168 162 158;  /* #a8a29e */
+        --stone-300: 214 211 209;  /* #d6d3d1 */
+        --stone-200: 231 229 228;  /* #e7e5e4 */
+        --stone-100: 245 245 244;  /* #f5f5f4 */
+        --stone-50:  250 250 249;  /* #fafaf9 */
+
+        --bg-body: #0c0a09;
+        --text-body: #e7e5e4;
+        --scrollbar-thumb: #292524;
+        --scrollbar-track: #0c0a09;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          /* Tema claro con alto contraste y legibilidad */
+          --stone-950: 248 250 252;  /* #f8fafc (fondo general claro) */
+          --stone-900: 255 255 255;  /* #ffffff (tarjetas y paneles elevados) */
+          --stone-800: 226 232 240;  /* #e2e8f0 (bordes y divisores nítidos) */
+          --stone-700: 203 213 225;  /* #cbd5e1 */
+          --stone-600: 148 163 184;  /* #94a3b8 */
+          --stone-500: 100 116 139;  /* #64748b */
+          --stone-400: 71 85 105;    /* #475569 (texto secundario muy legible) */
+          --stone-300: 51 65 85;     /* #334155 */
+          --stone-200: 15 23 42;     /* #0f172a (texto principal oscuro de máximo contraste) */
+          --stone-100: 2 6 23;       /* #020617 (títulos y texto enfatizado) */
+          --stone-50:  255 255 255;
+
+          --bg-body: #f8fafc;
+          --text-body: #0f172a;
+          --scrollbar-thumb: #cbd5e1;
+          --scrollbar-track: #f8fafc;
+        }
+      }
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0c0a09; /* stone-950 */
-        color: #e7e5e4; /* stone-200 */
+        background-color: var(--bg-body);
+        color: var(--text-body);
         overscroll-behavior: none;
       }
-      /* Custom dark scrollbar globally */
-      :root {
-        --scrollbar-thumb: #292524; /* stone-800 */
-        --scrollbar-track: #0c0a09; /* stone-950 */
-      }
+      /* Custom scrollbar globally */
       * {
         scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
         scrollbar-width: thin;
@@ -79,7 +139,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
