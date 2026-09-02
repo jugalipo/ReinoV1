@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ResourceTask, Task } from '../types';
-import { ArrowLeft, Plus, Minus, Edit2, Save, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple, TreePine, TreeDeciduous, Leaf, Sun, Snowflake } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple, TreePine, TreeDeciduous, Leaf, Sun, Snowflake } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 interface ResourceTrackerViewProps {
@@ -46,16 +46,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   // Quarterly Tasks are indices 1-4 (if they exist)
   const quarterlyTasks = tasks.length > 1 ? tasks.slice(1, 5) : [];
 
-  const [isEditingMain, setIsEditingMain] = useState(false);
-  const [editName, setEditName] = useState(mainTask.name);
-  const [editTarget, setEditTarget] = useState(mainTask.target.toString());
-  const [editUnit, setEditUnit] = useState(mainTask.unit);
-  const [editNotes, setEditNotes] = useState(mainTask.notes || '');
-
-  // Quarterly Editing State
-  const [isEditingQuarterly, setIsEditingQuarterly] = useState(false);
-  const [quarterlyEdits, setQuarterlyEdits] = useState(quarterlyTasks);
-
   // Billetes Logic State
   const [showBilletesConfirm, setShowBilletesConfirm] = useState(false);
 
@@ -69,63 +59,12 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   // --- OBJECTIVE POPUP STATE ---
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const selectedObjective = tasks.find(t => t.id === selectedObjectiveId);
-  const [isEditingInPopup, setIsEditingInPopup] = useState(false);
-
-  // Temporary edit state for popup
-  const [popupEditName, setPopupEditName] = useState('');
-  const [popupEditTarget, setPopupEditTarget] = useState('');
-  const [popupEditUnit, setPopupEditUnit] = useState('');
-  const [popupEditNotes, setPopupEditNotes] = useState('');
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useModalHistory(isEditingMain, () => setIsEditingMain(false), 'editMainObjective');
-  useModalHistory(isEditingQuarterly, () => setIsEditingQuarterly(false), 'editQuarterlyObjectives');
   useModalHistory(showBilletesConfirm, () => setShowBilletesConfirm(false), 'confirmBilletes');
   useModalHistory(showLeonesConfirm, () => setShowLeonesConfirm(false), 'confirmLeones');
   useModalHistory(!!selectedObjectiveId, () => setSelectedObjectiveId(null), 'objectivePopup');
   // ---------------------------------------------
-
-  // Sync state if task changes externally (or initializes)
-  useEffect(() => {
-      setEditName(mainTask.name);
-      setEditTarget(mainTask.target.toString());
-      setEditUnit(mainTask.unit);
-      setEditNotes(mainTask.notes || '');
-  }, [mainTask]);
-
-  useEffect(() => {
-      setQuarterlyEdits(quarterlyTasks);
-  }, [tasks]);
-
-  useEffect(() => {
-    if (selectedObjective && !isEditingInPopup) {
-      setPopupEditName(selectedObjective.name);
-      setPopupEditTarget(selectedObjective.target.toString());
-      setPopupEditUnit(selectedObjective.unit);
-      setPopupEditNotes(selectedObjective.notes || '');
-    }
-  }, [selectedObjective, isEditingInPopup]);
-
-  useEffect(() => {
-    if (!selectedObjectiveId) {
-      setIsEditingInPopup(false);
-    }
-  }, [selectedObjectiveId]);
-
-  const saveMainChanges = () => {
-      const updatedTask: ResourceTask = {
-          ...mainTask,
-          name: editName,
-          target: Number(editTarget) || 1, // Prevent 0 target
-          unit: editUnit,
-          notes: editNotes
-      };
-      // Keep main task at index 0, preserve rest
-      const newTasks = [...tasks];
-      newTasks[0] = updatedTask;
-      onUpdate(newTasks);
-      setIsEditingMain(false);
-  };
 
   const updateMainProgress = (delta: number) => {
       const newCurrent = Math.max(0, Math.min(mainTask.target, mainTask.current + delta));
@@ -133,22 +72,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       const newTasks = [...tasks];
       newTasks[0] = updatedTask;
       onUpdate(newTasks);
-  };
-
-  const saveQuarterlyChanges = () => {
-      const newTasks = [...tasks];
-      // Update indices 1, 2, 3, 4 with the edited values
-      quarterlyEdits.forEach((editedTask, i) => {
-          if (i < 4) {
-              // Ensure we have correct task structure
-              newTasks[i + 1] = {
-                  ...editedTask,
-                  target: Number(editedTask.target) || 1
-              };
-          }
-      });
-      onUpdate(newTasks);
-      setIsEditingQuarterly(false);
   };
 
   const updateQuarterlyProgress = (taskId: string, delta: number) => {
@@ -195,19 +118,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   const updateForjaTaskText = (id: string, text: string) => {
     if (!onUpdateForjaTasks) return;
     onUpdateForjaTasks(forjaTasks.map(t => t.id === id ? { ...t, text } : t));
-  };
-
-  const savePopupChanges = () => {
-    if (!selectedObjectiveId) return;
-    const newTasks = tasks.map(t => t.id === selectedObjectiveId ? {
-      ...t,
-      name: popupEditName,
-      target: Number(popupEditTarget) || 1,
-      unit: popupEditUnit,
-      notes: popupEditNotes
-    } : t);
-    onUpdate(newTasks);
-    setIsEditingInPopup(false);
   };
 
   const togglePrincipal = (taskId: string) => {
@@ -374,14 +284,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
           </button>
           <h1 className={`text-xl font-bold ${theme.text}`}>{title}</h1>
         </div>
-        {title === 'Leones' && !isEditingMain && (
-          <button 
-            onClick={() => setIsEditingMain(true)}
-            className="p-2 hover:bg-stone-800 rounded-full transition-colors"
-          >
-            <Edit2 className={`w-6 h-6 ${theme.accent}`} />
-          </button>
-        )}
       </div>
 
       <div className="flex-1 flex flex-col p-6 items-center space-y-4 overflow-y-auto pb-28 no-scrollbar">
@@ -404,100 +306,42 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
 
         {/* MAIN TASK SECTION (Leones ONLY) */}
         {title === 'Leones' && (
-            isEditingMain ? (
-                /* EDIT MODE MAIN */
-                <div className="w-full bg-stone-900 p-6 rounded-3xl border border-stone-800 shadow-xl space-y-4">
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-bold text-stone-400 uppercase tracking-widest text-sm">Editar Objetivo</h3>
-                        <button onClick={() => setIsEditingMain(false)} className="text-stone-600 hover:text-stone-400">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    
-                    <div className="space-y-1">
-                        <label className="text-xs text-stone-500 font-bold ml-1">Nombre</label>
-                        <input 
-                            value={editName}
-                            onChange={e => setEditName(e.target.value)}
-                            className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-lg font-bold"
-                        />
-                    </div>
+            <div className="flex flex-col items-center justify-center w-full space-y-4 py-2">
+                <div className="text-center w-full relative px-8">
+                    <h2 className="text-2xl font-black text-stone-100 mb-1 leading-tight">{mainTask.name}</h2>
+                    <p className={`text-base font-mono ${theme.accent} opacity-80`}>
+                        {mainTask.current} <span className="text-stone-500">/</span> {mainTask.target} <span className="text-xs text-stone-600">{mainTask.unit}</span>
+                    </p>
+                </div>
 
-                    <div className="flex gap-4">
-                        <div className="space-y-1 flex-1">
-                            <label className="text-xs text-stone-500 font-bold ml-1">Meta</label>
-                            <input 
-                                type="number"
-                                value={editTarget}
-                                onChange={e => setEditTarget(e.target.value)}
-                                className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 font-mono text-lg"
-                            />
-                        </div>
-                        <div className="space-y-1 w-24">
-                            <label className="text-xs text-stone-500 font-bold ml-1">Unidad</label>
-                            <input 
-                                value={editUnit}
-                                onChange={e => setEditUnit(e.target.value)}
-                                className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-lg"
-                            />
+                <div className="w-full">
+                    <div className="h-6 bg-stone-900 rounded-full overflow-hidden relative border border-stone-800 shadow-inner">
+                        <div 
+                            className={`h-full transition-all duration-500 ease-out ${theme.bar}`} 
+                            style={{ width: `${Math.min(100, (mainTask.current / mainTask.target) * 100)}%` }}
+                        ></div>
+                        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white drop-shadow-md">
+                            {Math.round(Math.min(100, (mainTask.current / mainTask.target) * 100))}%
                         </div>
                     </div>
+                </div>
 
-                    <div className="space-y-1">
-                        <label className="text-xs text-stone-500 font-bold ml-1">Notas / Detalles</label>
-                        <textarea 
-                            value={editNotes}
-                            onChange={e => setEditNotes(e.target.value)}
-                            placeholder="Detalla en qué consiste este objetivo para que Sebastian te lo recuerde..."
-                            className="w-full h-20 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-sm resize-none leading-relaxed placeholder:text-stone-650"
-                        />
-                    </div>
+                <div className="flex items-center justify-center gap-6 w-full">
+                    <button 
+                        onClick={() => updateMainProgress(-1)}
+                        className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${theme.buttonSecondary} border border-stone-700`}
+                    >
+                        <Minus className="w-6 h-6 text-stone-400" />
+                    </button>
 
                     <button 
-                        onClick={saveMainChanges}
-                        className={`w-full py-3 rounded-xl font-bold text-stone-100 flex justify-center items-center gap-2 mt-4 transition-transform active:scale-95 ${theme.button}`}
+                        onClick={() => updateMainProgress(1)}
+                        className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-md shadow-black/40 ${theme.button} border border-white/10`}
                     >
-                        <Save className="w-5 h-5" /> Guardar Cambios
+                        <Plus className="w-6 h-6 text-white" />
                     </button>
                 </div>
-            ) : (
-                /* VIEW MODE MAIN - Compacted */                 <div className="flex flex-col items-center justify-center w-full space-y-4 py-2">
-                    <div className="text-center w-full relative px-8">
-                        <h2 className="text-2xl font-black text-stone-100 mb-1 leading-tight">{mainTask.name}</h2>
-                        <p className={`text-base font-mono ${theme.accent} opacity-80`}>
-                            {mainTask.current} <span className="text-stone-500">/</span> {mainTask.target} <span className="text-xs text-stone-600">{mainTask.unit}</span>
-                        </p>
-                    </div>
-
-                    <div className="w-full">
-                        <div className="h-6 bg-stone-900 rounded-full overflow-hidden relative border border-stone-800 shadow-inner">
-                            <div 
-                                className={`h-full transition-all duration-500 ease-out ${theme.bar}`} 
-                                style={{ width: `${Math.min(100, (mainTask.current / mainTask.target) * 100)}%` }}
-                            ></div>
-                            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white drop-shadow-md">
-                                {Math.round(Math.min(100, (mainTask.current / mainTask.target) * 100))}%
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-center gap-6 w-full">
-                        <button 
-                            onClick={() => updateMainProgress(-1)}
-                            className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${theme.buttonSecondary} border border-stone-700`}
-                        >
-                            <Minus className="w-6 h-6 text-stone-400" />
-                        </button>
-
-                        <button 
-                            onClick={() => updateMainProgress(1)}
-                            className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-md shadow-black/40 ${theme.button} border border-white/10`}
-                        >
-                            <Plus className="w-6 h-6 text-white" />
-                        </button>
-                    </div>
-                </div>
-            )
+            </div>
         )}
 
         {/* BILLETES SECTION (Leones ONLY) */}
@@ -844,116 +688,58 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
               className="bg-stone-900 w-full max-w-sm rounded-[32px] shadow-2xl border border-stone-800 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-                {isEditingInPopup ? (
-                    /* EDIT MODE POPUP */
-                    <div className="p-6 space-y-4">
-                        <div className="flex justify-between items-center mb-2">
-                             <h3 className="font-bold text-stone-400 uppercase tracking-widest text-[10px]">Editar Objetivo</h3>
-                             <button onClick={() => setIsEditingInPopup(false)} className="text-stone-600 hover:text-stone-400">
-                                 <X className="w-5 h-5" />
-                             </button>
-                        </div>
-                        
-                        <div className="space-y-1">
-                            <label className="text-[10px] text-stone-500 font-bold uppercase ml-1">Nombre</label>
-                            <input 
-                                value={popupEditName}
-                                onChange={e => setPopupEditName(e.target.value)}
-                                className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-base font-bold"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] text-stone-500 font-bold uppercase ml-1">Meta</label>
-                                <input 
-                                    type="number"
-                                    value={popupEditTarget}
-                                    onChange={e => setPopupEditTarget(e.target.value)}
-                                    className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 font-mono text-base"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] text-stone-500 font-bold uppercase ml-1">Unidad</label>
-                                <input 
-                                    value={popupEditUnit}
-                                    onChange={e => setPopupEditUnit(e.target.value)}
-                                    className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-base"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-[10px] text-stone-500 font-bold uppercase ml-1">Notas / Detalles</label>
-                            <textarea 
-                                value={popupEditNotes}
-                                onChange={e => setPopupEditNotes(e.target.value)}
-                                placeholder="Detalla en qué consiste este objetivo trimestral..."
-                                className="w-full h-20 bg-stone-950 border border-stone-850 rounded-xl p-3 text-stone-200 outline-none focus:border-stone-600 text-sm resize-none leading-relaxed placeholder:text-stone-700"
-                            />
-                        </div>
-
+                {/* PROGRESS MODE POPUP */}
+                <div className="p-8 flex flex-col items-center text-center">
+                    <div className="flex justify-between w-full mb-6">
                         <button 
-                            onClick={savePopupChanges}
-                            className={`w-full py-4 rounded-2xl font-black text-stone-100 flex justify-center items-center gap-2 mt-4 transition-transform active:scale-95 ${getQuarterlyColors(selectedObjective.id).button}`}
+                            onClick={() => togglePrincipal(selectedObjective.id)}
+                            className={`p-2 rounded-full transition-colors ${selectedObjective.isPrincipal ? getQuarterlyColors(selectedObjective.id).accent : 'text-stone-700 hover:text-stone-500'}`}
                         >
-                            <Save className="w-5 h-5" /> Guardar Cambios
+                            {selectedObjective.isPrincipal ? <CheckCircle2 className="w-6 h-6" /> : <Circle className="w-6 h-6" />}
                         </button>
-                    </div>
-                ) : (
-                    /* PROGRESS MODE POPUP */
-                    <div className="p-8 flex flex-col items-center text-center">
-                        <div className="flex justify-between w-full mb-6">
-                            <button 
-                                onClick={() => togglePrincipal(selectedObjective.id)}
-                                className={`p-2 rounded-full transition-colors ${selectedObjective.isPrincipal ? getQuarterlyColors(selectedObjective.id).accent : 'text-stone-700 hover:text-stone-500'}`}
-                            >
-                                {selectedObjective.isPrincipal ? <CheckCircle2 className="w-6 h-6" /> : <Circle className="w-6 h-6" />}
-                            </button>
-                            <button 
-                                onClick={() => setIsEditingInPopup(true)}
-                                className="p-2 text-stone-700 hover:text-stone-400 bg-stone-950 rounded-full border border-stone-800"
-                            >
-                                <Edit2 className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 border-2 ${getQuarterlyColors(selectedObjective.id).border} ${getQuarterlyColors(selectedObjective.id).bg}`}>
-                             {getQuarterlyIcon(selectedObjective.id, `w-10 h-10 ${getQuarterlyColors(selectedObjective.id).accent}`)}
-                        </div>
-
-                        <h2 className="text-xl font-black text-stone-100 mb-1">{selectedObjective.name}</h2>
-                        <div className="flex items-baseline gap-2 mb-4">
-                             <span className={`text-3xl font-black font-mono ${getQuarterlyColors(selectedObjective.id).accent}`}>{selectedObjective.current}</span>
-                             <span className="text-stone-600 text-lg">/</span>
-                             <span className="text-stone-500 font-bold text-lg">{selectedObjective.target}</span>
-                             <span className="text-stone-700 text-xs uppercase font-black">{selectedObjective.unit}</span>
-                        </div>
-
-                        <div className="flex items-center justify-center gap-6 w-full mb-4">
-                            <button 
-                                onClick={() => updateQuarterlyProgress(selectedObjective.id, -1)}
-                                className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-90 bg-stone-950 border border-stone-800 text-stone-500 hover:text-stone-300`}
-                            >
-                                <Minus className="w-6 h-6" />
-                            </button>
-
-                            <button 
-                                onClick={() => updateQuarterlyProgress(selectedObjective.id, 1)}
-                                className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-black/40 ${getQuarterlyColors(selectedObjective.id).button} border border-white/10`}
-                            >
-                                <Plus className="w-6 h-6 text-white" />
-                            </button>
-                        </div>
-                        
                         <button 
                             onClick={() => setSelectedObjectiveId(null)}
-                            className="text-stone-600 hover:text-stone-400 text-xs font-bold uppercase tracking-widest mt-4"
+                            className="p-2 text-stone-700 hover:text-stone-400 bg-stone-950 rounded-full border border-stone-800"
                         >
-                            Cerrar
+                            <X className="w-4 h-4" />
                         </button>
                     </div>
-                )}
+
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 border-2 ${getQuarterlyColors(selectedObjective.id).border} ${getQuarterlyColors(selectedObjective.id).bg}`}>
+                         {getQuarterlyIcon(selectedObjective.id, `w-10 h-10 ${getQuarterlyColors(selectedObjective.id).accent}`)}
+                    </div>
+
+                    <h2 className="text-xl font-black text-stone-100 mb-1">{selectedObjective.name}</h2>
+                    <div className="flex items-baseline gap-2 mb-4">
+                         <span className={`text-3xl font-black font-mono ${getQuarterlyColors(selectedObjective.id).accent}`}>{selectedObjective.current}</span>
+                         <span className="text-stone-600 text-lg">/</span>
+                         <span className="text-stone-500 font-bold text-lg">{selectedObjective.target}</span>
+                         <span className="text-stone-700 text-xs uppercase font-black">{selectedObjective.unit}</span>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-6 w-full mb-4">
+                        <button 
+                            onClick={() => updateQuarterlyProgress(selectedObjective.id, -1)}
+                            className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-90 bg-stone-950 border border-stone-800 text-stone-500 hover:text-stone-300`}
+                        >
+                            <Minus className="w-6 h-6" />
+                        </button>
+
+                        <button 
+                            onClick={() => updateQuarterlyProgress(selectedObjective.id, 1)}
+                            className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-black/40 ${getQuarterlyColors(selectedObjective.id).button} border border-white/10`}
+                        >
+                            <Plus className="w-6 h-6 text-white" />
+                        </button>
+                    </div>
+                    
+                    <button 
+                        onClick={() => setSelectedObjectiveId(null)}
+                        className="text-stone-600 hover:text-stone-400 text-xs font-bold uppercase tracking-widest mt-4"
+                    >
+                        Cerrar
+                    </button>
+                </div>
             </div>
         </div>
       )}
