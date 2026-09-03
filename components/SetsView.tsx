@@ -234,7 +234,7 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                     {task.subtasks.some(s => s.skipThisWeek && s.text.toLowerCase().includes('ajuar')) && (
                       <div className="text-xs text-stone-500 italic mt-1.5 flex items-center gap-1.5 opacity-70">
                         <span>🛏️</span>
-                        <span>(Ajuar descansa esta semana)</span>
+                        <span>Ajuar descansa esta semana</span>
                       </div>
                     )}
                   </div>
