@@ -15,6 +15,7 @@ export interface Task {
   shortcut?: string;
   notes?: string; // Additional details for AI recommendations
   isMain?: boolean;
+  skipThisWeek?: boolean;
 }
 
 export interface GympiezaTask {

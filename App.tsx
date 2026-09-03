@@ -787,7 +787,28 @@ const processResets = (parsed: AppData): AppData => {
     if (!result.stats.setsHistory) result.stats.setsHistory = [];
     result.stats.setsHistory.push(completedCount);
     if (result.stats.setsHistory.length > 52) result.stats.setsHistory.shift();
-    result.sets = result.sets.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.map(s => ({ ...s, completed: false })) }));
+    result.sets = result.sets.map(t => {
+      const updatedSubtasks = t.subtasks?.map(s => {
+        const isAjuar = s.text.toLowerCase().includes('ajuar');
+        if (isAjuar) {
+          // Si se completó en la semana que concluye, la siguiente descansa (skipThisWeek = true).
+          // Si no se completó (o ya estaba descansando), vuelve a aparecer activa (skipThisWeek = false).
+          const skipNext = !!s.completed;
+          return {
+            ...s,
+            completed: false,
+            skipThisWeek: skipNext
+          };
+        }
+        return { ...s, completed: false };
+      });
+
+      return {
+        ...t,
+        completed: false,
+        subtasks: updatedSubtasks
+      };
+    });
     result.setsPlenoClaimed = false;
     result.lastSetsReset = Date.now();
   }

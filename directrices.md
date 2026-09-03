@@ -3,7 +3,7 @@
 > **Ubicación Local:** `/Users/julian/Apps_Antigravity_ElReino/ReinoV1/`  
 > **Espejo en Disco:** `/Volumes/C/4_granero/documentos/directrices_apps/directrices_reinov1.md`  
 > **Guía de Arquitectura Maestra:** [`ARQUITECTURA_APPS_EL_REINO.md`](file:///Volumes/C/4_granero/documentos/directrices_apps/ARQUITECTURA_APPS_EL_REINO.md)  
-> **Última Actualización:** 2026-08-31  
+> **Última Actualización:** 2026-09-03  
 
 ---
 
@@ -13,7 +13,7 @@ Hub central y dashboard de hábitos diarios (Hunos), Modo Telón, Trenes, Setas,
 * **Stack Técnico:** `React / TypeScript / Vite / Tailwind CSS / Lucide`
 * **Base de Datos:** `Firebase Firestore (instancia: (default) + puerto, cartelera, biblioteca, aspavientos)`
 * **Hosting / Target:** `el-reino-354ca`
-* **Detalles Funcionales:** Gestión de los 20 Hunos, firewall matinal, visual lock screen de energía y conexión central.
+* **Detalles Funcionales:** Gestión de los 20 Hunos, firewall matinal, visual lock screen de energía, conexión central y lógica quincenal condicional para subtareas periódicas como «Ajuar» en la Seta de Lavadora (`skipThisWeek`).
 
 ---
 

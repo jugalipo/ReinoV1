@@ -22,7 +22,7 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
         return {
           ...t,
           completed: newCompleted,
-          subtasks: t.subtasks?.map(s => ({ ...s, completed: newCompleted })) || []
+          subtasks: t.subtasks?.map(s => s.skipThisWeek ? s : ({ ...s, completed: newCompleted })) || []
         };
       }
       return t;
@@ -194,7 +194,10 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                 {/* Subtasks */}
                 {task.subtasks && task.subtasks.length > 0 && (
                   <div className="mt-3 ml-11 space-y-2 border-l-2 border-stone-800 pl-4">
-                    {[...(task.subtasks || [])].sort((a, b) => Number(a.completed) - Number(b.completed)).map(sub => (
+                    {[...(task.subtasks || [])]
+                      .filter(s => !s.skipThisWeek)
+                      .sort((a, b) => Number(a.completed) - Number(b.completed))
+                      .map(sub => (
                       <div 
                         key={sub.id} 
                         className="flex items-center gap-3 cursor-pointer"
@@ -205,7 +208,8 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                               const newSubtasks = t.subtasks.map(s => 
                                 s.id === sub.id ? { ...s, completed: !s.completed } : s
                               );
-                              const allCompleted = newSubtasks.length > 0 && newSubtasks.every(s => s.completed);
+                              const activeSubtasks = newSubtasks.filter(s => !s.skipThisWeek);
+                              const allCompleted = activeSubtasks.length > 0 && activeSubtasks.every(s => s.completed);
                               return {
                                 ...t,
                                 completed: allCompleted,
@@ -227,6 +231,12 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
                         </span>
                       </div>
                     ))}
+                    {task.subtasks.some(s => s.skipThisWeek && s.text.toLowerCase().includes('ajuar')) && (
+                      <div className="text-xs text-stone-500 italic mt-1.5 flex items-center gap-1.5 opacity-70">
+                        <span>🛏️</span>
+                        <span>(Ajuar descansa esta semana)</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
