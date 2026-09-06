@@ -176,10 +176,10 @@ export const calculateHunosPlenosAndPending = (
 };
 
 const MUSHROOM_TASKS = [
+  { text: "🍄 Lavadora(S) 30'", subtasks: ["Ajuar cambiar", "Lavadoras ajuar", "Destender"] },
+  { text: "🍄 Agenda 15'", subtasks: [] },
   { text: "🍄 Cascada 🍄 20'", subtasks: ["Fecha", "Agenda semanal al PC", "Cambiar pijama", "Disco al ordenador", "Whattsapps no leídos", "Contadores DTH", "Ferrocopos", "Cumple y Calla", "Neceser", "Una calle de Granada", "Actualizar excel Reino"] },
   { text: "🍄 Bloqueos 5'", subtasks: ["Bloqueos Mac", "Bloqueo móvil", "Bloqueo tablet"] },
-  { text: "🍄 Agenda 15'", subtasks: [] },
-  { text: "🍄 Lavadora(S) 30'", subtasks: ["Ajuar cambiar", "Lavadoras ajuar", "Destender"] },
   { text: "🍄 Foto Cocina 15'", subtasks: [] },
   { text: "🍄 Ruta con mapa 15'", subtasks: [] },
   { text: "🍄 Esteticién 10'", subtasks: ["Uñas", "Pinzas", "Afeitar", "Alicia U", "Alicia C"] },
