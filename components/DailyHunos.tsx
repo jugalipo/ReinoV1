@@ -198,10 +198,15 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   };
 
   const getEmoji = (text: string) => {
-    // Regex to find the first emoji character in the string
-    const match = text.match(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u);
-    // If emoji found, return it. If not, return first 2 chars as fallback
-    return match ? match[0] : text.substring(0, 2);
+    // Regex para capturar el emoji completo preservando selectores de variación, modificadores y secuencias ZWJ
+    const match = text.match(/\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*|\p{Emoji_Presentation}/u);
+    if (!match) return text.substring(0, 2);
+    let emoji = match[0];
+    // Forzar el selector de variación 16 (U+FE0F) para garantizar presentación con todos los colores en móvil y escritorio
+    if (!emoji.includes('\uFE0F') && !emoji.includes('\uFE0E')) {
+      emoji += '\uFE0F';
+    }
+    return emoji;
   };
 
   return (

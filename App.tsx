@@ -12,8 +12,7 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
-import { ToolsView } from './components/ToolsView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Wrench, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
+import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -430,8 +429,13 @@ const MushroomIcon = ({ className }: { className?: string }) => (
 );
 
 const getEmoji = (text: string) => {
-  const match = text.match(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u);
-  return match ? match[0] : '❓';
+  const match = text.match(/\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*|\p{Emoji_Presentation}/u);
+  if (!match) return '❓';
+  let emoji = match[0];
+  if (!emoji.includes('\uFE0F') && !emoji.includes('\uFE0E')) {
+    emoji += '\uFE0F';
+  }
+  return emoji;
 };
 
 const getWeekLabel = () => {
@@ -3851,7 +3855,6 @@ Ejemplo de respuesta en "text":
       case 'yunque': return <YunqueView largas={data.yunqueLargas || []} rapidas={data.yunqueRapidas || []} onUpdateLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))} onUpdateRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))} onBack={() => setView('home')} />;
       case 'stats': return <StatsView data={data} bosqueExercises={bosqueExercises} onUpdate={setData} onBack={() => setView('home')} onNavigate={setView} />;
       case 'caminos': return <CaminosView caminos={data.caminos || []} onUpdate={c => setData(prev => ({ ...prev, caminos: c }))} onBack={() => setView('home')} />;
-      case 'tools': return <ToolsView onBack={() => setView('home')} />;
       default:
         const trainProgress = getTrainProgress();
         const isTrainPleno = trainProgress === 100;
@@ -4353,25 +4356,15 @@ Ejemplo de respuesta en "text":
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mt-4 w-full">
+            <div className="mt-4 w-full">
               <button 
                 onClick={() => setView('caminos')}
-                className="py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-stone-700 transition-all shadow-xl group"
+                className="w-full py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-stone-700 transition-all shadow-xl group"
               >
                 <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center border border-stone-700 group-hover:bg-stone-700 transition-colors shrink-0">
                   <MapIcon className="w-6 h-6 text-stone-400" />
                 </div>
                 <span className="font-black text-lg uppercase tracking-tighter italic">Caminos</span>
-              </button>
-
-              <button 
-                onClick={() => setView('tools')}
-                className="py-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-center gap-3 text-stone-100 hover:bg-stone-800 hover:border-stone-700 transition-all shadow-xl group"
-              >
-                <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center border border-stone-700 group-hover:bg-stone-700 transition-colors shrink-0">
-                  <Wrench className="w-6 h-6 text-stone-400" />
-                </div>
-                <span className="font-black text-lg uppercase tracking-tighter italic">Trastos</span>
               </button>
             </div>
 
