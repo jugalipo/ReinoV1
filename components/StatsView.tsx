@@ -172,8 +172,13 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
   };
 
   const getEmoji = (text: string) => {
-    const match = text.match(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u);
-    return match ? match[0] : text.substring(0, 2);
+    const match = text.match(/\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*|\p{Emoji_Presentation}/u);
+    if (!match) return text.substring(0, 2);
+    let emoji = match[0];
+    if (!emoji.includes('\uFE0F') && !emoji.includes('\uFE0E')) {
+      emoji += '\uFE0F';
+    }
+    return emoji;
   };
 
   const getCoreScoreForIds = (completedIds: string[]) => {
