@@ -13,7 +13,7 @@ Hub central y dashboard de hábitos diarios (Hunos), Modo Telón, Trenes, Setas,
 * **Stack Técnico:** `React / TypeScript / Vite / Tailwind CSS / Lucide`
 * **Base de Datos:** `Firebase Firestore (instancia: (default) + puerto, cartelera, biblioteca, aspavientos)`
 * **Hosting / Target:** `el-reino-354ca`
-* **Detalles Funcionales:** Gestión de los 22 Hunos, firewall matinal, visual lock screen de energía, conexión central, lógica quincenal condicional para subtareas periódicas como «Ajuar» en la Seta de Lavadora (`skipThisWeek`), y modal de calendario integrado en edición retroactiva (`RetroactiveCalendarModal`) con estética oscura y círculos morados para días con racha revisada.
+* **Detalles Funcionales:** Gestión de los 22 Hunos, firewall matinal, visual lock screen de energía, conexión central, lógica quincenal condicional para subtareas periódicas como «Ajuar» en la Seta de Lavadora (`skipThisWeek`), modal de calendario integrado en edición retroactiva (`RetroactiveCalendarModal`) con estética oscura y círculos morados para días con racha revisada, barra de navegación inferior flotante de 3 botones (`Inicio`, `Enfoque`, `Tareas` con iconos SVG nativos) y hub central de tareas (`TasksHubView`) que consolida el foco semanal y la siguiente acción física disponible de cada categoría (Principal, Yunque, Roble, Leones, Brotes, Setas y Trenes).
 
 ---
 

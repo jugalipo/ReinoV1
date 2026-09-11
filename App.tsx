@@ -12,7 +12,8 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
-import { Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
+import { TasksHubView } from './components/TasksHubView';
+import { Home, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -3903,6 +3904,7 @@ Ejemplo de respuesta en "text":
       case 'yunque': return <YunqueView largas={data.yunqueLargas || []} rapidas={data.yunqueRapidas || []} onUpdateLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))} onUpdateRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))} onBack={() => setView('home')} />;
       case 'stats': return <StatsView data={data} bosqueExercises={bosqueExercises} onUpdate={setData} onBack={() => setView('home')} onNavigate={setView} />;
       case 'caminos': return <CaminosView caminos={data.caminos || []} onUpdate={c => setData(prev => ({ ...prev, caminos: c }))} onBack={() => setView('home')} />;
+      case 'tasks': return <TasksHubView data={data} onUpdateData={setData} onBack={() => setView('home')} onNavigate={setView} />;
       default:
         const trainProgress = getTrainProgress();
         const isTrainPleno = trainProgress === 100;
@@ -4976,20 +4978,54 @@ Ejemplo de respuesta en "text":
       <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900">
         {renderView()}
 
-        {/* Fixed Bottom Footer */}
+        {/* Fixed Bottom Footer: 3 botones flotantes (Inicio, Enfoque, Tareas) */}
         {!hideFloatingButtons && (
-          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-stone-900/90 backdrop-blur-md border-t border-stone-800 border-x border-stone-900 px-6 py-4 flex z-[90] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
-            <button 
-              onClick={() => {
-                setFocusCameFromTelon(false);
-                fetchFocusRecommendation();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-stone-950/50 hover:bg-stone-950/80 text-amber-500 hover:text-amber-400 shadow-sm transition-all active:scale-95 font-bold text-sm uppercase tracking-tighter italic"
-              title="Enfoque"
-            >
-              <Sparkles className="w-5 h-5" />
-              <span>Enfoque</span>
-            </button>
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-stone-900/90 backdrop-blur-md border-t border-stone-800 border-x border-stone-900 px-4 py-3 z-[90] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+            <div className="grid grid-cols-3 gap-2.5">
+              {/* Botón 1: Inicio */}
+              <button 
+                type="button"
+                onClick={() => setView('home')}
+                className={`flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl transition-all active:scale-95 font-bold text-xs uppercase tracking-tight cursor-pointer border ${
+                  view === 'home'
+                    ? 'bg-stone-950 text-purple-400 border-purple-500/50 shadow-sm'
+                    : 'bg-stone-950/50 hover:bg-stone-950/80 text-stone-400 hover:text-stone-200 border-stone-800/80'
+                }`}
+                title="Inicio"
+              >
+                <Home className="w-4 h-4" />
+                <span>Inicio</span>
+              </button>
+
+              {/* Botón 2: Enfoque */}
+              <button 
+                type="button"
+                onClick={() => {
+                  setFocusCameFromTelon(false);
+                  fetchFocusRecommendation();
+                }}
+                className="flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl bg-stone-950/50 hover:bg-stone-950/80 text-amber-500 hover:text-amber-400 border border-stone-800/80 shadow-sm transition-all active:scale-95 font-bold text-xs uppercase tracking-tight italic cursor-pointer"
+                title="Modo Enfoque"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Enfoque</span>
+              </button>
+
+              {/* Botón 3: Tareas */}
+              <button 
+                type="button"
+                onClick={() => setView('tasks')}
+                className={`flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl transition-all active:scale-95 font-bold text-xs uppercase tracking-tight cursor-pointer border ${
+                  view === 'tasks'
+                    ? 'bg-stone-950 text-purple-400 border-purple-500/50 shadow-sm'
+                    : 'bg-stone-950/50 hover:bg-stone-950/80 text-stone-400 hover:text-stone-200 border-stone-800/80'
+                }`}
+                title="Tareas activas"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Tareas</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
