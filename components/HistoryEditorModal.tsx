@@ -3,6 +3,7 @@ import { AppData } from '../types';
 import { sanitizeForFirestore } from '../App';
 import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft, Activity, Bell, Sparkles } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
+import { RetroactiveCalendarModal } from './RetroactiveCalendarModal';
 
 interface HistoryEditorModalProps {
   data: AppData;
@@ -24,6 +25,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
   const [importData, setImportData] = useState<AppData | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [showSebastianModal, setShowSebastianModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [tempInstructions, setTempInstructions] = useState(data.sebastianInstructions || '');
   const [showSavedNotification, setShowSavedNotification] = useState(false);
 
@@ -455,30 +457,20 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                     <ChevronLeft className="w-6 h-6 text-stone-400" />
                 </button>
                 
-                <div className="text-center relative">
-                    <div className="text-sm font-bold text-purple-400 uppercase tracking-wider mb-1">
+                <button 
+                    type="button"
+                    onClick={() => setShowCalendarModal(true)}
+                    className="text-center group px-3 py-1 rounded-xl hover:bg-stone-800/80 transition-colors cursor-pointer"
+                    title="Abrir calendario de racha"
+                >
+                    <div className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-0.5 group-hover:text-purple-300 flex items-center justify-center gap-1">
                         Editando
                     </div>
-                    <div className="text-xl font-bold text-stone-100 flex items-center justify-center gap-2 relative">
-                        <input 
-                            type="date" 
-                            value={getLocalYYYYMMDD(currentDate)}
-                            max={getLocalYYYYMMDD(new Date())}
-                            onChange={(e) => {
-                                if (e.target.value) {
-                                    const [year, month, day] = e.target.value.split('-').map(Number);
-                                    const newDate = new Date(year, month - 1, day);
-                                    if (newDate <= new Date()) {
-                                        setCurrentDate(newDate);
-                                    }
-                                }
-                            }}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                        />
-                        <Calendar className="w-5 h-5 text-stone-500" />
-                        {getDayLabel()}
+                    <div className="text-lg font-bold text-stone-100 flex items-center justify-center gap-2">
+                        <Calendar className="w-5 h-5 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                        <span>{getDayLabel()}</span>
                     </div>
-                </div>
+                </button>
 
                 <button 
                     onClick={() => changeDate(1)} 
@@ -807,6 +799,15 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                 </div>
             </div>
         )}
+
+        {/* Modal de calendario integrado para edición retroactiva */}
+        <RetroactiveCalendarModal
+            isOpen={showCalendarModal}
+            onClose={() => setShowCalendarModal(false)}
+            selectedDate={currentDate}
+            onSelectDate={(newDate) => setCurrentDate(newDate)}
+            streakReviewedDays={data.streakReviewedDays}
+        />
      </div>
   );
 };
