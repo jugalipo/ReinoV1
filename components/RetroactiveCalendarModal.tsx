@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
 
 interface RetroactiveCalendarModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface RetroactiveCalendarModalProps {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   streakReviewedDays?: Record<string, boolean>;
+  hunosHistory?: Record<string, string[]>;
 }
 
 const MONTH_NAMES = [
@@ -22,22 +23,61 @@ export const RetroactiveCalendarModal: React.FC<RetroactiveCalendarModalProps> =
   onClose,
   selectedDate,
   onSelectDate,
-  streakReviewedDays = {}
+  streakReviewedDays = {},
+  hunosHistory = {}
 }) => {
   const [viewDate, setViewDate] = useState(() => ({
     month: selectedDate.getMonth(),
     year: selectedDate.getFullYear()
   }));
 
-  // Sincronizar mes visible al abrir con la fecha seleccionada
+  const [openDropdown, setOpenDropdown] = useState<'none' | 'month' | 'year'>('none');
+
+  // Sincronizar mes y año visibles al abrir con la fecha seleccionada
   useEffect(() => {
     if (isOpen) {
       setViewDate({
         month: selectedDate.getMonth(),
         year: selectedDate.getFullYear()
       });
+      setOpenDropdown('none');
     }
   }, [isOpen, selectedDate]);
+
+  // Extraer dinámicamente años y meses con datos reales para los filtros
+  const { availableYears, availableMonthsByYear } = useMemo(() => {
+    const yearsSet = new Set<number>();
+    const monthsMap: Record<number, Set<number>> = {};
+
+    const addDateStr = (dateStr: string) => {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return;
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      yearsSet.add(y);
+      if (!monthsMap[y]) monthsMap[y] = new Set<number>();
+      monthsMap[y].add(m);
+    };
+
+    if (hunosHistory) {
+      Object.keys(hunosHistory).forEach(addDateStr);
+    }
+    if (streakReviewedDays) {
+      Object.keys(streakReviewedDays).forEach(addDateStr);
+    }
+
+    // Asegurar año y mes actual
+    const now = new Date();
+    addDateStr(now.toDateString());
+
+    const sortedYears = Array.from(yearsSet).sort((a, b) => b - a); // 2026, 2025...
+    const monthsByYear: Record<number, number[]> = {};
+    sortedYears.forEach(y => {
+      monthsByYear[y] = Array.from(monthsMap[y] || []).sort((a, b) => a - b);
+    });
+
+    return { availableYears: sortedYears, availableMonthsByYear: monthsByYear };
+  }, [hunosHistory, streakReviewedDays]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -46,42 +86,70 @@ export const RetroactiveCalendarModal: React.FC<RetroactiveCalendarModalProps> =
   }, []);
 
   const handlePrevMonth = () => {
+    setOpenDropdown('none');
     setViewDate(prev => {
-      if (prev.month === 0) {
-        return { month: 11, year: prev.year - 1 };
+      const currentYearMonths = availableMonthsByYear[prev.year] || [];
+      const currentIdxInYear = currentYearMonths.indexOf(prev.month);
+
+      if (currentIdxInYear > 0) {
+        return { ...prev, month: currentYearMonths[currentIdxInYear - 1] };
       }
-      return { month: prev.month - 1, year: prev.year };
+
+      // Buscar año anterior disponible
+      const currentYearIdx = availableYears.indexOf(prev.year);
+      if (currentYearIdx !== -1 && currentYearIdx < availableYears.length - 1) {
+        const prevYear = availableYears[currentYearIdx + 1];
+        const prevYearMonths = availableMonthsByYear[prevYear] || [11];
+        return {
+          year: prevYear,
+          month: prevYearMonths[prevYearMonths.length - 1]
+        };
+      }
+
+      return prev;
     });
   };
 
   const handleNextMonth = () => {
-    const now = new Date();
-    if (
-      viewDate.year > now.getFullYear() ||
-      (viewDate.year === now.getFullYear() && viewDate.month >= now.getMonth())
-    ) {
-      return;
-    }
+    setOpenDropdown('none');
     setViewDate(prev => {
-      if (prev.month === 11) {
-        return { month: 0, year: prev.year + 1 };
+      const currentYearMonths = availableMonthsByYear[prev.year] || [];
+      const currentIdxInYear = currentYearMonths.indexOf(prev.month);
+
+      if (currentIdxInYear !== -1 && currentIdxInYear < currentYearMonths.length - 1) {
+        return { ...prev, month: currentYearMonths[currentIdxInYear + 1] };
       }
-      return { month: prev.month + 1, year: prev.year };
+
+      // Buscar año siguiente disponible
+      const currentYearIdx = availableYears.indexOf(prev.year);
+      if (currentYearIdx > 0) {
+        const nextYear = availableYears[currentYearIdx - 1];
+        const nextYearMonths = availableMonthsByYear[nextYear] || [0];
+        return {
+          year: nextYear,
+          month: nextYearMonths[0]
+        };
+      }
+
+      return prev;
     });
   };
 
+  const isPrevDisabled = useMemo(() => {
+    const oldestYear = availableYears[availableYears.length - 1];
+    const oldestMonths = availableMonthsByYear[oldestYear] || [];
+    return viewDate.year === oldestYear && viewDate.month === oldestMonths[0];
+  }, [viewDate, availableYears, availableMonthsByYear]);
+
   const isNextDisabled = useMemo(() => {
-    const now = new Date();
-    return (
-      viewDate.year > now.getFullYear() ||
-      (viewDate.year === now.getFullYear() && viewDate.month >= now.getMonth())
-    );
-  }, [viewDate]);
+    const latestYear = availableYears[0];
+    const latestMonths = availableMonthsByYear[latestYear] || [];
+    return viewDate.year === latestYear && viewDate.month === latestMonths[latestMonths.length - 1];
+  }, [viewDate, availableYears, availableMonthsByYear]);
 
   const { daysInMonth, firstDayOfWeek, reviewedCount, totalPastDaysInMonth } = useMemo(() => {
     const days = new Date(viewDate.year, viewDate.month + 1, 0).getDate();
     const firstDay = new Date(viewDate.year, viewDate.month, 1);
-    // 0 = domingo en JS, pasamos a semana Lunes = 0 .. Domingo = 6
     const offset = (firstDay.getDay() + 6) % 7;
 
     let reviewed = 0;
@@ -112,7 +180,13 @@ export const RetroactiveCalendarModal: React.FC<RetroactiveCalendarModalProps> =
   const modalContent = (
     <div 
       className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
-      onClick={onClose}
+      onClick={() => {
+        if (openDropdown !== 'none') {
+          setOpenDropdown('none');
+        } else {
+          onClose();
+        }
+      }}
     >
       <div 
         className="bg-stone-950 border border-stone-800 rounded-3xl p-5 shadow-2xl w-full max-w-sm flex flex-col space-y-4 animate-in zoom-in-95 duration-150"
@@ -128,27 +202,107 @@ export const RetroactiveCalendarModal: React.FC<RetroactiveCalendarModalProps> =
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-stone-900 rounded-full text-stone-400 hover:text-stone-200 transition-colors"
+            className="p-1.5 hover:bg-stone-900 rounded-full text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Navegador de mes y año */}
-        <div className="flex items-center justify-between bg-stone-900/90 px-3 py-2 rounded-2xl border border-stone-800">
+        {/* Navegador con selectores desplegables oscuros para Mes y Año */}
+        <div className="flex items-center justify-between bg-stone-900/90 px-3 py-2 rounded-2xl border border-stone-800 relative">
           <button
             type="button"
             onClick={handlePrevMonth}
-            className="p-2 hover:bg-stone-800 rounded-xl text-stone-400 hover:text-stone-100 transition-colors"
+            disabled={isPrevDisabled}
+            className="p-2 hover:bg-stone-800 rounded-xl text-stone-400 hover:text-stone-100 transition-colors disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer"
             title="Mes anterior"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
 
-          <div className="text-center">
-            <span className="text-base font-bold text-stone-100">
-              {MONTH_NAMES[viewDate.month]} {viewDate.year}
-            </span>
+          {/* Desplegables integrados en negro */}
+          <div className="flex items-center gap-1.5 relative">
+            {/* Selector de Mes */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(prev => prev === 'month' ? 'none' : 'month')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
+                  openDropdown === 'month'
+                    ? 'bg-purple-950/80 border-purple-500 text-purple-200'
+                    : 'bg-stone-950 hover:bg-stone-800 border-stone-800 text-stone-200'
+                }`}
+                title="Seleccionar mes"
+              >
+                <span>{MONTH_NAMES[viewDate.month]}</span>
+                <ChevronDown className={`w-3 h-3 text-stone-400 transition-transform ${openDropdown === 'month' ? 'rotate-180 text-purple-400' : ''}`} />
+              </button>
+
+              {openDropdown === 'month' && (
+                <div className="absolute top-full mt-2 -left-6 z-40 bg-stone-950 border border-stone-800 rounded-2xl p-2 shadow-2xl w-48 grid grid-cols-3 gap-1 animate-in fade-in zoom-in-95 duration-100">
+                  {(availableMonthsByYear[viewDate.year] || []).map(mIdx => (
+                    <button
+                      key={mIdx}
+                      type="button"
+                      onClick={() => {
+                        setViewDate(prev => ({ ...prev, month: mIdx }));
+                        setOpenDropdown('none');
+                      }}
+                      className={`py-2 px-1 text-xs font-bold rounded-xl transition-colors cursor-pointer ${
+                        viewDate.month === mIdx
+                          ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]'
+                          : 'bg-stone-900 text-stone-300 hover:bg-stone-800 hover:text-white border border-stone-800/80'
+                      }`}
+                    >
+                      {MONTH_NAMES[mIdx].substring(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selector de Año */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(prev => prev === 'year' ? 'none' : 'year')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
+                  openDropdown === 'year'
+                    ? 'bg-purple-950/80 border-purple-500 text-purple-200'
+                    : 'bg-stone-950 hover:bg-stone-800 border-stone-800 text-stone-200'
+                }`}
+                title="Seleccionar año"
+              >
+                <span>{viewDate.year}</span>
+                <ChevronDown className={`w-3 h-3 text-stone-400 transition-transform ${openDropdown === 'year' ? 'rotate-180 text-purple-400' : ''}`} />
+              </button>
+
+              {openDropdown === 'year' && (
+                <div className="absolute top-full mt-2 -left-6 z-40 bg-stone-950 border border-stone-800 rounded-2xl p-2 shadow-2xl w-28 max-h-56 overflow-y-auto space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                  {availableYears.map(y => (
+                    <button
+                      key={y}
+                      type="button"
+                      onClick={() => {
+                        const availMonths = availableMonthsByYear[y] || [0];
+                        const newMonth = availMonths.includes(viewDate.month)
+                          ? viewDate.month
+                          : availMonths[availMonths.length - 1];
+                        setViewDate({ year: y, month: newMonth });
+                        setOpenDropdown('none');
+                      }}
+                      className={`w-full py-1.5 text-xs font-bold rounded-xl transition-colors cursor-pointer ${
+                        viewDate.year === y
+                          ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]'
+                          : 'bg-stone-900 text-stone-300 hover:bg-stone-800 hover:text-white border border-stone-800/80'
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-1">
@@ -157,8 +311,9 @@ export const RetroactiveCalendarModal: React.FC<RetroactiveCalendarModalProps> =
               onClick={() => {
                 const now = new Date();
                 setViewDate({ month: now.getMonth(), year: now.getFullYear() });
+                setOpenDropdown('none');
               }}
-              className="text-xs px-2 py-1 rounded-lg bg-stone-800/80 hover:bg-stone-800 text-purple-300 font-medium border border-stone-700/50 transition-colors"
+              className="text-xs px-2 py-1 rounded-lg bg-stone-800/80 hover:bg-stone-800 text-purple-300 font-medium border border-stone-700/50 transition-colors cursor-pointer"
               title="Ir al mes actual"
             >
               Hoy
@@ -167,7 +322,7 @@ export const RetroactiveCalendarModal: React.FC<RetroactiveCalendarModalProps> =
               type="button"
               onClick={handleNextMonth}
               disabled={isNextDisabled}
-              className="p-2 hover:bg-stone-800 rounded-xl text-stone-400 hover:text-stone-100 transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
+              className="p-2 hover:bg-stone-800 rounded-xl text-stone-400 hover:text-stone-100 transition-colors disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer"
               title="Mes siguiente"
             >
               <ChevronRight className="w-5 h-5" />
@@ -185,7 +340,10 @@ export const RetroactiveCalendarModal: React.FC<RetroactiveCalendarModalProps> =
         </div>
 
         {/* Rejilla de días */}
-        <div className="grid grid-cols-7 gap-y-2 gap-x-1">
+        <div 
+          className="grid grid-cols-7 gap-y-2 gap-x-1"
+          onClick={() => setOpenDropdown('none')}
+        >
           {/* Espacios vacíos antes del día 1 */}
           {Array.from({ length: firstDayOfWeek }).map((_, i) => (
             <div key={`empty-${i}`} className="w-9 h-9 mx-auto" />
@@ -219,7 +377,7 @@ export const RetroactiveCalendarModal: React.FC<RetroactiveCalendarModalProps> =
                   onSelectDate(cellDate);
                   onClose();
                 }}
-                className={`relative w-9 h-9 mx-auto rounded-full flex items-center justify-center text-xs font-bold transition-all active:scale-90 ${
+                className={`relative w-9 h-9 mx-auto rounded-full flex items-center justify-center text-xs font-bold transition-all active:scale-90 cursor-pointer ${
                   isReviewed
                     ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.45)] hover:bg-purple-500'
                     : 'bg-stone-900 border border-stone-800 text-stone-400 hover:border-stone-700 hover:text-stone-200'

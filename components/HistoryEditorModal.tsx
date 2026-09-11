@@ -807,6 +807,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
             selectedDate={currentDate}
             onSelectDate={(newDate) => setCurrentDate(newDate)}
             streakReviewedDays={data.streakReviewedDays}
+            hunosHistory={data.hunosHistory}
         />
      </div>
   );

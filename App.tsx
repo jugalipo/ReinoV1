@@ -3204,7 +3204,15 @@ Ejemplo de respuesta en "text":
 
         unsubscribe = onSnapshot(habitsRef, (snapshot) => {
           if (!snapshot.empty) {
-            if (pendingWritesTimer.current) return;
+            // Si el snapshot viene directamente del servidor (ej. cambios hechos en el móvil),
+            // la nube SIEMPRE tiene la máxima prioridad: cancelamos cualquier escritura local pendiente
+            // para evitar que datos en caché obsoletos sobrescriban la nube.
+            if (!snapshot.metadata.hasPendingWrites && pendingWritesTimer.current) {
+              clearTimeout(pendingWritesTimer.current);
+              pendingWritesTimer.current = null;
+            } else if (snapshot.metadata.hasPendingWrites && pendingWritesTimer.current) {
+              return;
+            }
 
             const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
             const newData = deserializeAppData(docs);
@@ -3221,6 +3229,34 @@ Ejemplo de respuesta en "text":
           console.error("Firestore sync error:", error);
           handleFirestoreError(error, OperationType.GET, `users/${user.uid}/habits`);
         });
+
+        const handleSyncFromServer = async () => {
+          if (document.visibilityState === 'visible' && user) {
+            try {
+              const freshSnapshot = await getDocsFromServer(habitsRef);
+              if (!freshSnapshot.empty) {
+                if (pendingWritesTimer.current) {
+                  clearTimeout(pendingWritesTimer.current);
+                  pendingWritesTimer.current = null;
+                }
+                const docs = freshSnapshot.docs.map(d => ({ id: d.id, data: d.data() }));
+                const newData = deserializeAppData(docs);
+                const processedData = processResets(newData);
+                const newProcessedStr = JSON.stringify(processedData);
+                if (lastSnapshotData.current !== newProcessedStr) {
+                  lastSnapshotData.current = newProcessedStr;
+                  isRemoteUpdate.current = true;
+                  setData(processedData);
+                }
+              }
+            } catch (e) {
+              console.log("Resincronización de fondo al volver a pestaña:", e);
+            }
+          }
+        };
+
+        document.addEventListener('visibilitychange', handleSyncFromServer);
+        window.addEventListener('focus', handleSyncFromServer);
 
         let latestBosqueData: any = null;
         let latestDesencadenadoData: any = null;
@@ -3249,12 +3285,24 @@ Ejemplo de respuesta en "text":
         }, (error) => {
           console.error('Desencadenado Firestore sync error:', error);
         });
+
+        return () => {
+          if (unsubscribe) unsubscribe();
+          if (unsubscribeBosque) unsubscribeBosque();
+          if (unsubscribeDesencadenado) unsubscribeDesencadenado();
+          document.removeEventListener('visibilitychange', handleSyncFromServer);
+          window.removeEventListener('focus', handleSyncFromServer);
+        };
       }
     };
 
-    initializeData();
+    let cleanupListeners: (() => void) | undefined;
+    initializeData().then(cleanup => {
+      cleanupListeners = cleanup;
+    });
 
     return () => {
+      if (cleanupListeners) cleanupListeners();
       if (unsubscribe) unsubscribe();
       if (unsubscribeBosque) unsubscribeBosque();
       if (unsubscribeDesencadenado) unsubscribeDesencadenado();
