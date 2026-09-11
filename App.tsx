@@ -13,7 +13,7 @@ import { FootTasksModal } from './components/FootTasksModal';
 import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { TasksHubView } from './components/TasksHubView';
-import { Home, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
+import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -4978,22 +4978,22 @@ Ejemplo de respuesta en "text":
       <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900">
         {renderView()}
 
-        {/* Fixed Bottom Footer: 3 botones flotantes (Inicio, Enfoque, Tareas) */}
+        {/* Fixed Bottom Footer: Botón único dividido en 3 partes flotantes (Inicio, Enfoque, Tareas) */}
         {!hideFloatingButtons && (
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-stone-900/90 backdrop-blur-md border-t border-stone-800 border-x border-stone-900 px-4 py-3 z-[90] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="w-full flex items-stretch bg-stone-950/70 border border-stone-800/90 rounded-2xl p-1 shadow-inner divide-x divide-stone-800/80">
               {/* Botón 1: Inicio */}
               <button 
                 type="button"
                 onClick={() => setView('home')}
-                className={`flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl transition-all active:scale-95 font-bold text-xs uppercase tracking-tight cursor-pointer border ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl transition-all active:scale-95 font-bold text-xs uppercase tracking-tight cursor-pointer ${
                   view === 'home'
-                    ? 'bg-stone-950 text-purple-400 border-purple-500/50 shadow-sm'
-                    : 'bg-stone-950/50 hover:bg-stone-950/80 text-stone-400 hover:text-stone-200 border-stone-800/80'
+                    ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30 shadow-sm'
+                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900/50'
                 }`}
                 title="Inicio"
               >
-                <Home className="w-4 h-4" />
+                <Home className="w-4 h-4 shrink-0" />
                 <span>Inicio</span>
               </button>
 
@@ -5004,10 +5004,10 @@ Ejemplo de respuesta en "text":
                   setFocusCameFromTelon(false);
                   fetchFocusRecommendation();
                 }}
-                className="flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl bg-stone-950/50 hover:bg-stone-950/80 text-amber-500 hover:text-amber-400 border border-stone-800/80 shadow-sm transition-all active:scale-95 font-bold text-xs uppercase tracking-tight italic cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-amber-400 hover:text-amber-300 hover:bg-stone-900/50 transition-all active:scale-95 font-bold text-xs uppercase tracking-tight italic cursor-pointer"
                 title="Modo Enfoque"
               >
-                <Sparkles className="w-4 h-4" />
+                <Zap className="w-4 h-4 shrink-0 fill-amber-400/20" />
                 <span>Enfoque</span>
               </button>
 
@@ -5015,14 +5015,14 @@ Ejemplo de respuesta en "text":
               <button 
                 type="button"
                 onClick={() => setView('tasks')}
-                className={`flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl transition-all active:scale-95 font-bold text-xs uppercase tracking-tight cursor-pointer border ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl transition-all active:scale-95 font-bold text-xs uppercase tracking-tight cursor-pointer ${
                   view === 'tasks'
-                    ? 'bg-stone-950 text-purple-400 border-purple-500/50 shadow-sm'
-                    : 'bg-stone-950/50 hover:bg-stone-950/80 text-stone-400 hover:text-stone-200 border-stone-800/80'
+                    ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30 shadow-sm'
+                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900/50'
                 }`}
                 title="Tareas activas"
               >
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>Tareas</span>
               </button>
             </div>
