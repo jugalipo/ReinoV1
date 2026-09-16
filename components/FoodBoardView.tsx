@@ -51,7 +51,7 @@ export const DEFAULT_MEALS = [
   { name: "Alubias", icon: "🍲", max: 2 }
 ];
 
-const FIXED_SPECIAL_MEALS = [
+export const FIXED_SPECIAL_MEALS = [
   { name: 'Meh', max: 20, icon: '🤷' },
   { name: 'Ayuno', max: 20, icon: '🧘' },
   { name: 'A domicilio', max: 20, icon: '🛵' }

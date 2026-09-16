@@ -4,7 +4,7 @@ import { DailyHunos } from './components/DailyHunos';
 import { TrainView } from './components/TrainView';
 import { SetsView } from './components/SetsView';
 import { LoveTreeView } from './components/LoveTreeView';
-import { FoodBoardView, calculateAllDaysTotal, DEFAULT_MEALS } from './components/FoodBoardView';
+import { FoodBoardView, calculateAllDaysTotal, DEFAULT_MEALS, FIXED_SPECIAL_MEALS } from './components/FoodBoardView';
 import { ResourceTrackerView } from './components/ResourceTrackerView';
 import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
@@ -1772,21 +1772,23 @@ Ejemplo de respuesta en "text":
       }
     };
 
+    const allKnownMeals = [...activeConfig.meals, ...FIXED_SPECIAL_MEALS];
+
     if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
-      const mealConfig = activeConfig.meals.find((m: any) => m.name === oldDailyScore.lunchMeal);
+      const mealConfig = allKnownMeals.find((m: any) => m.name === oldDailyScore.lunchMeal);
       if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
     if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
-      const mealConfig = activeConfig.meals.find((m: any) => m.name === newDailyScore.lunchMeal);
+      const mealConfig = allKnownMeals.find((m: any) => m.name === newDailyScore.lunchMeal);
       if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
 
     if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
-      const mealConfig = activeConfig.meals.find((m: any) => m.name === oldDailyScore.dinnerMeal);
+      const mealConfig = allKnownMeals.find((m: any) => m.name === oldDailyScore.dinnerMeal);
       if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
     if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
-      const mealConfig = activeConfig.meals.find((m: any) => m.name === newDailyScore.dinnerMeal);
+      const mealConfig = allKnownMeals.find((m: any) => m.name === newDailyScore.dinnerMeal);
       if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
     }
 
