@@ -1,6 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppData, Task, ViewState } from '../types';
-import { ArrowLeft, CheckCircle2, ChevronRight, Check, Target, Compass, Sparkles, Shield, Anchor } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronRight, Check, Target, Compass, Sparkles, Shield, Anchor, Plus, Zap } from 'lucide-react';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+
+const DebouncedInput = ({ value, onChange, ...props }: any) => {
+  const [localValue, setLocalValue] = useState(value);
+  useEffect(() => { setLocalValue(value); }, [value]);
+  return (
+    <input
+      {...props}
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={() => { if (localValue !== value) onChange(localValue); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          if (localValue !== value) onChange(localValue);
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+};
 
 interface TasksHubViewProps {
   data: AppData;
@@ -15,22 +36,58 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
   onBack,
   onNavigate
 }) => {
-  // 1. Metas semanales
-  const weekly = data.weeklyGoals;
+  const [dailyFocus, setDailyFocus] = useState<{ date: string; text: string; completed: boolean } | null>(null);
 
-  const toggleWeeklyGoal = (key: 'leones' | 'forjas' | 'puerto') => {
-    if (!weekly) return;
-    const currentGoal = weekly[key];
-    const updatedWeekly = {
-      ...weekly,
-      [key]: {
-        ...currentGoal,
-        completed: !currentGoal.completed
-      }
+  useEffect(() => {
+    try {
+      const focusRef = doc(db, 'users', 'rrhzO4FVdwNTQW4DiVsJYBsuLbK2', 'habits', 'daily_focus');
+      const unsub = onSnapshot(focusRef, (snap) => {
+        if (snap.exists()) {
+          setDailyFocus(snap.data() as any);
+        } else {
+          setDailyFocus(null);
+        }
+      }, (err) => {
+        console.warn('Firestore daily_focus onSnapshot error:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Error listening to daily_focus:', e);
+    }
+  }, []);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const toggleDailyFocus = async () => {
+    if (!dailyFocus) return;
+    try {
+      const focusRef = doc(db, 'users', 'rrhzO4FVdwNTQW4DiVsJYBsuLbK2', 'habits', 'daily_focus');
+      await setDoc(focusRef, {
+        ...dailyFocus,
+        completed: !dailyFocus.completed,
+        updatedAt: Date.now()
+      }, { merge: true });
+    } catch (e) {
+      console.error('Error toggling daily focus:', e);
+    }
+  };
+
+  const updateWeeklyGoal = (type: 'leones' | 'forjas' | 'puerto', field: 'text' | 'completed', value: string | boolean) => {
+    const currentGoals = data.weeklyGoals || {
+      leones: { text: "", completed: false },
+      forjas: { text: "", completed: false },
+      puerto: { text: "", completed: false },
+      lastReset: Date.now()
     };
     onUpdateData({
       ...data,
-      weeklyGoals: updatedWeekly
+      weeklyGoals: {
+        ...currentGoals,
+        [type]: {
+          ...currentGoals[type],
+          [field]: value
+        }
+      }
     });
   };
 
@@ -122,84 +179,195 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       </header>
 
       <div className="space-y-6">
-        {/* BLOQUE 1: Tareas Semanales (Foco Semanal) */}
-        {weekly && (
+        {/* BLOQUE 1: Tareas Semanales (Idéntico a Inicio con Timeline y Edición) */}
+        {(() => {
+          const now = new Date();
+          const day = now.getDay(); // 0 is Sunday, 6 is Saturday
+          const diff = now.getDate() - day;
+          const startOfCurrentWeek = new Date(now.getFullYear(), now.getMonth(), diff);
+          startOfCurrentWeek.setHours(0, 0, 0, 0);
+
+          const goalsLastReset = new Date(data.weeklyGoals?.lastReset || 0);
+          const isExpired = goalsLastReset.getTime() < startOfCurrentWeek.getTime();
+
+          return (
+            <section className="space-y-3">
+              <h2 className="text-xs font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5 px-1">
+                <Target className="w-3.5 h-3.5" />
+                Foco Semanal
+              </h2>
+
+              <div className="w-full relative overflow-hidden bg-stone-900/80 border border-stone-800 rounded-2xl p-4 shadow-sm">
+                {/* Expired Overlay */}
+                {isExpired && (
+                  <div className="absolute inset-0 bg-stone-950/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-300">
+                    <span className="text-5xl mb-3 animate-bounce">⏳</span>
+                    <h3 className="text-stone-100 font-black tracking-tighter text-xl uppercase italic">Tiempo Agotado</h3>
+                    <p className="text-stone-500 text-[10px] font-bold tracking-widest uppercase mb-6">La semana ha terminado</p>
+                    <button 
+                      onClick={() => {
+                        onUpdateData({
+                          ...data,
+                          weeklyGoals: {
+                            leones: { text: '', completed: false },
+                            forjas: { text: '', completed: false },
+                            puerto: { text: '', completed: false },
+                            lastReset: Date.now()
+                          }
+                        });
+                      }}
+                      className="bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-3 rounded-xl text-xs transition-all hover:scale-105 active:scale-95 shadow-xl uppercase tracking-widest flex items-center gap-2"
+                    >
+                       <Plus className="w-4 h-4" /> Nuevas Tareas
+                    </button>
+                  </div>
+                )}
+
+                <div className={`space-y-3 transition-opacity duration-500 ${isExpired ? 'opacity-20 pointer-events-none grayscale' : 'opacity-100'}`}>
+                  {/* Leones */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl flex-shrink-0">🦁</span>
+                    {(() => {
+                      const completed = !!data.weeklyGoals?.leones.completed;
+                      return (
+                        <DebouncedInput
+                          type="text"
+                          value={data.weeklyGoals?.leones.text || ''}
+                          onChange={(val: string) => updateWeeklyGoal('leones', 'text', val)}
+                          disabled={completed}
+                          className={`flex-1 min-w-0 rounded-lg px-3 py-2 transition-colors text-xs font-medium ${
+                            completed 
+                              ? 'bg-amber-900/20 border border-amber-700/40 text-stone-400 cursor-not-allowed line-through' 
+                              : 'bg-stone-950 border border-stone-800 text-stone-200 focus:outline-none focus:border-amber-500'
+                          }`}
+                          placeholder="Objetivo Leones..."
+                        />
+                      );
+                    })()}
+                    <button
+                      onClick={() => !isExpired && updateWeeklyGoal('leones', 'completed', !(data.weeklyGoals?.leones.completed || false))}
+                      className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.leones.completed ? 'bg-amber-600 border-amber-600' : 'border-stone-700 hover:border-amber-500'}`}
+                    >
+                      {data.weeklyGoals?.leones.completed && <Check className="w-5 h-5 text-white" />}
+                    </button>
+                  </div>
+
+                  {/* Forjas */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl flex-shrink-0">🍁</span>
+                    {(() => {
+                      const completed = !!data.weeklyGoals?.forjas.completed;
+                      return (
+                        <DebouncedInput
+                          type="text"
+                          value={data.weeklyGoals?.forjas.text || ''}
+                          onChange={(val: string) => updateWeeklyGoal('forjas', 'text', val)}
+                          disabled={completed}
+                          className={`flex-1 min-w-0 rounded-lg px-3 py-2 transition-colors text-xs font-medium ${
+                            completed 
+                              ? 'bg-orange-900/20 border border-orange-700/40 text-stone-400 cursor-not-allowed line-through' 
+                              : 'bg-stone-950 border border-stone-800 text-stone-200 focus:outline-none focus:border-orange-500'
+                          }`}
+                          placeholder="Objetivo Roble..."
+                        />
+                      );
+                    })()}
+                    <button
+                      onClick={() => !isExpired && updateWeeklyGoal('forjas', 'completed', !(data.weeklyGoals?.forjas.completed || false))}
+                      className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.forjas.completed ? 'bg-orange-600 border-orange-600' : 'border-stone-700 hover:border-orange-500'}`}
+                    >
+                      {data.weeklyGoals?.forjas.completed && <Check className="w-5 h-5 text-white" />}
+                    </button>
+                  </div>
+
+                  {/* Puerto */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl flex-shrink-0">⚔️</span>
+                    {(() => {
+                      const completed = !!data.weeklyGoals?.puerto.completed;
+                      return (
+                        <DebouncedInput
+                          type="text"
+                          value={data.weeklyGoals?.puerto.text || ''}
+                          onChange={(val: string) => updateWeeklyGoal('puerto', 'text', val)}
+                          disabled={completed}
+                          className={`flex-1 min-w-0 rounded-lg px-3 py-2 transition-colors text-xs font-medium ${
+                            completed 
+                              ? 'bg-blue-900/20 border border-blue-700/40 text-stone-400 cursor-not-allowed line-through' 
+                              : 'bg-stone-950 border border-stone-800 text-stone-200 focus:outline-none focus:border-blue-500'
+                          }`}
+                          placeholder="Objetivo Yunque..."
+                        />
+                      );
+                    })()}
+                    <button
+                      onClick={() => !isExpired && updateWeeklyGoal('puerto', 'completed', !(data.weeklyGoals?.puerto.completed || false))}
+                      className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors flex-shrink-0 ${data.weeklyGoals?.puerto.completed ? 'bg-blue-600 border-blue-600' : 'border-stone-700 hover:border-blue-500'}`}
+                    >
+                      {data.weeklyGoals?.puerto.completed && <Check className="w-5 h-5 text-white" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Weekly Timeline - Linea discontinua de 7 secciones */}
+                <div className={`mt-4 transition-opacity duration-500 ${isExpired ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
+                  <div className="flex gap-1.5 h-1.5 w-full">
+                    {Array.from({ length: 7 }).map((_, i) => {
+                      const isPassed = i < day;
+                      const isToday = i === day;
+                      
+                      let bgColor = 'bg-stone-800';
+                      if (isPassed) bgColor = 'bg-stone-500';
+                      if (isToday) bgColor = 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]';
+
+                      return (
+                        <div 
+                          key={i} 
+                          className={`flex-1 rounded-full transition-all duration-700 ${bgColor}`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
+
+        {/* BLOQUE 2: Foco Ineludible de Hoy (daily_focus) */}
+        {dailyFocus && (
           <section className="space-y-3">
-            <h2 className="text-xs font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5 px-1">
-              <Target className="w-3.5 h-3.5" />
-              Foco Semanal
+            <h2 className="text-xs font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5 px-1">
+              <Zap className="w-3.5 h-3.5 fill-amber-400/20" />
+              Foco Ineludible de Hoy
             </h2>
 
-            <div className="bg-stone-900/80 border border-stone-800 rounded-2xl p-3.5 space-y-2.5">
-              {/* Leones */}
-              <div 
-                onClick={() => toggleWeeklyGoal('leones')}
-                className="flex items-center justify-between p-2 rounded-xl bg-stone-950/60 hover:bg-stone-950 border border-stone-800/80 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-3 min-w-0 pr-2">
-                  <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-colors shrink-0 ${
-                    weekly.leones.completed 
-                      ? 'bg-purple-600 border-purple-500 text-white' 
-                      : 'border-stone-700 bg-stone-900 group-hover:border-stone-500'
+            <div className={`p-4 rounded-2xl border transition-all ${
+              dailyFocus.completed 
+                ? 'bg-amber-950/20 border-amber-800/40 text-stone-400' 
+                : 'bg-gradient-to-r from-amber-950/40 via-stone-900 to-amber-950/20 border-amber-500/40 text-stone-100 shadow-lg shadow-amber-950/20'
+            }`}>
+              <div className="flex items-start gap-3">
+                <button
+                  onClick={toggleDailyFocus}
+                  className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all shrink-0 mt-0.5 ${
+                    dailyFocus.completed 
+                      ? 'bg-amber-600 border-amber-600 text-white' 
+                      : 'border-stone-700 hover:border-amber-400 bg-stone-950'
+                  }`}
+                  title={dailyFocus.completed ? "Marcar pendiente" : "Marcar completado"}
+                >
+                  {dailyFocus.completed && <Check className="w-4 h-4 text-white" />}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <span className={`text-xs font-bold leading-relaxed block ${
+                    dailyFocus.completed ? 'line-through text-stone-500' : 'text-amber-200'
                   }`}>
-                    {weekly.leones.completed && <Check className="w-4 h-4 stroke-[3]" />}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-amber-400 block uppercase tracking-wider">🦁 Leones</span>
-                    <span className={`text-xs font-medium truncate block ${
-                      weekly.leones.completed ? 'line-through text-stone-500' : 'text-stone-200'
-                    }`}>
-                      {weekly.leones.text || 'Sin definir'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Roble */}
-              <div 
-                onClick={() => toggleWeeklyGoal('forjas')}
-                className="flex items-center justify-between p-2 rounded-xl bg-stone-950/60 hover:bg-stone-950 border border-stone-800/80 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-3 min-w-0 pr-2">
-                  <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-colors shrink-0 ${
-                    weekly.forjas.completed 
-                      ? 'bg-purple-600 border-purple-500 text-white' 
-                      : 'border-stone-700 bg-stone-900 group-hover:border-stone-500'
-                  }`}>
-                    {weekly.forjas.completed && <Check className="w-4 h-4 stroke-[3]" />}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-emerald-400 block uppercase tracking-wider">🌳 Roble</span>
-                    <span className={`text-xs font-medium truncate block ${
-                      weekly.forjas.completed ? 'line-through text-stone-500' : 'text-stone-200'
-                    }`}>
-                      {weekly.forjas.text || 'Sin definir'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Yunque */}
-              <div 
-                onClick={() => toggleWeeklyGoal('puerto')}
-                className="flex items-center justify-between p-2 rounded-xl bg-stone-950/60 hover:bg-stone-950 border border-stone-800/80 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-3 min-w-0 pr-2">
-                  <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-colors shrink-0 ${
-                    weekly.puerto.completed 
-                      ? 'bg-purple-600 border-purple-500 text-white' 
-                      : 'border-stone-700 bg-stone-900 group-hover:border-stone-500'
-                  }`}>
-                    {weekly.puerto.completed && <Check className="w-4 h-4 stroke-[3]" />}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-sky-400 block uppercase tracking-wider">🚢 Yunque</span>
-                    <span className={`text-xs font-medium truncate block ${
-                      weekly.puerto.completed ? 'line-through text-stone-500' : 'text-stone-200'
-                    }`}>
-                      {weekly.puerto.text || 'Sin definir'}
-                    </span>
-                  </div>
+                    {dailyFocus.text}
+                  </span>
+                  <span className="text-[10px] text-stone-500 font-semibold block mt-1">
+                    {dailyFocus.date === todayStr ? 'Prioridad establecida para hoy' : `Foco del ${dailyFocus.date}`}
+                  </span>
                 </div>
               </div>
             </div>
