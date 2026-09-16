@@ -290,12 +290,23 @@ const DailyFoodScoreModal = ({
   };
 
   const getDishCountLocal = (baseName: string, max: number) => {
-      let count = 0;
+      let calendarCount = 0;
+      const targetMonth = date.getMonth();
+      const targetYear = date.getFullYear();
+      for (const [dateStr, rawScore] of Object.entries(allScores || {})) {
+          const d = new Date(dateStr);
+          if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
+              const scoreData = rawScore as DailyFoodScore;
+              if (scoreData.lunchMeal === baseName) calendarCount++;
+              if (scoreData.dinnerMeal === baseName) calendarCount++;
+          }
+      }
+      let manualCount = 0;
       for (let i = 0; i < max; i++) {
           const key = baseName + ' '.repeat(i);
-          if (dishes[key]) count++;
+          if (dishes && dishes[key]) manualCount++;
       }
-      return count;
+      return Math.max(calendarCount, manualCount);
   };
 
   const canSelectMeal = (mealName: string, max: number) => {
@@ -1068,12 +1079,21 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const getDishCount = (baseName: string, max: number) => {
-      let count = 0;
+      let calendarCount = 0;
+      for (const [dateStr, rawScore] of Object.entries(dailyScores || {})) {
+          const d = new Date(dateStr);
+          if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+              const scoreData = rawScore as DailyFoodScore;
+              if (scoreData.lunchMeal === baseName) calendarCount++;
+              if (scoreData.dinnerMeal === baseName) calendarCount++;
+          }
+      }
+      let manualCount = 0;
       for (let i = 0; i < max; i++) {
           const key = baseName + ' '.repeat(i);
-          if (effectiveDishes[key]) count++;
+          if (effectiveDishes && effectiveDishes[key]) manualCount++;
       }
-      return count;
+      return Math.max(calendarCount, manualCount);
   };
 
   const incrementDish = (baseName: string, max: number) => {
