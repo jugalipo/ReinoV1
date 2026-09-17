@@ -102,14 +102,28 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
     setNewFriendName('');
   };
 
+  const formatDaysAgo = (timestamp?: number) => {
+    if (!timestamp) return '—';
+    const days = getDaysSince(timestamp);
+    if (days === 0) return 'Hoy';
+    if (days === 1) return 'Ayer';
+    if (days > 365) return `+1 año`;
+    return `${days}d`;
+  };
+
   const recordInteraction = (id: string, type: keyof FriendInteractions) => {
+    const now = Date.now();
     const updated = friends.map((f) =>
       f.id === id ? { 
           ...f, 
-          lastInteraction: Date.now(),
+          lastInteraction: now,
           interactions: {
               ...f.interactions,
-              [type]: f.interactions[type] + 1
+              [type]: (f.interactions[type] || 0) + 1
+          },
+          lastInteractions: {
+              ...(f.lastInteractions || {}),
+              [type]: now
           }
       } : f
     );
@@ -365,9 +379,18 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
                                     {f.name}
                                     {isBday && <span>🎂</span>}
                                 </h4>
-                                <p className={`text-xs font-bold ${isBday ? 'text-stone-800/80' : 'text-stone-500'}`}>
-                                    {total} brotes
-                                </p>
+                                <div className="flex flex-col">
+                                    <p className={`text-xs font-bold ${isBday ? 'text-stone-800/80' : 'text-stone-500'}`}>
+                                        {total} brotes
+                                    </p>
+                                    {f.lastInteractions && (
+                                        <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium mt-0.5">
+                                            {f.lastInteractions.person ? <span>🫂 {formatDaysAgo(f.lastInteractions.person)}</span> : null}
+                                            {f.lastInteractions.call ? <span>📞 {formatDaysAgo(f.lastInteractions.call)}</span> : null}
+                                            {f.lastInteractions.message ? <span>💬 {formatDaysAgo(f.lastInteractions.message)}</span> : null}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -539,9 +562,10 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
                                                 />
                                             </>
                                         ) : (
-                                            <button onClick={() => recordInteraction(selectedFriend.id, type)} className="w-full h-full flex flex-col items-center justify-center gap-1">
-                                                <span className="text-2xl">{icons[type]}</span>
-                                                <span className="text-xs font-mono font-bold text-stone-400">{selectedFriend.interactions[type]}</span>
+                                            <button onClick={() => recordInteraction(selectedFriend.id, type)} className="w-full h-full flex flex-col items-center justify-center gap-0.5 p-1">
+                                                <span className="text-xl">{icons[type]}</span>
+                                                <span className="text-xs font-mono font-bold text-stone-300">{selectedFriend.interactions[type]}</span>
+                                                <span className="text-[9px] font-semibold text-pink-400/80 leading-none">{formatDaysAgo(selectedFriend.lastInteractions?.[type])}</span>
                                             </button>
                                         )}
                                     </div>

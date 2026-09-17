@@ -43,9 +43,10 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   const [tempNoteText, setTempNoteText] = useState('');
 
   // Group tasks for display
+  const isOddDay = new Date().getDate() % 2 !== 0;
   const fantasticosTasks = tasks.filter((t, i) => t.hunoType === 'fantastico' || (!t.hunoType && i < 4));
-  const enanitosTasks = tasks.filter((t, i) => t.hunoType === 'enanito' || (!t.hunoType && i >= 4 && i < 15));
-  const fondoTasks = tasks.filter((t, i) => t.hunoType === 'fondo' || (!t.hunoType && i >= 15));
+  const enanitosTasks = tasks.filter((t, i) => t.hunoType === 'enanito' || (!t.hunoType && i >= 4 && (t.hunoType === 'enanito' || i < 16)));
+  const fondoTasks = tasks.filter((t, i) => t.hunoType === 'fondo' || (!t.hunoType && i >= 16 && t.hunoType !== 'enanito'));
 
   // Filter out the "GAP" tasks for calculations in View Mode
   const visibleTasks = tasks.filter(t => t.text !== 'GAP');
@@ -373,7 +374,11 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                         );
                     }
 
-                    const emoji = getEmoji(task.text);
+                    const isImpulsoPeso = task.id === 'huno-impulso-peso' || task.text.toLowerCase().includes('impulso');
+                    const taskTitle = isImpulsoPeso 
+                      ? (isOddDay ? '⚡ Impulso (Día Impar · Sprints en calle)' : '🎒 Peso (Día Par · Rucking con lastre)')
+                      : task.text;
+                    const emoji = isImpulsoPeso ? (isOddDay ? '⚡' : '🎒') : getEmoji(task.text);
                     const isFailed = task.failedYesterday && !task.completed;
                     const missedDays = task.missedDays || 0;
                     const isLastSeven = !isEnanito;
@@ -394,7 +399,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                         <button
                             key={task.id}
                             onClick={() => toggleTask(task.id)}
-                            title={task.text}
+                            title={taskTitle}
                             className={`
                                 aspect-square flex items-center justify-center text-3xl relative transition-all duration-300 overflow-hidden rounded-2xl
                                 ${task.completed

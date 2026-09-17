@@ -79,6 +79,7 @@ export interface Friend {
   name: string;
   lastInteraction: number; // timestamp
   interactions: FriendInteractions;
+  lastInteractions?: Partial<Record<keyof FriendInteractions, number>>; // timestamp per interaction type
   tasks: FriendTask[];
   birthday?: string; // YYYY-MM-DD
   isSporadic?: boolean;

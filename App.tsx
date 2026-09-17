@@ -289,6 +289,7 @@ const HUNOS_TASKS = [
   { text: "T3 🚢 20'", shortcut: 'yunque' },
   { text: "pág 📘 30'" },
   { text: "WH - m 🫁 15'" },
+  { text: "Impulso/Peso ⚡🎒", hunoType: 'enanito', notes: 'Días impares: carreritas/sprints en calle · Días pares: rucking/peso en calle' },
   { text: "🍄🍄 30'", shortcut: 'sets' },
   { text: "🚂🚂🚂 110'", shortcut: 'trains' },
   { text: "P ⚙️ 44'", shortcut: 'projects' },
@@ -610,6 +611,20 @@ const processResets = (parsed: AppData): AppData => {
       }
       return t;
     });
+
+    // Inyectar el nuevo Huno "Impulso/Peso ⚡🎒" si no existe aún en los datos guardados
+    if (!result.hunos.some(t => t.id === 'huno-impulso-peso' || t.text.includes('Impulso'))) {
+      const whIndex = result.hunos.findIndex(t => t.text.includes('WH') || t.text.includes('🫁'));
+      const insertIndex = whIndex !== -1 ? whIndex + 1 : 11;
+      const newTask: Task = {
+        id: 'huno-impulso-peso',
+        text: "Impulso/Peso ⚡🎒",
+        completed: false,
+        hunoType: 'enanito',
+        notes: 'Días impares: carreritas/sprints en calle · Días pares: rucking/peso en calle'
+      };
+      result.hunos.splice(insertIndex, 0, newTask);
+    }
   }
 
   if (!result.stats) { result.stats = { perfectSetsWeeks: 0, hunoPlenos: 0, perfectTrainMonths: 0, projectPlenos: 0, hunoPlenoCurrent: 0, projectPlenoCurrent: 0, hunoReward: "Premio por definir", projectReward: "Premio por definir", setsHistory: [], trainsHistory: [], interactionsHistory: [], lastTotalInteractions: 0 }; }

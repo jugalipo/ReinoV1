@@ -94,9 +94,9 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
   };
 
   // Group tasks
-  const group1 = tasks.slice(0, 4);
-  const group2 = tasks.slice(4, 15);
-  const group3 = tasks.slice(15);
+  const group1 = tasks.filter((t, i) => t.hunoType === 'fantastico' || (!t.hunoType && i < 4));
+  const group2 = tasks.filter((t, i) => t.hunoType === 'enanito' || (!t.hunoType && i >= 4 && (t.hunoType === 'enanito' || i < 16)));
+  const group3 = tasks.filter((t, i) => t.hunoType === 'fondo' || (!t.hunoType && i >= 16 && t.hunoType !== 'enanito'));
 
   const totalRows = Math.max(1, tasks.length);
 
