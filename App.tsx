@@ -10,10 +10,9 @@ import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
-import { YunqueView } from './components/YunqueView';
 import { CaminosView } from './components/CaminosView';
 import { TasksHubView } from './components/TasksHubView';
-import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, Anvil, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
+import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -286,7 +285,7 @@ const HUNOS_TASKS = [
   { text: "Diana 🎯 15'" },
   { text: "IdiomaS 🏛️ 20'" },
   { text: "T2 🔥 40'", shortcut: 'forjas' },
-  { text: "T3 🚢 20'", shortcut: 'yunque' },
+  { text: "T3 🚢 20'" },
   { text: "pág 📘 30'" },
   { text: "WH - m 🫁 15'" },
   { text: "Impulso/Peso ⚡🎒", hunoType: 'enanito', notes: 'Días impares: carreritas/sprints en calle · Días pares: rucking/peso en calle' },
@@ -419,8 +418,6 @@ const INITIAL_DATA: AppData = {
       type: t.type as 'superficies' | 'barrer' | 'fregar'
     }))
   },
-  yunqueLargas: [],
-  yunqueRapidas: [],
   caminos: []
 };
 
@@ -540,7 +537,6 @@ const serializeAppData = (data: AppData) => {
     { id: 'leones', data: { items: data.leones } },
     { id: 'hunosHistory', data: { items: data.hunosHistory } },
     { id: 'energy', data: { value: data.energy || 1, history: data.energyHistory || {} } },
-    { id: 'yunque', data: { largas: data.yunqueLargas || [], rapidas: data.yunqueRapidas || [] } },
     { id: 'caminos', data: { items: data.caminos || [] } },
   ];
   return rawDocs.map(doc => ({
@@ -581,9 +577,6 @@ const deserializeAppData = (docs: any[]): AppData => {
     } else if (doc.id === 'energy') {
       result.energy = doc.data.value || 1;
       result.energyHistory = doc.data.history || {};
-    } else if (doc.id === 'yunque') {
-      result.yunqueLargas = doc.data.largas || INITIAL_DATA.yunqueLargas || [];
-      result.yunqueRapidas = doc.data.rapidas || INITIAL_DATA.yunqueRapidas || [];
     } else if (doc.id === 'caminos') {
       result.caminos = doc.data.items || INITIAL_DATA.caminos || [];
     }
@@ -1140,12 +1133,10 @@ function App() {
     setPriorityTaskId(null);
 
     const hunosPending = data.hunos.filter(t => !t.completed);
-    const yunqueLargasPending = (data.yunqueLargas || []).filter(t => !t.completed);
-    const yunqueRapidasPending = (data.yunqueRapidas || []).filter(t => !t.completed);
     const roblePending = (data.forjaTasks || []).filter(t => !t.completed);
     const leonesPending = (data.leones || []).filter(t => t.current < t.target);
 
-    const totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length;
+    const totalUncompleted = hunosPending.length + roblePending.length + leonesPending.length;
 
     if (totalUncompleted === 0) {
       setSebastianResponse("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.\nSebastian, su mayordomo");
@@ -1180,16 +1171,10 @@ ${data.sebastianInstructions}
 1. Hunos (Tareas Diarias):
 ${hunosPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
 
-2. Yunque Largas (Tareas Complejas):
-${yunqueLargasPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
-
-3. Yunque Rápidas (Tareas Rápidas):
-${yunqueRapidasPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
-
-4. Roble (Tareas Trimestrales/Proyectos):
+2. Roble (Tareas Trimestrales/Proyectos):
 ${roblePending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
 
-5. Leones (Objetivos de Recursos):
+3. Leones (Objetivos de Recursos):
 ${leonesPending.map(t => `- [${t.id}] ${t.name} (${t.current}/${t.target} ${t.unit})`).join('\n')}
 
 Por favor, responde con un objeto JSON que contenga:
@@ -1258,7 +1243,7 @@ Ejemplo de respuesta en "text":
       } else {
         console.error(`Failed to fetch recommendation from Gemini API after ${elapsed}ms:`, e);
       }
-      applyFallback(hunosPending, yunqueLargasPending, yunqueRapidasPending, roblePending, leonesPending);
+      applyFallback(hunosPending, roblePending, leonesPending);
     } finally {
       clearTimeout(timeoutId);
       setGeminiLoading(false);
@@ -1267,15 +1252,11 @@ Ejemplo de respuesta en "text":
 
   const applyFallback = (
     hunosPending: any[],
-    yunqueLargasPending: any[],
-    yunqueRapidasPending: any[],
     roblePending: any[],
     leonesPending: any[]
   ) => {
     let selected = null;
     if (hunosPending.length > 0) selected = hunosPending[0];
-    else if (yunqueRapidasPending.length > 0) selected = yunqueRapidasPending[0];
-    else if (yunqueLargasPending.length > 0) selected = yunqueLargasPending[0];
     else if (roblePending.length > 0) selected = roblePending[0];
     else if (leonesPending.length > 0) selected = leonesPending[0];
 
@@ -1394,23 +1375,19 @@ Ejemplo de respuesta en "text":
     setShowFocusModal(true);
 
     let hunosPending = data.hunos.filter(t => !t.completed && !currentRejected.includes(t.id));
-    let yunqueLargasPending = (data.yunqueLargas || []).filter(t => !t.completed && !currentRejected.includes(t.id));
-    let yunqueRapidasPending = (data.yunqueRapidas || []).filter(t => !t.completed && !currentRejected.includes(t.id));
     let roblePending = (data.forjaTasks || []).filter(t => !t.completed && !currentRejected.includes(t.id));
     let leonesPending = (data.leones || []).filter(t => t.current < t.target && !currentRejected.includes(t.id));
 
-    let totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length;
+    let totalUncompleted = hunosPending.length + roblePending.length + leonesPending.length;
 
     if (totalUncompleted === 0 && currentRejected.length > 0) {
       // Clear rejected list and retry with full pending list
       currentRejected = [];
       setRejectedFocusTaskIds([]);
       hunosPending = data.hunos.filter(t => !t.completed);
-      yunqueLargasPending = (data.yunqueLargas || []).filter(t => !t.completed);
-      yunqueRapidasPending = (data.yunqueRapidas || []).filter(t => !t.completed);
       roblePending = (data.forjaTasks || []).filter(t => !t.completed);
       leonesPending = (data.leones || []).filter(t => t.current < t.target);
-      totalUncompleted = hunosPending.length + yunqueLargasPending.length + yunqueRapidasPending.length + roblePending.length + leonesPending.length;
+      totalUncompleted = hunosPending.length + roblePending.length + leonesPending.length;
     }
 
     if (totalUncompleted === 0) {
@@ -1445,16 +1422,10 @@ ${data.sebastianInstructions}
 1. Hunos (Tareas Diarias):
 ${hunosPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
 
-2. Yunque Largas (Tareas Complejas):
-${yunqueLargasPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
-
-3. Yunque Rápidas (Tareas Rápidas):
-${yunqueRapidasPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
-
-4. Roble (Tareas Trimestrales/Proyectos):
+2. Roble (Tareas Trimestrales/Proyectos):
 ${roblePending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
 
-5. Leones (Objetivos de Recursos):
+3. Leones (Objetivos de Recursos):
 ${leonesPending.map(t => `- [${t.id}] ${t.name} (${t.current}/${t.target} ${t.unit})`).join('\n')}
 
 Por favor, responde con un objeto JSON que contenga:
@@ -1518,7 +1489,7 @@ Ejemplo de respuesta en "text":
       }
     } catch (e) {
       console.error("Error in focus recommendation:", e);
-      applyFocusFallback(hunosPending, yunqueLargasPending, yunqueRapidasPending, roblePending, leonesPending);
+      applyFocusFallback(hunosPending, roblePending, leonesPending);
     } finally {
       clearTimeout(timeoutId);
       setFocusLoading(false);
@@ -1527,15 +1498,11 @@ Ejemplo de respuesta en "text":
 
   const applyFocusFallback = (
     hunosPending: any[],
-    yunqueLargasPending: any[],
-    yunqueRapidasPending: any[],
     roblePending: any[],
     leonesPending: any[]
   ) => {
     let selected = null;
     if (hunosPending.length > 0) selected = hunosPending[0];
-    else if (yunqueRapidasPending.length > 0) selected = yunqueRapidasPending[0];
-    else if (yunqueLargasPending.length > 0) selected = yunqueLargasPending[0];
     else if (roblePending.length > 0) selected = roblePending[0];
     else if (leonesPending.length > 0) selected = leonesPending[0];
 
@@ -1553,12 +1520,6 @@ Ejemplo de respuesta en "text":
     
     const huno = data.hunos.find(t => t.id === focusRecommendedTaskId);
     if (huno) return { text: huno.text, completed: huno.completed, typeName: "Diaria" };
-
-    const yl = (data.yunqueLargas || []).find(t => t.id === focusRecommendedTaskId);
-    if (yl) return { text: yl.text, completed: yl.completed, typeName: "Compleja (Yunque)" };
-
-    const yr = (data.yunqueRapidas || []).find(t => t.id === focusRecommendedTaskId);
-    if (yr) return { text: yr.text, completed: yr.completed, typeName: "Rápida (Yunque)" };
 
     const ft = (data.forjaTasks || []).find(t => t.id === focusRecommendedTaskId);
     if (ft) return { text: ft.text, completed: ft.completed, typeName: "Roble" };
@@ -2090,12 +2051,6 @@ Ejemplo de respuesta en "text":
     const huno = data.hunos.find(t => t.id === taskId);
     if (huno) return huno.completed;
 
-    const yl = (data.yunqueLargas || []).find(t => t.id === taskId);
-    if (yl) return yl.completed;
-
-    const yr = (data.yunqueRapidas || []).find(t => t.id === taskId);
-    if (yr) return yr.completed;
-
     const ft = (data.forjaTasks || []).find(t => t.id === taskId);
     if (ft) return ft.completed;
 
@@ -2135,12 +2090,6 @@ Ejemplo de respuesta en "text":
     const huno = data.hunos.find(t => t.id === taskId);
     if (huno) return huno.text;
 
-    const yl = (data.yunqueLargas || []).find(t => t.id === taskId);
-    if (yl) return yl.text;
-
-    const yr = (data.yunqueRapidas || []).find(t => t.id === taskId);
-    if (yr) return yr.text;
-
     const ft = (data.forjaTasks || []).find(t => t.id === taskId);
     if (ft) return ft.text;
 
@@ -2166,8 +2115,6 @@ Ejemplo de respuesta en "text":
     if (!taskId || taskId === 'none') return "";
 
     if (data.hunos.some(t => t.id === taskId)) return "Hunos";
-    if ((data.yunqueLargas || []).some(t => t.id === taskId)) return "Yunque (Larga)";
-    if ((data.yunqueRapidas || []).some(t => t.id === taskId)) return "Yunque (Rápida)";
     if ((data.forjaTasks || []).some(t => t.id === taskId)) return "Roble";
     if ((data.leones || []).some(t => t.id === taskId)) return "Leones";
     if ((data.sets || []).some(t => t.id === taskId)) return "Setas (Semanales)";
@@ -3066,26 +3013,12 @@ Ejemplo de respuesta en "text":
     const executeMagicTask = async () => {
       try {
         const hunosDocRef = doc(db, 'users', user.uid, 'habits', 'hunos');
-        const yunqueDocRef = doc(db, 'users', user.uid, 'habits', 'yunque');
-
-        const [hunosSnap, yunqueSnap] = await Promise.all([
-          getDoc(hunosDocRef),
-          getDoc(yunqueDocRef)
-        ]);
+        const hunosSnap = await getDoc(hunosDocRef);
 
         let hunosUpdated = false;
-        let yunqueUpdated = false;
-
         let hunosItems = [];
         if (hunosSnap.exists()) {
           hunosItems = hunosSnap.data()?.items || [];
-        }
-
-        let yunqueLargas = [];
-        let yunqueRapidas = [];
-        if (yunqueSnap.exists()) {
-          yunqueLargas = yunqueSnap.data()?.largas || [];
-          yunqueRapidas = yunqueSnap.data()?.rapidas || [];
         }
 
         hunosItems = hunosItems.map((task: any) => {
@@ -3096,33 +3029,11 @@ Ejemplo de respuesta en "text":
           return task;
         });
 
-        yunqueLargas = yunqueLargas.map((task: any) => {
-          if (task.id === magicTaskId) {
-            yunqueUpdated = true;
-            return { ...task, completed: true };
-          }
-          return task;
-        });
-        yunqueRapidas = yunqueRapidas.map((task: any) => {
-          if (task.id === magicTaskId) {
-            yunqueUpdated = true;
-            return { ...task, completed: true };
-          }
-          return task;
-        });
-
-        if (hunosUpdated || yunqueUpdated) {
-          const batch = writeBatch(db);
-          if (hunosUpdated) {
-            batch.set(hunosDocRef, { items: hunosItems }, { merge: true });
-          }
-          if (yunqueUpdated) {
-            batch.set(yunqueDocRef, { largas: yunqueLargas, rapidas: yunqueRapidas }, { merge: true });
-          }
-          await batch.commit();
+        if (hunosUpdated) {
+          await setDoc(hunosDocRef, { items: hunosItems }, { merge: true });
           console.log("Magic task updated successfully in Firestore.");
         } else {
-          console.log("Magic task not found in hunos or yunque.");
+          console.log("Magic task not found in hunos.");
         }
       } catch (error) {
         console.error("Error executing magic task:", error);
@@ -3510,7 +3421,6 @@ Ejemplo de respuesta en "text":
 
     triggerShortcut('love', 'love');
     triggerShortcut('forjas', 'forjas');
-    triggerShortcut('yunque', 'yunque');
     triggerShortcut('leones', 'leones');
     triggerShortcut('food', 'food');
     triggerShortcut('sets', 'sets');
@@ -3918,7 +3828,6 @@ Ejemplo de respuesta en "text":
       case 'forjas': return <ResourceTrackerView title="Roble" themeColor="orange" tasks={data.forjas} forjaTasks={data.forjaTasks || []} onUpdateForjaTasks={t => setData(prev => ({ ...prev, forjaTasks: t }))} onUpdate={t => setData(prev => ({ ...prev, forjas: t }))} onBack={() => setView('home')} />;
       case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({ ...prev, billetesState: bs, huchaCount: hc }))} leonesState={data.leonesState || Array(20).fill(false)} leonesCount={data.leonesCount || 0} onUpdateLeones={(ls, lc) => setData(prev => ({ ...prev, leonesState: ls, leonesCount: lc }))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
       case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;
-      case 'yunque': return <YunqueView largas={data.yunqueLargas || []} rapidas={data.yunqueRapidas || []} onUpdateLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))} onUpdateRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))} onBack={() => setView('home')} />;
       case 'stats': return <StatsView data={data} bosqueExercises={bosqueExercises} onUpdate={setData} onBack={() => setView('home')} onNavigate={setView} />;
       case 'caminos': return <CaminosView caminos={data.caminos || []} onUpdate={c => setData(prev => ({ ...prev, caminos: c }))} onBack={() => setView('home')} />;
       case 'tasks': return <TasksHubView data={data} onUpdateData={setData} onBack={() => setView('home')} onNavigate={setView} />;
@@ -4024,7 +3933,7 @@ Ejemplo de respuesta en "text":
                 </div>
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-2 mb-2">
+            <div className="grid grid-cols-3 gap-2 mb-2">
               <button onClick={() => setView('love')} className="aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
                   <Heart className={`w-8 h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
@@ -4035,18 +3944,13 @@ Ejemplo de respuesta en "text":
               </button>
               <button onClick={() => setView('leones')} className="aspect-square bg-amber-50 dark:bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors border border-amber-200 dark:border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-200 dark:bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
               <button onClick={() => setView('forjas')} className="aspect-square bg-orange-50 dark:bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><TreeDeciduous className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-200 dark:bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
-              <button onClick={() => setView('yunque')} className="aspect-square bg-slate-100 dark:bg-slate-950/30 rounded-xl flex flex-col items-center justify-center p-2 hover:bg-slate-200 dark:hover:bg-slate-900/50 transition-colors border border-slate-300 dark:border-slate-900/50 group relative">
-                <Anvil className="w-8 h-8 text-slate-600 dark:text-slate-500 group-hover:text-slate-800 dark:group-hover:text-slate-400 transition-colors" />
-              </button>
             </div>
             <div className="grid grid-cols-4 gap-2 mb-6">
               {/* Pie (Footprints) Button - 1/4 width */}
               {(() => {
                 const footTasks = [
                   ...data.trains.flatMap(t => t.subtasks || []),
-                  ...data.sets.flatMap(s => s.subtasks || []),
-                  ...(data.yunqueLargas || []),
-                  ...(data.yunqueRapidas || [])
+                  ...data.sets.flatMap(s => s.subtasks || [])
                 ].filter(s => s && s.text && s.text.includes('🦶'));
                 const footProgress = footTasks.length > 0 ? (footTasks.filter(s => s.completed).length / footTasks.length) : 0;
                 
@@ -4622,12 +4526,8 @@ Ejemplo de respuesta en "text":
               <FootTasksModal 
                 trains={data.trains}
                 sets={data.sets}
-                yunqueLargas={data.yunqueLargas || []}
-                yunqueRapidas={data.yunqueRapidas || []}
                 onUpdateTrains={handleTrainsUpdate}
                 onUpdateSets={handleSetsUpdate}
-                onUpdateYunqueLargas={t => setData(prev => ({ ...prev, yunqueLargas: t }))}
-                onUpdateYunqueRapidas={t => setData(prev => ({ ...prev, yunqueRapidas: t }))}
                 onClose={() => setShowFootModal(false)}
               />
             )}
@@ -4728,8 +4628,7 @@ Ejemplo de respuesta en "text":
                           return getEmoji(task.text);
                         }
                         let shortcut = "";
-                        if (task.typeName.includes("Yunque")) shortcut = "yunque";
-                        else if (task.typeName === "Roble") shortcut = "forjas";
+                        if (task.typeName === "Roble") shortcut = "forjas";
                         else if (task.typeName.includes("Leones")) shortcut = "leones";
                         else if (task.typeName.includes("Setas")) shortcut = "sets";
                         else if (task.typeName.includes("Trenes")) shortcut = "trains";
@@ -4745,7 +4644,6 @@ Ejemplo de respuesta en "text":
                         const ownEmoji = getEmoji(task.text);
                         if (ownEmoji !== '❓') return ownEmoji;
 
-                        if (task.typeName.includes("Yunque")) return "⚔️";
                         if (task.typeName === "Roble") return "🍁";
                         if (task.typeName.includes("Leones")) return "🦁";
                         if (task.typeName.includes("Setas")) return "🍄";

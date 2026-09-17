@@ -776,7 +776,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                     <textarea
                         value={tempInstructions}
                         onChange={(e) => setTempInstructions(e.target.value)}
-                        placeholder="Ejemplo: Si mi energía es < 5, prioriza las tareas rápidas y evita las de Yunque Largas. Los viernes prefiere tareas creativas..."
+                        placeholder="Ejemplo: Si mi energía es < 5, prioriza tareas ligeras. Los viernes prefiere tareas creativas..."
                         className="flex-1 w-full bg-stone-900/60 border border-stone-800 rounded-2xl p-4 text-stone-100 text-base focus:outline-none focus:border-amber-500 font-sans resize-none transition-all placeholder:text-stone-600 shadow-inner leading-relaxed"
                     />
                     

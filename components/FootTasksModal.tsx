@@ -5,24 +5,16 @@ import { Task, WeeklyTask } from '../types';
 interface FootTasksModalProps {
   trains: Task[];
   sets: WeeklyTask[];
-  yunqueLargas: Task[];
-  yunqueRapidas: Task[];
   onUpdateTrains: (tasks: Task[]) => void;
   onUpdateSets: (tasks: WeeklyTask[]) => void;
-  onUpdateYunqueLargas: (tasks: Task[]) => void;
-  onUpdateYunqueRapidas: (tasks: Task[]) => void;
   onClose: () => void;
 }
 
 export const FootTasksModal: React.FC<FootTasksModalProps> = ({
   trains,
   sets,
-  yunqueLargas,
-  yunqueRapidas,
   onUpdateTrains,
   onUpdateSets,
-  onUpdateYunqueLargas,
-  onUpdateYunqueRapidas,
   onClose
 }) => {
   
@@ -31,7 +23,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({
     const footTasks: Array<{
       taskId: string;
       sub: { id: string; text: string; completed: boolean };
-      sourceType: 'train' | 'set' | 'yunqueLarga' | 'yunqueRapida';
+      sourceType: 'train' | 'set';
       parentName: string;
     }> = [];
 
@@ -51,34 +43,15 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({
       });
     });
 
-    yunqueRapidas.forEach(y => {
-      if (y && y.text && y.text.includes('🦶')) {
-        footTasks.push({ taskId: y.id, sub: y, sourceType: 'yunqueRapida', parentName: 'Grapas' });
-      }
-    });
-
-    yunqueLargas.forEach(y => {
-      if (y && y.text && y.text.includes('🦶')) {
-        footTasks.push({ taskId: y.id, sub: y, sourceType: 'yunqueLarga', parentName: 'Argollas' });
-      }
-      y.subtasks?.forEach(sub => {
-        if (sub && sub.text && sub.text.includes('🦶')) {
-          footTasks.push({ taskId: y.id, sub, sourceType: 'yunqueLarga', parentName: `Argolla: ${y.text || ''}` });
-        }
-      });
-    });
-
     return footTasks;
   };
 
   const allFootTasks = getFootSubtasks();
 
   // Find first category with pending tasks to select as default active category
-  const [activeCategory, setActiveCategory] = React.useState<'set' | 'yunque' | 'train'>(() => {
+  const [activeCategory, setActiveCategory] = React.useState<'set' | 'train'>(() => {
     const hasSets = allFootTasks.some(t => t.sourceType === 'set' && !t.sub.completed);
     if (hasSets) return 'set';
-    const hasYunque = allFootTasks.some(t => (t.sourceType === 'yunqueLarga' || t.sourceType === 'yunqueRapida') && !t.sub.completed);
-    if (hasYunque) return 'yunque';
     const hasTrains = allFootTasks.some(t => t.sourceType === 'train' && !t.sub.completed);
     if (hasTrains) return 'train';
     return 'set';
@@ -90,13 +63,11 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({
 
   // Counts of remaining (incomplete) tasks per category
   const setsPendingCount = allFootTasks.filter(t => t.sourceType === 'set' && !t.sub.completed).length;
-  const yunquePendingCount = allFootTasks.filter(t => (t.sourceType === 'yunqueLarga' || t.sourceType === 'yunqueRapida') && !t.sub.completed).length;
   const trainsPendingCount = allFootTasks.filter(t => t.sourceType === 'train' && !t.sub.completed).length;
 
   // Filter tasks belonging to the active category
   const categoryTasks = allFootTasks.filter(t => {
     if (activeCategory === 'set') return t.sourceType === 'set';
-    if (activeCategory === 'yunque') return t.sourceType === 'yunqueLarga' || t.sourceType === 'yunqueRapida';
     if (activeCategory === 'train') return t.sourceType === 'train';
     return false;
   });
@@ -106,7 +77,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({
 
   const activeTask = categoryIncomplete[0];
 
-  const toggleTask = (taskId: string, subId: string, type: 'train' | 'set' | 'yunqueLarga' | 'yunqueRapida') => {
+  const toggleTask = (taskId: string, subId: string, type: 'train' | 'set') => {
     if (type === 'train') {
       const updated = trains.map(t => {
         if (t.id === taskId && t.subtasks) {
@@ -129,29 +100,6 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({
         return s;
       });
       onUpdateSets(updated);
-    } else if (type === 'yunqueLarga') {
-      const updated = yunqueLargas.map(t => {
-        if (t.id === taskId) {
-          if (t.id === subId) {
-            return { ...t, completed: !t.completed };
-          } else if (t.subtasks) {
-            return {
-              ...t,
-              subtasks: t.subtasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s)
-            };
-          }
-        }
-        return t;
-      });
-      onUpdateYunqueLargas(updated);
-    } else if (type === 'yunqueRapida') {
-      const updated = yunqueRapidas.map(t => {
-        if (t.id === taskId) {
-          return { ...t, completed: !t.completed };
-        }
-        return t;
-      });
-      onUpdateYunqueRapidas(updated);
     }
   };
 
@@ -188,10 +136,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({
   const renderCompletionState = () => {
     let emoji = '🍄';
     let name = 'Setas';
-    if (activeCategory === 'yunque') {
-      emoji = '⚔️';
-      name = 'Yunque';
-    } else if (activeCategory === 'train') {
+    if (activeCategory === 'train') {
       emoji = '🚂';
       name = 'Trenes';
     }
@@ -246,22 +191,6 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveCategory('yunque')}
-            className={`relative flex items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 ${
-              activeCategory === 'yunque'
-                ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)] scale-105'
-                : 'bg-stone-900 border border-stone-800/65 text-stone-400 hover:text-stone-300 hover:border-stone-750'
-            }`}
-          >
-            <span className="text-2xl filter drop-shadow">⚔️</span>
-            {yunquePendingCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-stone-950 text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-md animate-pulse">
-                {yunquePendingCount}
-              </span>
-            )}
-          </button>
-
-          <button
             onClick={() => setActiveCategory('train')}
             className={`relative flex items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 ${
               activeCategory === 'train'
@@ -285,7 +214,7 @@ export const FootTasksModal: React.FC<FootTasksModalProps> = ({
               <div className="w-16 h-16 bg-stone-800 rounded-full flex items-center justify-center mx-auto mb-4 opacity-50">
                 <Footprints className="w-8 h-8 text-stone-600" />
               </div>
-              <p className="text-stone-500 italic text-sm">No hay subtareas con el emoji 🦶 en tus Trenes, Setas o Yunque.</p>
+              <p className="text-stone-500 italic text-sm">No hay subtareas con el emoji 🦶 en tus Trenes o Setas.</p>
             </div>
           ) : (
             <div className="space-y-4">

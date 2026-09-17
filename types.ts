@@ -1,4 +1,4 @@
-export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'leones' | 'yunque' | 'caminos' | 'tasks';
+export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'leones' | 'caminos' | 'tasks';
 
 export interface Task {
   id: string;
@@ -279,8 +279,6 @@ export interface AppData {
   energy?: number; // 1 to 10
   energyHistory?: Record<string, number>; // DateString -> Energy value
   gympieza?: GympiezaState;
-  yunqueLargas?: Task[];
-  yunqueRapidas?: Task[];
   caminos?: Camino[];
   loveTreeSortBy?: 'interactions' | 'days';
   lastAnnualTrainReminderDate?: string; // YYYY-MM-DD — tracks when the user last dismissed the daily annual train reminder

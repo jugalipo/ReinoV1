@@ -95,26 +95,6 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
   // Principal: Primer objetivo de forjas
   const principalGoal = data.forjas?.[0];
 
-  // Yunque: Primera rápida o larga pendiente
-  const nextYunqueRapida = (data.yunqueRapidas || []).find(t => !t.completed);
-  const nextYunqueLarga = (data.yunqueLargas || []).find(t => !t.completed);
-  const nextYunque = nextYunqueRapida || nextYunqueLarga;
-  const isYunqueRapida = !!nextYunqueRapida;
-
-  const toggleYunqueTask = (taskId: string) => {
-    if (isYunqueRapida) {
-      const updated = (data.yunqueRapidas || []).map(t => 
-        t.id === taskId ? { ...t, completed: !t.completed } : t
-      );
-      onUpdateData({ ...data, yunqueRapidas: updated });
-    } else {
-      const updated = (data.yunqueLargas || []).map(t => 
-        t.id === taskId ? { ...t, completed: !t.completed } : t
-      );
-      onUpdateData({ ...data, yunqueLargas: updated });
-    }
-  };
-
   // Roble: Primera tarea de forjaTasks pendiente
   const nextRoble = (data.forjaTasks || []).find(t => !t.completed);
   const toggleRobleTask = (taskId: string) => {
@@ -397,37 +377,7 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
               </p>
             </div>
 
-            {/* 2. Yunque */}
-            <div className="bg-stone-900/80 border border-stone-800 rounded-2xl p-3.5">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-sky-400">
-                  🚢 Yunque {nextYunque ? (isYunqueRapida ? '• Rápida' : '• Larga') : ''}
-                </span>
-                <button 
-                  onClick={() => onNavigate('yunque')}
-                  className="text-[10px] text-stone-500 hover:text-stone-300 flex items-center gap-0.5 transition-colors cursor-pointer"
-                >
-                  Ver todo <ChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-              {nextYunque ? (
-                <div 
-                  onClick={() => toggleYunqueTask(nextYunque.id)}
-                  className="flex items-center gap-3 cursor-pointer group"
-                >
-                  <div className="w-5 h-5 rounded-md border border-stone-700 bg-stone-950 flex items-center justify-center shrink-0 group-hover:border-sky-500 transition-colors">
-                    {nextYunque.completed && <Check className="w-3.5 h-3.5 text-sky-400 stroke-[3]" />}
-                  </div>
-                  <span className="text-xs font-medium text-stone-200 group-hover:text-white transition-colors">
-                    {nextYunque.text}
-                  </span>
-                </div>
-              ) : (
-                <span className="text-xs text-stone-500 italic">✅ Yunque al día, sin tareas pendientes</span>
-              )}
-            </div>
-
-            {/* 3. Roble */}
+            {/* 2. Roble */}
             <div className="bg-stone-900/80 border border-stone-800 rounded-2xl p-3.5">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
