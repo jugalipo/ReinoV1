@@ -512,10 +512,10 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                                 {filteredHunos.slice(0, 4).map(renderTask)}
                             </div>
                             <div className="grid grid-cols-4 gap-3">
-                                {filteredHunos.slice(4, 15).map(renderTask)}
+                                {filteredHunos.slice(4, 16).map(renderTask)}
                             </div>
                             <div className="grid grid-cols-4 gap-3">
-                                {filteredHunos.slice(15).map(renderTask)}
+                                {filteredHunos.slice(16).map(renderTask)}
                             </div>
                         </div>
                     );
