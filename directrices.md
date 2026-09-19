@@ -3,7 +3,7 @@
 > **Ubicación Local:** `/Users/julian/Apps_Antigravity_ElReino/ReinoV1/`  
 > **Espejo en Disco:** `/Volumes/C/4_granero/documentos/directrices_apps/directrices_reinov1.md`  
 > **Guía de Arquitectura Maestra:** [`ARQUITECTURA_APPS_EL_REINO.md`](file:///Volumes/C/4_granero/documentos/directrices_apps/ARQUITECTURA_APPS_EL_REINO.md)  
-> **Última Actualización:** 2026-09-11  
+> **Última Actualización:** 2026-09-19  
 
 ---
 
@@ -13,7 +13,7 @@ Hub central y dashboard de hábitos diarios (Hunos), Modo Telón, Trenes, Setas,
 * **Stack Técnico:** `React / TypeScript / Vite / Tailwind CSS / Lucide`
 * **Base de Datos:** `Firebase Firestore (instancia: (default) + puerto, cartelera, biblioteca, aspavientos)`
 * **Hosting / Target:** `el-reino-354ca`
-* **Detalles Funcionales:** Gestión de los Hunos con nuevo hábito «Impulso / Peso» tras respiraciones y antes de Setas (alternancia automática calle: días impares Impulso/sprints vs días pares Peso/rucking), firewall matinal, visual lock screen de energía, conexión central, Brotes con registro de fecha de última interacción por canal (presencial, llamada, mensaje), barra de navegación inferior flotante y hub central de tareas (`TasksHubView`).
+* **Detalles Funcionales:** Gestión de los Hunos con hábito «Impulso / Peso» (alternancia automática calle: días impares Impulso/sprints ⚡ vs días pares Peso/rucking 🎒), visualización dinámica en botón de Hunos, edición retroactiva según la paridad del día seleccionado, vista mensual y desglose estadístico diferenciado (⚡ vs 🎒), firewall matinal, visual lock screen de energía, conexión central, Brotes con registro de fecha de última interacción por canal (presencial, llamada, mensaje), barra de navegación inferior flotante y hub central de tareas (`TasksHubView`).
 
 ---
 

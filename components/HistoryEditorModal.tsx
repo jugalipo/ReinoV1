@@ -491,17 +491,30 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                     const filteredHunos = data.hunos.filter(t => t.text !== 'GAP');
                     const renderTask = (task: any) => {
                         const isCompleted = completedIds.includes(task.id);
+                        const isImpulsoPeso = task.id === 'huno-impulso-peso' || task.text.toLowerCase().includes('impulso');
+                        const isOdd = currentDate.getDate() % 2 !== 0;
+                        const emoji = isImpulsoPeso ? (isOdd ? '⚡' : '🎒') : getEmoji(task.text);
+                        const title = isImpulsoPeso 
+                            ? (isOdd ? '⚡ Impulso (Día Impar · Sprints en calle)' : '🎒 Peso (Día Par · Rucking con lastre)') 
+                            : task.text;
+
                         return (
                             <button
                                 key={task.id}
                                 onClick={() => toggleTaskHistory(task.id)}
-                                className={`aspect-[2/1] rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${
+                                title={title}
+                                className={`aspect-[2/1] rounded-xl border-2 text-2xl flex flex-col items-center justify-center relative transition-all duration-300 ${
                                     isCompleted 
                                         ? 'bg-purple-600 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)] scale-105' 
                                         : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'
                                 }`}
                             >
-                                <span className={isCompleted ? 'grayscale-0' : 'grayscale'}>{getEmoji(task.text)}</span>
+                                <span className={`leading-none ${isCompleted ? 'grayscale-0' : 'grayscale'}`}>{emoji}</span>
+                                {isImpulsoPeso && (
+                                    <span className={`text-[8px] font-black uppercase tracking-tighter mt-0.5 ${isCompleted ? 'text-purple-200' : 'text-stone-500'}`}>
+                                        {isOdd ? 'Impulso' : 'Peso'}
+                                    </span>
+                                )}
                             </button>
                         );
                     };

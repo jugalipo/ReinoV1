@@ -2021,6 +2021,26 @@ Ejemplo de respuesta en "text":
       
       await setDoc(docRef, { ...bosqueData, dailyLogs, body: bodyEntries }, { merge: true });
       console.log("Guardado registro de impulso/peso en Bosque:", dateStr, log.yesterdayWorkout, "y actualizado cuerpo:", bodyEntry);
+
+      if (completed) {
+        const yesterdayKey = yesterday.toDateString();
+        setData(prev => {
+          const huno = prev.hunos.find(h => h.id === 'huno-impulso-peso' || h.text.toLowerCase().includes('impulso'));
+          if (!huno) return prev;
+          const currentHistory = prev.hunosHistory || {};
+          const yesterdayIds = currentHistory[yesterdayKey] || [];
+          if (!yesterdayIds.includes(huno.id)) {
+            return {
+              ...prev,
+              hunosHistory: {
+                ...currentHistory,
+                [yesterdayKey]: [...yesterdayIds, huno.id]
+              }
+            };
+          }
+          return prev;
+        });
+      }
     } catch (e) {
       console.error("Error guardando registro en Bosque:", e);
     }
@@ -2626,7 +2646,7 @@ Ejemplo de respuesta en "text":
                 const dayNum = yesterday.getDate();
                 const isOdd = dayNum % 2 !== 0;
                 const workoutType = isOdd ? 'impulso' : 'peso';
-                const emoji = isOdd ? '🏃' : '🏋️';
+                const emoji = isOdd ? '⚡' : '🎒';
                 const label = isOdd ? 'Impulso (Día Impar)' : 'Peso (Día Par)';
 
                 return (

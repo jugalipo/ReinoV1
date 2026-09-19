@@ -206,6 +206,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
   const hunoCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     const prevCounts: Record<string, number> = {};
+    const impulsoSubCounts: Record<string, { impulso: number; peso: number }> = {};
     
     data.hunos.forEach(h => {
       counts[h.id] = 0;
@@ -238,6 +239,14 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
       if (includeCurrent) {
         (completedIds as string[]).forEach((id: string) => {
           counts[id] = (counts[id] || 0) + 1;
+          if (id === 'huno-impulso-peso' || id.includes('impulso')) {
+            if (!impulsoSubCounts[id]) impulsoSubCounts[id] = { impulso: 0, peso: 0 };
+            if (d.getDate() % 2 !== 0) {
+              impulsoSubCounts[id].impulso++;
+            } else {
+              impulsoSubCounts[id].peso++;
+            }
+          }
         });
       }
 
@@ -258,11 +267,14 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
     return data.hunos.map(h => {
       const currentCount = counts[h.id] || 0;
       const previousCount = prevCounts[h.id] || 0;
+      const isImpulsoPeso = h.id === 'huno-impulso-peso' || h.text.toLowerCase().includes('impulso');
       return {
         ...h,
         count: currentCount,
         prevCount: previousCount,
-        delta: currentCount - previousCount
+        delta: currentCount - previousCount,
+        isImpulsoPeso,
+        subCount: isImpulsoPeso ? (impulsoSubCounts[h.id] || { impulso: 0, peso: 0 }) : undefined
       };
     }).sort((a, b) => {
       if (hunosOrderType === 'tendencia' && hunosTimeframe !== 'siempre') {
@@ -809,13 +821,23 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
       let totalDaysInPeriod = 0;
       let gridType: 'calendar' | 'proportional' = 'calendar';
       let periodLabelText = '';
+      const isImpulsoPesoTask = task.id === 'huno-impulso-peso' || task.text.toLowerCase().includes('impulso');
+      let modalImpulsoCount = 0;
+      let modalPesoCount = 0;
 
       if (taskHistoryTimeframe === 'siempre') {
         gridType = 'proportional';
         totalDaysInPeriod = Math.max(1, Math.floor((today.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
         
-        Object.values(data.hunosHistory || {}).forEach(ids => {
-          if ((ids as string[]).includes(task.id)) completedCount++;
+        Object.entries(data.hunosHistory || {}).forEach(([dateStr, ids]) => {
+          if ((ids as string[]).includes(task.id)) {
+            completedCount++;
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+              if (d.getDate() % 2 !== 0) modalImpulsoCount++;
+              else modalPesoCount++;
+            }
+          }
         });
 
         const percentage = completedCount / totalDaysInPeriod;
@@ -878,7 +900,11 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
 
             if (isInPeriod && !isFuture) {
               totalDaysInPeriod++;
-              if (isCompleted) completedCount++;
+              if (isCompleted) {
+                completedCount++;
+                if (currentD.getDate() % 2 !== 0) modalImpulsoCount++;
+                else modalPesoCount++;
+              }
             }
             
             historyDays.push({ 
@@ -1004,28 +1030,49 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
                     )}
                   </div>
 
-                  <p className="text-stone-400 text-sm mb-6">
+                  <p className="text-stone-400 text-sm mb-3">
                       Cumplido <strong className="text-purple-400">{completedCount}</strong> veces {periodLabelText} (<strong className="text-purple-400">{totalDaysInPeriod > 0 ? Math.round((completedCount / totalDaysInPeriod) * 100) : 0}%</strong>)
                   </p>
+
+                  {isImpulsoPesoTask && (
+                    <div className="flex items-center justify-around gap-2 mb-6 p-2 bg-stone-950/80 rounded-xl border border-stone-800 text-xs text-stone-300">
+                      <span className="flex items-center gap-1.5"><span className="text-sm">⚡</span> Impulso: <strong className="text-amber-400">{modalImpulsoCount}</strong></span>
+                      <span className="text-stone-600">|</span>
+                      <span className="flex items-center gap-1.5"><span className="text-sm">🎒</span> Peso: <strong className="text-emerald-400">{modalPesoCount}</strong></span>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-7 gap-3 justify-items-center mx-auto max-w-[220px] mb-8">
-                      {historyDays.map((day, idx) => (
-                          <button 
-                              key={idx}
-                              onClick={() => toggleHistoryDate(day.date, task.id)}
-                              disabled={!day.isInPeriod || day.isFuture}
-                              title={day.date ? day.date.toLocaleDateString() : ''}
-                              className={`w-3.5 h-3.5 rounded-full transition-all duration-200 ${
-                                  day.isToday 
-                                      ? 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] scale-110' 
-                                      : !day.isInPeriod || day.isFuture
-                                          ? 'bg-stone-800/30 border border-stone-800 cursor-default'
-                                          : day.isCompleted 
-                                              ? 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)] hover:bg-purple-400 hover:scale-125' 
-                                              : 'bg-stone-800 hover:bg-stone-700 hover:scale-125'
-                              } ${day.isInPeriod && !day.isFuture ? 'cursor-pointer' : ''}`}
-                          />
-                      ))}
+                      {historyDays.map((day, idx) => {
+                          const isOdd = day.date ? day.date.getDate() % 2 !== 0 : false;
+                          const completedColor = isImpulsoPesoTask 
+                            ? (isOdd 
+                                ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] hover:bg-amber-400 hover:scale-125' 
+                                : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] hover:bg-emerald-400 hover:scale-125')
+                            : 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)] hover:bg-purple-400 hover:scale-125';
+
+                          const tooltip = day.date 
+                            ? `${day.date.toLocaleDateString('es-ES')}${isImpulsoPesoTask ? ` (${isOdd ? '⚡ Impulso' : '🎒 Peso'})` : ''}` 
+                            : '';
+
+                          return (
+                            <button 
+                                key={idx}
+                                onClick={() => toggleHistoryDate(day.date, task.id)}
+                                disabled={!day.isInPeriod || day.isFuture}
+                                title={tooltip}
+                                className={`w-3.5 h-3.5 rounded-full transition-all duration-200 ${
+                                    day.isToday 
+                                        ? 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] scale-110' 
+                                        : !day.isInPeriod || day.isFuture
+                                            ? 'bg-stone-800/30 border border-stone-800 cursor-default'
+                                            : day.isCompleted 
+                                                ? completedColor 
+                                                : 'bg-stone-800 hover:bg-stone-700 hover:scale-125'
+                                } ${day.isInPeriod && !day.isFuture ? 'cursor-pointer' : ''}`}
+                            />
+                          );
+                      })}
                   </div>
 
                   <div className="pt-6 border-t border-stone-800">
@@ -1392,11 +1439,15 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
                 </div>
                 {hunoCounts.map(huno => {
                   if (huno.text === 'GAP') return null;
+                  const isImpulso = huno.isImpulsoPeso;
+                  const emojiDisplay = isImpulso ? '⚡🎒' : getEmoji(huno.text);
+
                   return (
                     <button 
                       key={huno.id} 
                       onClick={() => setViewingHistoryForTask(huno.id)}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all gap-2 cursor-pointer ${
+                      title={isImpulso ? `Impulso/Peso (⚡ ${huno.subCount?.impulso || 0} · 🎒 ${huno.subCount?.peso || 0})` : huno.text}
+                      className={`flex flex-col items-center justify-center p-2.5 rounded-xl transition-all gap-1.5 cursor-pointer ${
                         hunosOrderType === 'tendencia' && hunosTimeframe !== 'siempre'
                           ? (huno.delta > 0 
                               ? 'bg-emerald-600/20 border border-emerald-500/30' 
@@ -1406,7 +1457,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
                           : 'bg-stone-800/30 hover:bg-stone-800/50 border border-transparent'
                       }`}
                     >
-                      <span className="text-2xl drop-shadow-sm filter">{getEmoji(huno.text)}</span>
+                      <span className={`drop-shadow-sm filter tracking-tighter ${isImpulso ? 'text-xl' : 'text-2xl'}`}>{emojiDisplay}</span>
                       <span className={`font-mono font-bold px-2 py-0.5 rounded-md min-w-[2.5rem] text-center text-xs ${
                         hunosOrderType === 'tendencia' && hunosTimeframe !== 'siempre'
                           ? (huno.delta > 0 
@@ -1421,6 +1472,11 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
                           : huno.count
                         }
                       </span>
+                      {isImpulso && huno.subCount && (
+                        <span className="text-[9px] font-mono font-bold text-stone-400 leading-none whitespace-nowrap">
+                          ⚡{huno.subCount.impulso} 🎒{huno.subCount.peso}
+                        </span>
+                      )}
                     </button>
                   );
                 })}

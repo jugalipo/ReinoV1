@@ -138,7 +138,8 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
   }, [tasks, hunosHistory, currentYear, monthIndex, todayDate]);
 
   const renderTaskCells = (task: Task, isLastInGroup: boolean = false) => {
-    const emoji = getEmoji(task.text);
+    const isImpulsoPeso = task.id === 'huno-impulso-peso' || task.text.toLowerCase().includes('impulso');
+    const emoji = isImpulsoPeso ? '⚡🎒' : getEmoji(task.text);
     
     const dayStatuses = daysArray.map(day => {
       const isFuture = day >= todayDate;
@@ -160,16 +161,21 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
           className={`flex items-center justify-center border-r border-stone-800/50 overflow-hidden whitespace-nowrap ${baseBg} ${isLastInGroup ? '' : 'border-b'}`}
           style={isLastInGroup ? { borderBottom: '5px solid #0c0a09' } : {}}
         >
-          <span className="leading-none" style={{ fontSize: `${emojiSize}px` }} title={task.text}>{emoji}</span>
+          <span className="leading-none" style={{ fontSize: `${isImpulsoPeso ? Math.max(10, emojiSize - 4) : emojiSize}px` }} title={task.text}>{emoji}</span>
         </div>
         {daysArray.map((day, index) => {
           const status = dayStatuses[index];
           const isMultipleOf5 = day % 5 === 0;
           const cellBg = isMultipleOf5 ? 'bg-stone-700/60' : baseBg;
+          const isOdd = day % 2 !== 0;
+          const cellTitle = `${day}/${monthIndex + 1}: ${isImpulsoPeso ? (isOdd ? '⚡ Impulso' : '🎒 Peso') : task.text} (${status === 'completed' ? 'Cumplido' : status === 'failed' ? 'Fallido' : 'Pendiente'})`;
           
           let content = null;
           if (status === 'completed') {
-            content = <div className="absolute inset-0 bg-emerald-500/40" />;
+            const completedBg = isImpulsoPeso 
+              ? (isOdd ? 'bg-amber-500/50' : 'bg-emerald-500/50')
+              : 'bg-emerald-500/40';
+            content = <div className={`absolute inset-0 ${completedBg}`} />;
           } else if (status === 'failed') {
             const prevFailed = index > 0 && dayStatuses[index - 1] === 'failed';
             const nextFailed = index < dayStatuses.length - 1 && dayStatuses[index + 1] === 'failed';
@@ -195,6 +201,7 @@ export const HunosMonthViewModal: React.FC<HunosMonthViewModalProps> = ({ tasks,
           return (
             <div 
               key={day} 
+              title={cellTitle}
               className={`relative flex items-center justify-center overflow-hidden ${cellBg} ${isLastInGroup ? '' : 'border-b border-stone-800/30'}`}
               style={isLastInGroup ? { borderBottom: '5px solid #0c0a09' } : {}}
             >
