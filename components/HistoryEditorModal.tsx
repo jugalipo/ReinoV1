@@ -11,9 +11,10 @@ interface HistoryEditorModalProps {
   onClose: () => void;
   initialDate?: Date;
   onTriggerTelon?: () => void;
+  onSyncWorkoutToBosque?: (dateStr: string, completed: boolean) => void;
 }
 
-export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, onUpdateData, onClose, initialDate, onTriggerTelon }) => {
+export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, onUpdateData, onClose, initialDate, onTriggerTelon, onSyncWorkoutToBosque }) => {
   useModalHistory(true, onClose);
 
   const [currentDate, setCurrentDate] = useState(() => {
@@ -62,6 +63,15 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
           newCompletedToday = completedToday.filter(id => id !== taskId);
       } else {
           newCompletedToday = [...completedToday, taskId];
+      }
+
+      const willBeCompleted = newCompletedToday.includes(taskId);
+      const isImpulsoPesoTask = taskId === 'huno-impulso-peso' || (data.hunos.find(t => t.id === taskId)?.text.toLowerCase().includes('impulso'));
+      if (isImpulsoPesoTask && onSyncWorkoutToBosque) {
+          const year = currentDate.getFullYear();
+          const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+          const day = String(currentDate.getDate()).padStart(2, '0');
+          onSyncWorkoutToBosque(`${year}-${month}-${day}`, willBeCompleted);
       }
 
       const newHistory = {
@@ -510,11 +520,6 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
                                 }`}
                             >
                                 <span className={`leading-none ${isCompleted ? 'grayscale-0' : 'grayscale'}`}>{emoji}</span>
-                                {isImpulsoPeso && (
-                                    <span className={`text-[8px] font-black uppercase tracking-tighter mt-0.5 ${isCompleted ? 'text-purple-200' : 'text-stone-500'}`}>
-                                        {isOdd ? 'Impulso' : 'Peso'}
-                                    </span>
-                                )}
                             </button>
                         );
                     };

@@ -13,7 +13,7 @@ Hub central y dashboard de hábitos diarios (Hunos), Modo Telón, Trenes, Setas,
 * **Stack Técnico:** `React / TypeScript / Vite / Tailwind CSS / Lucide`
 * **Base de Datos:** `Firebase Firestore (instancia: (default) + puerto, cartelera, biblioteca, aspavientos)`
 * **Hosting / Target:** `el-reino-354ca`
-* **Detalles Funcionales:** Gestión de los Hunos con hábito «Impulso / Peso» (alternancia automática calle: días impares Impulso/sprints ⚡ vs días pares Peso/rucking 🎒), visualización dinámica en botón de Hunos, edición retroactiva según la paridad del día seleccionado, vista mensual y desglose estadístico diferenciado (⚡ vs 🎒), firewall matinal, visual lock screen de energía, conexión central, Brotes con registro de fecha de última interacción por canal (presencial, llamada, mensaje), barra de navegación inferior flotante y hub central de tareas (`TasksHubView`).
+* **Detalles Funcionales:** Gestión de los Hunos con hábito «Impulso / Peso» (alternancia automática calle: días impares Impulso/sprints ⚡ vs días pares Peso/rucking 🎒 con estética minimalista de icono dinámico sin subtítulos agregados), sincronización automática con la base de datos de `Bosque` (`dailyLogs` y acumulados mensuales en `body`) al marcar/desmarcar el Huno hoy o retroactivamente, vista mensual y desglose estadístico diferenciado (⚡ vs 🎒), firewall matinal sin pantalla accesoria de entreno, visual lock screen de energía, conexión central, Brotes con registro de fecha de última interacción por canal (presencial, llamada, mensaje), barra de navegación inferior flotante y hub central de tareas (`TasksHubView`).
 
 ---
 

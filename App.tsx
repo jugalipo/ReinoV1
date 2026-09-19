@@ -1072,7 +1072,7 @@ function App() {
   const [selectedEnergy, setSelectedEnergy] = useState<number | null>(null);
 
   // New Modo Telón form states
-  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'workout_ask' | 'diary'>('energy');
+  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'diary'>('energy');
   const [formDiaryContent, setFormDiaryContent] = useState<string>('');
   const [focusCameFromTelon, setFocusCameFromTelon] = useState<boolean>(false);
   const [formEnergy, setFormEnergy] = useState<number | null>(null);
@@ -1961,15 +1961,15 @@ Ejemplo de respuesta en "text":
     }
   };
 
-  const handleSaveWorkoutToBosque = async (workoutType: string, completed: boolean) => {
+  const syncHunoWorkoutToBosque = async (dateStr: string, completed: boolean) => {
     if (!user) return;
     try {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const year = yesterday.getFullYear();
-      const month = String(yesterday.getMonth() + 1).padStart(2, '0');
-      const day = String(yesterday.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
+      const parts = dateStr.split('-');
+      const year = parts[0];
+      const month = parts[1];
+      const day = parseInt(parts[2], 10);
+      const isOdd = day % 2 !== 0;
+      const workoutType = isOdd ? 'impulso' : 'peso';
       const monthPrefix = `${year}-${month}`;
 
       const docRef = doc(bosqueDb, 'users', user.uid);
@@ -1989,7 +1989,12 @@ Ejemplo de respuesta en "text":
         dailyLogs.push(log);
       }
       
-      // Update daily logs yesterdayWorkout
+      // Update daily logs
+      log.workout = {
+        type: workoutType,
+        completed: completed,
+        timestamp: Date.now()
+      };
       log.yesterdayWorkout = {
         type: workoutType,
         completed: completed,
@@ -2013,36 +2018,22 @@ Ejemplo de respuesta en "text":
       
       // Calculate total completed days for this month from dailyLogs
       const monthLogs = dailyLogs.filter((l: any) => l.date && l.date.startsWith(monthPrefix));
-      const impulsoCount = monthLogs.filter((l: any) => l.yesterdayWorkout?.type === 'impulso' && l.yesterdayWorkout?.completed === true).length;
-      const pesoCount = monthLogs.filter((l: any) => l.yesterdayWorkout?.type === 'peso' && l.yesterdayWorkout?.completed === true).length;
+      const impulsoCount = monthLogs.filter((l: any) => 
+        (l.workout?.type === 'impulso' && l.workout?.completed === true) ||
+        (l.yesterdayWorkout?.type === 'impulso' && l.yesterdayWorkout?.completed === true)
+      ).length;
+      const pesoCount = monthLogs.filter((l: any) => 
+        (l.workout?.type === 'peso' && l.workout?.completed === true) ||
+        (l.yesterdayWorkout?.type === 'peso' && l.yesterdayWorkout?.completed === true)
+      ).length;
       
       bodyEntry.impulso = impulsoCount;
       bodyEntry.peso = pesoCount;
       
       await setDoc(docRef, { ...bosqueData, dailyLogs, body: bodyEntries }, { merge: true });
-      console.log("Guardado registro de impulso/peso en Bosque:", dateStr, log.yesterdayWorkout, "y actualizado cuerpo:", bodyEntry);
-
-      if (completed) {
-        const yesterdayKey = yesterday.toDateString();
-        setData(prev => {
-          const huno = prev.hunos.find(h => h.id === 'huno-impulso-peso' || h.text.toLowerCase().includes('impulso'));
-          if (!huno) return prev;
-          const currentHistory = prev.hunosHistory || {};
-          const yesterdayIds = currentHistory[yesterdayKey] || [];
-          if (!yesterdayIds.includes(huno.id)) {
-            return {
-              ...prev,
-              hunosHistory: {
-                ...currentHistory,
-                [yesterdayKey]: [...yesterdayIds, huno.id]
-              }
-            };
-          }
-          return prev;
-        });
-      }
+      console.log(`[Bosque Sync] Sincronizado ${dateStr} (${workoutType}): ${completed ? 'Completado' : 'Desmarcado'}. Totales mes ${monthPrefix}: Impulso ${impulsoCount}, Peso ${pesoCount}`);
     } catch (e) {
-      console.error("Error guardando registro en Bosque:", e);
+      console.error("Error sincronizando Huno Impulso/Peso a Bosque:", e);
     }
   };
 
@@ -2227,7 +2218,7 @@ Ejemplo de respuesta en "text":
           setTelonStep('movie_ask');
         }
       }
-    } else if (telonStep === 'workout_ask') {
+    } else if (telonStep === 'diary') {
       const unlogged = getUnloggedMealInfo();
       if (unlogged) {
         setTelonStep('food');
@@ -2244,8 +2235,6 @@ Ejemplo de respuesta en "text":
           setTelonStep('movie_ask');
         }
       }
-    } else if (telonStep === 'diary') {
-      setTelonStep('workout_ask');
     } else if (telonStep === 'focus') {
       setTelonStep('diary');
     }
@@ -2386,7 +2375,7 @@ Ejemplo de respuesta en "text":
                           if (unlogged) {
                             setTelonStep('food');
                           } else {
-                            setTelonStep('workout_ask');
+                            setTelonStep('diary');
                           }
                         }
                       }}
@@ -2410,7 +2399,7 @@ Ejemplo de respuesta en "text":
                   <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 shadow-xl">
                     <textarea 
                       rows={4}
-                      placeholder="Ejemplo: Ayer vi..."
+                      placeholder="Ejemplo: Ayer vi Gladiator..."
                       value={formMovieNote}
                       onChange={(e) => setFormMovieNote(e.target.value)}
                       className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl p-3.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full transition-colors resize-none leading-relaxed border border-stone-800/60"
@@ -2448,7 +2437,7 @@ Ejemplo de respuesta en "text":
                         if (unlogged) {
                           setTelonStep('food');
                         } else {
-                          setTelonStep('workout_ask');
+                          setTelonStep('diary');
                         }
                       }
                     }}
@@ -2497,7 +2486,7 @@ Ejemplo de respuesta en "text":
                         if (unlogged) {
                           setTelonStep('food');
                         } else {
-                          setTelonStep('workout_ask');
+                          setTelonStep('diary');
                         }
                       }}
                       className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
@@ -2555,7 +2544,7 @@ Ejemplo de respuesta en "text":
                       if (unlogged) {
                         setTelonStep('food');
                       } else {
-                        setTelonStep('workout_ask');
+                        setTelonStep('diary');
                       }
                     }}
                     className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
@@ -2592,7 +2581,7 @@ Ejemplo de respuesta en "text":
                           type="button"
                           onClick={() => {
                             setFormFoodChoice(meal.name);
-                            setTelonStep('workout_ask');
+                            setTelonStep('diary');
                           }}
                           className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-emerald-500 hover:bg-emerald-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                         >
@@ -2605,7 +2594,7 @@ Ejemplo de respuesta en "text":
                         type="button"
                         onClick={() => {
                           setFormFoodChoice('ayuno');
-                          setTelonStep('workout_ask');
+                          setTelonStep('diary');
                         }}
                         className="px-3.5 py-2 rounded-xl bg-blue-950/30 border border-blue-900/30 text-blue-300 hover:border-blue-500 hover:bg-blue-950/50 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
@@ -2617,7 +2606,7 @@ Ejemplo de respuesta en "text":
                         type="button"
                         onClick={() => {
                           setFormFoodChoice('delivery');
-                          setTelonStep('workout_ask');
+                          setTelonStep('diary');
                         }}
                         className="px-3.5 py-2 rounded-xl bg-red-950/50 border border-red-900/40 text-red-300 hover:border-red-500 hover:bg-red-950/70 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
@@ -2629,7 +2618,7 @@ Ejemplo de respuesta en "text":
                         type="button"
                         onClick={() => {
                           setFormFoodChoice('Meh');
-                          setTelonStep('workout_ask');
+                          setTelonStep('diary');
                         }}
                         className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-400 hover:border-stone-600 hover:bg-stone-900/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
                       >
@@ -2640,57 +2629,6 @@ Ejemplo de respuesta en "text":
                   </div>
                 </div>
               )}
-              {telonStep === 'workout_ask' && (() => {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const dayNum = yesterday.getDate();
-                const isOdd = dayNum % 2 !== 0;
-                const workoutType = isOdd ? 'impulso' : 'peso';
-                const emoji = isOdd ? '⚡' : '🎒';
-                const label = isOdd ? 'Impulso (Día Impar)' : 'Peso (Día Par)';
-
-                return (
-                  <div className="w-full text-center space-y-8 animate-in fade-in duration-500 max-w-xs mx-auto">
-                    <div className="space-y-3">
-                      <div className="w-12 h-12 bg-amber-950/40 border border-amber-500/30 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-                        <span className="text-2xl">{emoji}</span>
-                      </div>
-                      <h1 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic leading-none">
-                        {label}
-                      </h1>
-                      <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
-                        ¿Hiciste ayer el entrenamiento de **{workoutType}**?
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await handleSaveWorkoutToBosque(workoutType, true);
-                          setTelonStep('diary');
-                        }}
-                        className="py-4 px-6 rounded-2xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-stone-950 font-black text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2 shadow-lg shadow-amber-950/20"
-                      >
-                        <Check className="w-5 h-5 stroke-[3]" />
-                        Sí, completado
-                      </button>
-                      
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await handleSaveWorkoutToBosque(workoutType, false);
-                          setTelonStep('diary');
-                        }}
-                        className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
-                      >
-                        <X className="w-5 h-5 text-stone-500 stroke-[3]" />
-                        No lo hice
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
               {telonStep === 'diary' && (
                 <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
                   <div className="space-y-1 text-center">
@@ -3446,6 +3384,17 @@ Ejemplo de respuesta en "text":
     triggerShortcut('sets', 'sets');
     triggerShortcut('trains', 'trains');
     triggerShortcut('projects', () => setShowProjectPromptModal(true));
+
+    // Sync Impulso/Peso workout to Bosque when marked/unmarked
+    const hunoImpulso = newTasks.find(t => t.id === 'huno-impulso-peso' || t.text.toLowerCase().includes('impulso'));
+    const oldHunoImpulso = data.hunos.find(t => t.id === 'huno-impulso-peso' || t.text.toLowerCase().includes('impulso'));
+    if (hunoImpulso && (!oldHunoImpulso || hunoImpulso.completed !== oldHunoImpulso.completed)) {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      syncHunoWorkoutToBosque(`${y}-${m}-${d}`, hunoImpulso.completed);
+    }
 
     const todayKey = new Date().toDateString();
     const completedIds = newTasks.filter(t => t.completed).map(t => t.id);
@@ -4243,6 +4192,7 @@ Ejemplo de respuesta en "text":
                   setHistoryInitialDate(undefined);
                 }} 
                 onTriggerTelon={triggerTelonManually}
+                onSyncWorkoutToBosque={syncHunoWorkoutToBosque}
               />
             )}
 

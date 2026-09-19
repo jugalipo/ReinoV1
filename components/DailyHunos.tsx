@@ -419,11 +419,6 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                                 />
                             )}
                              <span className="drop-shadow-sm filter relative z-10">{emoji}</span>
-                             {isImpulsoPeso && (
-                                 <span className="absolute bottom-1 text-[8px] font-black uppercase tracking-tighter opacity-80 z-10 pointer-events-none text-stone-400 dark:text-stone-300">
-                                     {isOddDay ? 'Impulso' : 'Peso'}
-                                 </span>
-                             )}
                              {pendingHunoIds.includes(task.id) && (
                                  <div className="absolute w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.8)] animate-pulse z-10 top-1.5 right-1.5"></div>
                              )}
