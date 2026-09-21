@@ -111,8 +111,23 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
     return `${days}d`;
   };
 
+  const formatDateTime = (timestamp: number) => {
+    const d = new Date(timestamp);
+    const day = d.getDate().toString().padStart(2, '0');
+    const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const month = monthNames[d.getMonth()];
+    const hours = d.getHours().toString().padStart(2, '0');
+    const mins = d.getMinutes().toString().padStart(2, '0');
+    return `${day} ${month} · ${hours}:${mins} h`;
+  };
+
   const recordInteraction = (id: string, type: keyof FriendInteractions) => {
     const now = Date.now();
+    const newEntry = {
+      id: `${now}-${Math.random().toString(36).substr(2, 6)}`,
+      type,
+      timestamp: now
+    };
     const updated = friends.map((f) =>
       f.id === id ? { 
           ...f, 
@@ -124,9 +139,38 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
           lastInteractions: {
               ...(f.lastInteractions || {}),
               [type]: now
-          }
+          },
+          history: [
+              newEntry,
+              ...(f.history || [])
+          ]
       } : f
     );
+    onUpdate(updated);
+  };
+
+  const deleteInteractionEntry = (friendId: string, entryId: string, type: keyof FriendInteractions) => {
+    const updated = friends.map((f) => {
+      if (f.id !== friendId) return f;
+      const newHistory = (f.history || []).filter(e => e.id !== entryId);
+      const newCount = Math.max(0, (f.interactions[type] || 0) - 1);
+      const sameTypeEntries = newHistory.filter(e => e.type === type);
+      const newLastForType = sameTypeEntries.length > 0 ? Math.max(...sameTypeEntries.map(e => e.timestamp)) : 0;
+      const newLastOverall = newHistory.length > 0 ? Math.max(...newHistory.map(e => e.timestamp)) : f.lastInteraction;
+      return {
+        ...f,
+        lastInteraction: newLastOverall,
+        interactions: {
+          ...f.interactions,
+          [type]: newCount
+        },
+        lastInteractions: {
+          ...(f.lastInteractions || {}),
+          [type]: newLastForType || undefined
+        },
+        history: newHistory
+      };
+    });
     onUpdate(updated);
   };
 
@@ -600,6 +644,46 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
                                 }}
                             />
                         </div>
+                    </div>
+
+                    {/* Historial de Interacciones */}
+                    <div className="mb-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-stone-500 text-xs font-bold uppercase">Historial de Interacciones</p>
+                            {selectedFriend.history && selectedFriend.history.length > 0 && (
+                                <span className="text-[10px] text-stone-500 font-mono">
+                                    {selectedFriend.history.length} registrada{selectedFriend.history.length === 1 ? '' : 's'}
+                                </span>
+                            )}
+                        </div>
+                        {(!selectedFriend.history || selectedFriend.history.length === 0) ? (
+                            <p className="text-xs text-stone-600 italic py-2 px-1">Sin historial cronológico detallado todavía (se irá guardando al pulsar los iconos arriba).</p>
+                        ) : (
+                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                {selectedFriend.history.map((entry) => {
+                                    const icons: Record<string, string> = { person: '🫂', call: '📞', gift: '🎁', photo: '📸', message: '💬' };
+                                    const labels: Record<string, string> = { person: 'Presencial', call: 'Llamada', gift: 'Detalle', photo: 'Foto', message: 'Mensaje' };
+                                    return (
+                                        <div key={entry.id} className="flex items-center justify-between px-3 py-2 bg-stone-950/80 rounded-xl border border-stone-800/80 text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-base">{icons[entry.type] || '✨'}</span>
+                                                <span className="text-stone-300 font-medium">{labels[entry.type] || entry.type}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-stone-500 font-mono text-[11px]">{formatDateTime(entry.timestamp)}</span>
+                                                <button 
+                                                    onClick={() => deleteInteractionEntry(selectedFriend.id, entry.id, entry.type)}
+                                                    className="text-stone-600 hover:text-red-400 p-0.5 rounded transition-colors"
+                                                    title="Eliminar registro"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     <div className="pt-4 border-t border-stone-800 flex gap-2">

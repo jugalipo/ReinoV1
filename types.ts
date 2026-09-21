@@ -74,6 +74,12 @@ export interface FriendTask {
   text: string;
 }
 
+export interface InteractionLogEntry {
+  id: string;
+  type: keyof FriendInteractions;
+  timestamp: number;
+}
+
 export interface Friend {
   id: string;
   name: string;
@@ -83,6 +89,7 @@ export interface Friend {
   tasks: FriendTask[];
   birthday?: string; // YYYY-MM-DD
   isSporadic?: boolean;
+  history?: InteractionLogEntry[];
 }
 
 export interface FoodWheel {
