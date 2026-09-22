@@ -57,10 +57,10 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
     let score = 0;
     tasks.forEach(t => {
       if (t.completed) {
-        if (t.shortcut === 'leones') score += 2;
-        else if (t.shortcut === 'exercise') score += 1;
-        else if (t.shortcut === 'love') score += 1;
-        else if (t.shortcut === 'read') score += 1;
+        if (t.shortcut === 'leones' || t.text.includes('🦁')) score += 2;
+        else if (t.shortcut === 'exercise' || t.text.toLowerCase().includes('gim')) score += 1;
+        else if (t.shortcut === 'love' || t.text.includes('❤️')) score += 1;
+        else if (t.shortcut === 'read' || t.text.toLowerCase().includes('leer')) score += 1;
       }
     });
     return score;

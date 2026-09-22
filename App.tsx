@@ -94,6 +94,7 @@ const getStartOfDay = (timeMs: number): number => {
 };
 
 const getHunoCreationTime = (id: string): number => {
+  if (id === 'huno-impulso-peso') return new Date('2026-09-17T00:00:00').getTime();
   if (id.startsWith('huno-')) return 0;
   const timestamp = parseFloat(id);
   if (isNaN(timestamp)) return 0;
@@ -273,10 +274,26 @@ const ANNUAL_TRAIN_TASKS = [
   { text: "🚂 Cosas del Reino (DIC)", subtasks: ["Actualizar Índices de la Biblioteca", "Revisar mapa Reino", "Excel Servanda", "Nuevos propósitos anuales", "Los Illustrator del Reino", "Excel del Reino"] }
 ];
 
+export const getCanonicalHunoShortcut = (task: { text?: string; shortcut?: string; id?: string }): string | undefined => {
+  const text = (task.text || '').toLowerCase();
+  
+  if (text.includes('🦁') || text.includes('leones') || text.startsWith('t1 ')) return 'leones';
+  if (text.includes('❤️') || text.includes('love')) return 'love';
+  if (text.includes('📖') || text.includes('leer')) return 'read';
+  if (text.includes('🔥') || text.includes('forjas') || text.startsWith('t2 ')) return 'forjas';
+  if (text.includes('🍄') || text.includes('seta') || text.includes('sets')) return 'sets';
+  if (text.includes('🚂') || text.includes('tren') || text.includes('trains')) return 'trains';
+  if (text.includes('⚙️') || (text.startsWith('p ') && !text.includes('pág')) || text.includes('nube')) return 'projects';
+  if (text.includes('🚫') || text.includes('ayuno') || text.includes('🍴') || text.includes('menú') || text.includes('menu')) return 'food';
+  if (text.includes('🏋️') || text.includes('gim')) return 'exercise';
+
+  return undefined;
+};
+
 const HUNOS_TASKS = [
   // Fila 1
   { text: "T1 🦁🦁🦁 20'", shortcut: 'leones' },
-  { text: "Gim 🏋️ 60'" },
+  { text: "Gim 🏋️ 60'", shortcut: 'exercise' },
   { text: "❤️❤️ 20'", shortcut: 'love' },
   { text: "Leer 📖 30'", shortcut: 'read' },
 
@@ -587,23 +604,12 @@ const deserializeAppData = (docs: any[]): AppData => {
 const processResets = (parsed: AppData): AppData => {
   const result = JSON.parse(JSON.stringify(parsed)) as AppData;
 
-  // Ensure Hunos have stable shortcuts even if user changed their text
+  // Ensure Hunos have stable, correct shortcuts and strip corrupted ones
   if (result.hunos) {
-    result.hunos = result.hunos.map((t, i) => {
-      if (!t.shortcut) {
-        // Find the original definition by index (assuming original order was preserved)
-        const originalByIndex = HUNOS_TASKS[i];
-        if (originalByIndex && t.id === `huno-${i}`) {
-          return { ...t, shortcut: originalByIndex.shortcut };
-        }
-        // Fallback: match by original text if the task was moved
-        const originalByText = HUNOS_TASKS.find(ot => ot.text === t.text);
-        if (originalByText) {
-          return { ...t, shortcut: originalByText.shortcut };
-        }
-      }
-      return t;
-    });
+    result.hunos = result.hunos.map((t) => ({
+      ...t,
+      shortcut: getCanonicalHunoShortcut(t)
+    }));
 
     // Inyectar el nuevo Huno "Impulso/Peso ⚡🎒" si no existe aún en los datos guardados
     if (!result.hunos.some(t => t.id === 'huno-impulso-peso' || t.text.includes('Impulso'))) {
@@ -3362,9 +3368,15 @@ Ejemplo de respuesta en "text":
   }
 
   const handleHunosUpdate = (newTasks: Task[], incrementPleno: boolean = false) => {
+    // Re-sanitize shortcuts deterministically to prevent any state corruption
+    const sanitizedTasks = newTasks.map(t => ({
+      ...t,
+      shortcut: getCanonicalHunoShortcut(t)
+    }));
+
     // Helper to find task by shortcut and trigger view change if just completed
     const triggerShortcut = (shortcut: string, view: ViewState | (() => void)) => {
-      const tasksNew = newTasks.filter(t => t.shortcut === shortcut);
+      const tasksNew = sanitizedTasks.filter(t => t.shortcut === shortcut);
       tasksNew.forEach(tNew => {
         const tOld = data.hunos.find(t => t.id === tNew.id);
         if (tOld && !tOld.completed && tNew.completed) {
@@ -3386,7 +3398,7 @@ Ejemplo de respuesta en "text":
     triggerShortcut('projects', () => setShowProjectPromptModal(true));
 
     // Sync Impulso/Peso workout to Bosque when marked/unmarked
-    const hunoImpulso = newTasks.find(t => t.id === 'huno-impulso-peso' || t.text.toLowerCase().includes('impulso'));
+    const hunoImpulso = sanitizedTasks.find(t => t.id === 'huno-impulso-peso' || t.text.toLowerCase().includes('impulso'));
     const oldHunoImpulso = data.hunos.find(t => t.id === 'huno-impulso-peso' || t.text.toLowerCase().includes('impulso'));
     if (hunoImpulso && (!oldHunoImpulso || hunoImpulso.completed !== oldHunoImpulso.completed)) {
       const now = new Date();
@@ -3397,12 +3409,12 @@ Ejemplo de respuesta en "text":
     }
 
     const todayKey = new Date().toDateString();
-    const completedIds = newTasks.filter(t => t.completed).map(t => t.id);
+    const completedIds = sanitizedTasks.filter(t => t.completed).map(t => t.id);
     const updatedHistory = { ...(data.hunosHistory || {}), [todayKey]: completedIds };
 
     // Dynamic calculation of Hunos Plenos from the entire history + today's completions
     const { plenos: newHunoPlenos } = calculateHunosPlenosAndPending(
-      newTasks,
+      sanitizedTasks,
       data.hunosHistory || {},
       completedIds
     );
@@ -3421,7 +3433,7 @@ Ejemplo de respuesta en "text":
 
     setData(prev => ({
       ...prev,
-      hunos: newTasks,
+      hunos: sanitizedTasks,
       hunosHistory: updatedHistory,
       stats: {
         ...prev.stats,
