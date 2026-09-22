@@ -176,58 +176,47 @@ export const calculateHunosPlenosAndPending = (
 };
 
 const MUSHROOM_TASKS = [
-  { text: "🍄 Lavadora(S) 30'", subtasks: ["Ajuar cambiar", "Lavadoras ajuar", "Destender"] },
-  { text: "🍄 Agenda 15'", subtasks: [] },
-  { text: "🍄 Cascada 🍄 20'", subtasks: ["Fecha", "Agenda semanal al PC", "Cambiar pijama", "Disco al ordenador", "Whattsapps no leídos", "Contadores DTH", "Ferrocopos", "Cumple y Calla", "Neceser", "Una calle de Granada", "Actualizar excel Reino"] },
-  { text: "🍄 Bloqueos 5'", subtasks: ["Bloqueos Mac", "Bloqueo móvil", "Bloqueo tablet"] },
-  { text: "🍄 Foto Cocina 15'", subtasks: [] },
-  { text: "🍄 Ruta con mapa 15'", subtasks: [] },
-  { text: "🍄 Esteticién 10'", subtasks: ["Uñas", "Pinzas", "Afeitar", "Alicia U", "Alicia C"] },
-  { text: "🍄 Web Reino", subtasks: ["Actualizar plugins", "Añadir un detalle"] },
-  { text: "🍄 1 Wasap antiguo 15'", subtasks: [] },
-  { text: "🍄 Disco 5'", subtasks: [] }
+  { text: "🍄 Lavadora(S) 45'", subtasks: ["Cambiar pijama", "Lavadora (+trapos)", "Ajuar"] },
+  { text: "🍄 Agenda (elegir 3 tareas) 15'", subtasks: ["Elegir las 3 metas prioritarias de la semana (Roble, Leones, Yunque)", "Tachar una semana más de vida en el tablón de las 4.000 semanas"] },
+  { text: "🍄 Cascada 🍄 30'", subtasks: ["Actualizar plugins web", "Contadores DTH (actualizar)", "Ferrocopos (mandar 1 mensaje) 🦶", "Wallapop (revisar estadísticas, visitas, favoritos y actualizar anuncios)", "Complicaciones con Luis (enviar las 3 metas semanales a Luis)"] },
+  { text: "🍄 Bloqueos 20'", subtasks: ["Bloqueos/Uso Mac ¿cambios?", "Bloqueo/Uso móvil ¿cambios? 🦶", "Bloqueo/Uso tablet ¿cambios?"] },
+  { text: "🍄 Sauna 40'", subtasks: ["Música", "Agua fría"] },
+  { text: "🍄 Cocina 30'", subtasks: ["Amontonar", "Fregar", "Pollos"] },
+  { text: "🍄 Esteticién 15'", subtasks: ["Pinzas", "Uñas", "Uñas (Alicia)", "Depilar", "Depilar (Alicia)"] },
+  { text: "🍄 Mensajes pendientes 15'", subtasks: ["1 whatsApps antiguo 🦶", "Responder whatsApps 🦶"] },
+  { text: "🍄 Disco 60'", subtasks: ["Folleto", "Preguntar a Sebastian 🦶", "Escuchar"] },
+  { text: "🍄 Granada 20'", subtasks: ["Ruta Google Earth", "Paseo guiado (Google Maps) 🦶"] }
 ];
 
 const TRAIN_TASKS = [
-  { text: "🦁 Cuentas 1h ⭐", subtasks: ["Clasificar gastos ING", "Anotar gastos", "Presupuesto", "Balance", "Transferencias"] },
-  { text: "🦁 Compra 30' ⭐", subtasks: ["Lista", "Primera compra", "Revisión"] },
-  { text: "🦁 Reino 30'", subtasks: ["Actualizar excel Reino", "Tablón del Reino"] },
-  { text: "🦁 Cine 1h", subtasks: ["Ver estrenos ⭐", "Torrents", "Descargar 2"] },
-  { text: "🦁 Libros 15'", subtasks: ["Librículas ⭐", "GoodReads"] },
-  { text: "🦁 Cartera 15'", subtasks: ["Ver gráficos", "Hacer compras", "Apuntar en Reino"] },
-  { text: "🦁 Vídeos 30'", subtasks: ["Canales de Youtube", "Guardar para más tarde", "Ver 1 vídeo", "Ver 2 vídeos", "Ver 3 vídeos", "Ver 4 vídeos", "Ver 5 vídeos", "Ver 6 vídeos", "Ver 7 vídeos", "Ver 8 vídeos", "Ver 9 vídeos", "Ver 10 vídeos"] },
-  { text: "🦁 RRSS 15'", subtasks: ["Youtube", "Tiktok", "Instagram", "Apuntar Estadísticas de RRSS"] },
-  { text: "🦁 Arroz 15'", subtasks: ["Contar tareas", "Colocar granos de arroz -"] },
-  { text: "🦁 Medidas 1h", subtasks: ["Peso Alicia", "Foto", "Peso", "Plicómetro", "Perímetros", "Calcular pasos", "Ver Daylio", "Tensión", "Dominadas", "Flexiones", "Sentadillas", "Abdominales", "Pino", "Contadores ⭐", "Horas de móvil", "Actualizar DTH ⭐", "Nota Cuerpo ⭐"] },
-  { text: "🦁 Destrasteo 2h", subtasks: ["Actualizar destrasteos ⭐", "Destrasteo Objetos -", "Destrasteo Habitaciones -", "Destrasteo Limpieza -", "Destrasteo (decoración) -", "Destrasteo (Memorando) -"] },
-  { text: "🦁 Notas 30'", subtasks: ["Activos", "Cuerpo", "Amor", "Nubes", "Diario"] },
-  { text: "🦁 Papeles 15'", subtasks: ["Seleccionar ⭐", "Leer"] },
-  { text: "🦁 Escáner 15'", subtasks: ["Enchufar ⭐", "Escanear"] },
-  { text: "🦁 Digital 30'", subtasks: ["Fondos de pantalla ⭐", "Carpetas pc", "Google Fotos", "Móvil", "Navegador", "IAs", "WhatsApp", "Telegram"] },
-  { text: "🦁 Silla 5'", subtasks: ["Sacar inflador", "Inflar la silla"] },
-  { text: "🦁 StayFocus 5'", subtasks: ["Descargar copia de seguridad", "Guardar en Drive"] },
-  { text: "🦁 Compranda 30'", subtasks: ["Lista de Compranda ⭐", "Compras por internet", "Quedar para compras en la calle"] },
-  { text: "🦁 Ser o no ser 15'", subtasks: ["Escribir lo que no soy", "Escribir lo que no soy"] },
-  { text: "🍏 Sauna 1h", subtasks: ["Poner la bañera", "Poner música", "Sauna", "Agua fría"] },
-  { text: "🍏 Día sin Pantallas 15'", subtasks: ["Elegir ⭐", "Poner bloqueos", "Día sin Pantallas -"] },
-  { text: "🍏 Videnda 30h", subtasks: ["Actualizar excel ⭐", "Dvd", "Garci", "Serie", "Alicia", "Mes", "Videnda", "Revista"] },
-  { text: "🍏 Liturgia 30'", subtasks: ["Sacar el libro ⭐", "Leer liturgia"] },
-  { text: "❤️ Turistáculo 30'", subtasks: ["Elegir ⭐", "Comprar ⭐", "Quedar -"] },
-  { text: "❤️ Bosque 15'", subtasks: ["Elegir Bosque ⭐", "Quedar -"] },
-  { text: "❤️ Viaje 30'", subtasks: ["Elegir Viaje ⭐", "Comprar Viaje ⭐", "Ir de Viaje -"] },
-  { text: "❤️ Anfitrión 15'", subtasks: ["Elegir Anfitrión ⭐", "Invitar Anfitrión", "Anfitrionar -"] },
-  { text: "❤️ Donanda 30'", subtasks: ["Escribir Donanda ⭐", "Preparar", "Entregar -"] },
-  { text: "❤️ S Aristocráticas 15'", subtasks: ["Elegir ⭐", "Reservar ⭐", "Ir -"] },
-  { text: "❤️ Querida Alicia 2h", subtasks: ["Escribir", "Grabar", "Programar subida"] },
-  { text: "❤️ Aliciología 1h", subtasks: ["Elegir tema", "Profundizar -"] },
-  { text: "❤️ El Chef 1h", subtasks: ["Receta de Alicia ⭐", "Elegir receta ⭐", "Compromiso con Alicia ⭐", "Cocinar -"] },
-  { text: "❤️ Querida Familia 1h", subtasks: ["Eleigr Querida Familia ⭐", "Escribir Querida Familia -"] },
-  { text: "❤️ Falmuerzo 15'", subtasks: ["Invitar ⭐", "Falmuerzo -"] },
-  { text: "📘 Diario en vídeo 10'", subtasks: ["Pensar", "Grabar"] },
-  { text: "📘 Reválidas 2h", subtasks: ["Latín", "Inglés", "Árabe", "Imagen", "Matemáticas", "Literatura", "Trading", "Música", "Diccionario", "Biología", "Países"] },
-  { text: "📘 Dora 30'", subtasks: ["Elegir Dora ⭐", "Hacer -"] },
-  { text: "📘 Eficiencia 2h", subtasks: ["Escribir Eficiencia ⭐", "Limpieza -", "Orden -", "Alimentos -", "Ejercicio -", "PC / móvil -", "Limites -", "Registros -", "Web / RRSS -", "Personas -", "Dinero -", "Afilar hacha: móvil pc apps atajos -"] },
-  { text: "📘 Desafío Cuerpo 5'", subtasks: ["Elegir desafío ⭐", "Comprometerme ⭐", "Ejecutar -", "(Test anual) -"] }
+  { text: "🦁 1. Cuentas y Cartera 2h", subtasks: ["Anotar gastos (pasar PDF a Sebastian) ⭐", "Presupuesto (mes entrante) ⭐", "Balance (fondos y patrimonio) ⭐", "Transferencias (huchas y alquiler) ⭐", "Cartera Renta 4: cotizaciones de los 3 fondos y rebalanceo", "Ejecutar compras o aportaciones e inscribir en Leones"] },
+  { text: "🍏 2. Compra 30'", subtasks: ["Revisión de despensa contra lista permanente ⭐", "Primera compra fuerte del mes ⭐"] },
+  { text: "🍏 3. Sillas 5'", subtasks: ["Comprobar presión de neumáticos de la silla e inflar"] },
+  { text: "🦁 4. Reino 30'", subtasks: ["Agenda mensual: vista de pájaro de citas y focos del mes ⭐", "Actualizar Excel histórico del Reino", "Poner al día el tablón físico de propósitos", "Revisar visitas y métricas en YouTube"] },
+  { text: "🍏 5. Medidas 2h", subtasks: ["Horas de móvil en StayFocused", "Calcular pasos (fórmula: podómetro + 3.000/día, +4.000 entreno)", "Ver app Reino (estadísticas deportivas)", "Actualizar DTH (balance mensual hucha y entrenos del grupo)", "Peso (Julián y Alicia)", "Fotos de progreso (frente y perfil)", "Plicómetro (pliegues y % grasa)", "Perímetros (cintura, pierna, bíceps)", "Tensión arterial (media de 2-3 tomas)", "Test de fuerza: dominadas, flexiones, pistols, abdominales colgado", "Segundos de pino", "Pactar desafío FerroCopos del mes con Raúl"] },
+  { text: "❤️ 6. Querida Alicia 2h", subtasks: ["Escribir carta y grabar locución de audio para Alicia"] },
+  { text: "☁️ 7. Vidiario 20'", subtasks: ["Grabar vídeo de 1 a 5 min (crónica vital y paneo del hogar)"] },
+  { text: "🦁 8. Arroz 5'", subtasks: ["Consultar base de datos y calcular balance de Hunos troncales", "Verter los granos de arroz correspondientes al vaso de cristal"] },
+  { text: "🍏 9. Día sin Pantallas 15'", subtasks: ["Bloquear el día 0.0 en calendario ⭐", "Sacar y colocar los cubrepantallas", "Vivir la jornada Día sin Pantallas"] },
+  { text: "🦁 10. Backups 10'", subtasks: ["Exportar backup StayFocused (.csv) a Drive 🦶 y volcar a Puerto", "Copia mensual de apps y bases de datos (Sebastian)"] },
+  { text: "❤️ 11. Salidas Aristocráticas 3h", subtasks: ["Elegir destino/plan con Alicia ⭐", "(Reservar fecha y mesa/habitación) ⭐", "Ir de aristócratas"] },
+  { text: "❤️ 12. Falmuerzo 3h", subtasks: ["Invitar y fijar fecha del almuerzo 🦶 ⭐", "Celebrar Falmuerzo familiar"] },
+  { text: "❤️ 13. El Chef 2h", subtasks: ["1. Plato con utensilio del ciclo", "2. Elegir plato a la carta con Alicia ⭐", "3. Preparar el plato a la carta de Alicia"] },
+  { text: "🦁 14. Destrasteo 4h", subtasks: ["Consultar qué toca en manual_destrasteo_y_memorando_trimestral.md ⭐", "Destrasteo Objetos", "Destrasteo Habitaciones", "Destrasteo Limpieza profunda", "Destrasteo Decoración", "Destrasteo (Memorando trimestral)"] },
+  { text: "🦁 15. Compranda 3h", subtasks: ["Revisar y priorizar lista Compranda ⭐", "Decidir compras a ejecutar este mes", "Compras por internet (en una sentada)", "Compras presenciales en la calle 🦶"] },
+  { text: "❤️ 16. Donan 4h", subtasks: ["Revisar lista de regalos y elegir cuáles tocan 🦶 ⭐", "Preparar regalos", "Entregar regalos"] },
+  { text: "🍏 17. Corte Descafeinado 2h", subtasks: ["Corte de pelo en peluquería (~día 15)", "Período de 15 días a café descafeinado"] },
+  { text: "☁️ 18. Papeles 1h", subtasks: ["Cotejar bandeja física, digitalizar pendientes y triturar los archivados"] },
+  { text: "❤️ 19. Bosque 3h", subtasks: ["Elegir paraje natural o sendero verde 🦶 ⭐", "Quedar o sellar compromiso individual 🦶 ⭐", "Caminata y fotos de flora/aves con iNaturalist"] },
+  { text: "🍏 20. Bañera 1h", subtasks: ["Baño caliente con música en bañera (30 min)", "Ducha fría vigorizante"] },
+  { text: "🦁 21. Eficiencia 3h", subtasks: ["Redactar mejoras y pruebas del mes 🦶 ⭐", "Auditoría 10 áreas (Limpieza, Orden, Alimentos, Ejercicio, PC/Móvil, Límites, Registros, Web/RRSS, Personas, Dinero)", "Afilar el hacha (estudiar atajos de teclado y ajustes en Mac/móvil)"] },
+  { text: "☁️ 22. Limpieza Digital 2h", subtasks: ["Crear fondos de pantalla (móvil, tablet, Mac) 🦶 ⭐", "Revisión mensual de Forjas, Dormitorio, Limbo y Granero", "Volcado y vaciado de Google Fotos hacia Granero", "Navegador: limpiar marcadores obsoletos", "Anki: calibrar barajas y suspensiones", "IAs: auditar memorias en ChatGPT/Gemini si aplica", "WhatsApp y Telegram: rescatar hitos para diario y audios para Crónicas", "Móvil: purgar galería, SMS residuales y carpeta Descargas 🦶"] },
+  { text: "❤️ 23. Anfitrión 4h", subtasks: ["Elegir invitados 🦶 ⭐", "Invitar y fijar fecha 🦶 ⭐", "Anfitrionar en casa"] },
+  { text: "☁️ 24. Revisar Notas 1h", subtasks: ["Revisar, depurar y ordenar notas en Prontuario"] },
+  { text: "☁️ 25. Reválidas 2h", subtasks: ["Realizar prueba de nivel de la materia activa"] },
+  { text: "☁️ 26. Librículas 1h", subtasks: ["Consultar estrenos de hace 1 año en El Séptimo Arte ⭐", "Descargar torrents de películas elegidas en Mac ⭐", "Actualizar lecturas, porcentajes y páginas en Goodreads", "Cómputo del mes anterior / balance anual", "Revisar lista de títulos pendientes"] },
+  { text: "❤️ 27. Viaje / Turistáculo 12h", subtasks: ["Elegir propuesta 🦶 ⭐", "Compromiso con acompañantes 🦶 ⭐", "(Comprar entradas o billetes) ⭐", "Realizar la salida / viaje"] },
+  { text: "☁️ 28. Videnda 44h", subtasks: ["Cine: ver las 12-13 obras programadas en Cartelera", "YouTube: avanzar 10 vídeos de «Ver más tarde»"] }
 ];
 
 const GYMPIEZA_TASKS_LIST = [
@@ -3295,6 +3284,10 @@ Ejemplo de respuesta en "text":
 
     if (pendingWritesTimer.current) {
       clearTimeout(pendingWritesTimer.current);
+    }
+
+    if (lastSnapshotData.current && JSON.stringify(data) === lastSnapshotData.current) {
+      return;
     }
 
     pendingWritesTimer.current = setTimeout(async () => {

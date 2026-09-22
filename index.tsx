@@ -6,12 +6,12 @@ import { registerSW } from 'virtual:pwa-register';
 
 const updateSW = registerSW({
   onNeedRefresh() {
-    // Show a prompt to user to refresh
+    updateSW(true);
   },
   onOfflineReady() {
-    // Show a ready to work offline message
+    console.log("App ready to work offline");
   },
-})
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
