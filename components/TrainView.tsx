@@ -493,7 +493,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
                 {/* Monthly Progress (Zigzag) */}
                 <div className="relative w-full py-4 pt-4">
-                    <svg viewBox="0 0 400 120" className="w-full h-auto overflow-visible drop-shadow-2xl">
+                    <svg viewBox="-5 0 435 120" className="w-full h-auto drop-shadow-2xl">
                         {/* Background Path (Track) - INVERTED */}
                         <path 
                             d="M 380 60 H 350 V 100 H 300 V 20 H 250 V 100 H 200 V 20 H 150 V 100 H 100 V 20 H 50 V 60 H 20" 
