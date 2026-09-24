@@ -5,6 +5,7 @@ import { useModalHistory } from '../hooks/useModalHistory';
 import { HunosMonthViewModal } from './HunosMonthViewModal';
 
 interface DailyHunosProps {
+  className?: string;
   tasks: Task[];
   hunosHistory: Record<string, string[]>;
   pendingHunoIds?: string[];
@@ -19,6 +20,7 @@ interface DailyHunosProps {
 }
 
 export const DailyHunos: React.FC<DailyHunosProps> = ({ 
+  className = 'mt-0',
   tasks, 
   hunosHistory, 
   pendingHunoIds = [],
@@ -211,7 +213,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   };
 
   return (
-    <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 relative">
+    <div className={`bg-stone-900 rounded-2xl shadow-sm p-6 w-full ${className} border border-stone-800 relative`}>
       
       {/* Header Row */}
       <div className="flex items-center justify-between mb-4">

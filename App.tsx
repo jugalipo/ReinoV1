@@ -3907,20 +3907,33 @@ Ejemplo de respuesta en "text":
                 </div>
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="grid grid-cols-5 gap-2 mb-2">
               <button onClick={() => setView('love')} className="aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
-                  <Heart className={`w-8 h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
+                  <Heart className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
                 </div>
                 <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
                   <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
                 </div>
               </button>
-              <button onClick={() => setView('leones')} className="aspect-square bg-amber-50 dark:bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors border border-amber-200 dark:border-amber-900/50 group relative"><div className="flex-1 flex items-center justify-center"><Cat className="w-8 h-8 text-amber-500 group-hover:text-amber-400 transition-colors" /></div><div className="w-full h-1 bg-amber-200 dark:bg-amber-900/40 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div></div></button>
-              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-50 dark:bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative"><div className="flex-1 flex items-center justify-center"><TreeDeciduous className="w-8 h-8 text-orange-500 group-hover:text-orange-400 transition-colors" /></div><div className="w-full h-1 bg-orange-200 dark:bg-orange-900/40 rounded-full overflow-hidden"><div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div></div></button>
-            </div>
-            <div className="grid grid-cols-4 gap-2 mb-6">
-              {/* Pie (Footprints) Button - 1/4 width */}
+              <button onClick={() => setView('leones')} className="aspect-square bg-amber-50 dark:bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors border border-amber-200 dark:border-amber-900/50 group relative">
+                <div className="flex-1 flex items-center justify-center">
+                  <Cat className="w-7 h-7 sm:w-8 sm:h-8 text-amber-500 group-hover:text-amber-400 transition-colors" />
+                </div>
+                <div className="w-full h-1 bg-amber-200 dark:bg-amber-900/40 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div>
+                </div>
+              </button>
+              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-50 dark:bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative">
+                <div className="flex-1 flex items-center justify-center">
+                  <TreeDeciduous className="w-7 h-7 sm:w-8 sm:h-8 text-orange-500 group-hover:text-orange-400 transition-colors" />
+                </div>
+                <div className="w-full h-1 bg-orange-200 dark:bg-orange-900/40 rounded-full overflow-hidden">
+                  <div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div>
+                </div>
+              </button>
+
+              {/* Passeggiata (Footprints) */}
               {(() => {
                 const footTasks = [
                   ...data.trains.flatMap(t => t.subtasks || []),
@@ -3931,10 +3944,10 @@ Ejemplo de respuesta en "text":
                 return (
                   <button 
                     onClick={() => setShowFootModal(true)}
-                    className="col-span-1 aspect-square flex flex-col items-center justify-between p-3 transition-all group relative"
+                    className="aspect-square bg-emerald-50 dark:bg-emerald-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors border border-emerald-200 dark:border-emerald-900/50 group relative"
                   >
                     <div className="flex-1 flex items-center justify-center">
-                      <Footprints className="w-8 h-8 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                      <Footprints className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
                     </div>
                     <div className="w-full h-1 bg-emerald-200 dark:bg-emerald-900/40 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${footProgress * 100}%` }}></div>
@@ -3943,6 +3956,38 @@ Ejemplo de respuesta en "text":
                 );
               })()}
 
+              {/* Jumangiare (Food) Button */}
+              <button
+                onClick={() => {
+                  setView('food');
+                  setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
+                }}
+                className={`aspect-square bg-lime-50 dark:bg-lime-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative ${
+                    currentFoodScore < 0 
+                      ? 'animate-blink' 
+                      : isFoodPleno
+                        ? 'scale-[1.05] animate-pulse'
+                        : ''
+                  }`}
+              >
+                <div className="flex-1 flex items-center justify-center">
+                  <Utensils className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${
+                      shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {}) ? 'animate-cutlery-bounce text-lime-400' :
+                      currentFoodScore < 0 ? 'text-red-500' :
+                      isFoodPleno ? 'text-lime-200' : 'text-lime-500 group-hover:text-lime-400'
+                    }`} />
+                </div>
+                <div className={`w-full h-1 bg-lime-200 dark:bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
+                  <div
+                    className="h-full bg-lime-500 transition-all duration-500"
+                    style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
+                  ></div>
+                </div>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2 mb-2">
+              <div />
               {/* Bosque Progress - 2/4 width */}
               <div className="col-span-2 flex flex-col justify-center items-center h-full w-full p-2">
                 <div className="flex flex-col gap-1 w-full px-2">
@@ -3963,35 +4008,7 @@ Ejemplo de respuesta en "text":
                   </div>
                 </div>
               </div>
-
-              {/* Jumangiare (Food) Button - 1/4 width */}
-              <button
-                onClick={() => {
-                  setView('food');
-                  setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
-                }}
-                className={`col-span-1 aspect-square flex flex-col items-center justify-between p-2 transition-all duration-700 group relative ${
-                    currentFoodScore < 0 
-                      ? 'animate-blink' 
-                      : isFoodPleno
-                        ? 'scale-[1.05] animate-pulse'
-                        : ''
-                  }`}
-              >
-                <div className="flex-1 flex items-center justify-center">
-                  <Utensils className={`w-8 h-8 transition-colors ${
-                      shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {}) ? 'animate-cutlery-bounce text-lime-400' :
-                      currentFoodScore < 0 ? 'text-red-500' :
-                      isFoodPleno ? 'text-lime-200' : 'text-lime-500 group-hover:text-lime-400'
-                    }`} />
-                </div>
-                <div className={`w-full h-1 bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
-                  <div
-                    className="h-full bg-lime-500 transition-all duration-500"
-                    style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
-                  ></div>
-                </div>
-              </button>
+              <div />
             </div>
 
             {(() => {

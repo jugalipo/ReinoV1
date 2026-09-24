@@ -3,7 +3,7 @@
 > **Ubicación Local:** `/Users/julian/Apps_Antigravity_ElReino/ReinoV1/`  
 > **Espejo en Disco:** `/Volumes/C/4_granero/documentos/directrices_apps/directrices_reinov1.md`  
 > **Guía de Arquitectura Maestra:** [`ARQUITECTURA_APPS_EL_REINO.md`](file:///Volumes/C/4_granero/documentos/directrices_apps/ARQUITECTURA_APPS_EL_REINO.md)  
-> **Última Actualización:** 2026-09-22  
+> **Última Actualización:** 2026-09-24  
 
 ---
 
@@ -13,7 +13,7 @@ Hub central y dashboard de hábitos diarios (Hunos), Modo Telón, Trenes, Setas,
 * **Stack Técnico:** `React / TypeScript / Vite / Tailwind CSS / Lucide / vite-plugin-pwa`
 * **Base de Datos:** `Firebase Firestore (instancia: (default) + puerto, cartelera, biblioteca, aspavientos)`
 * **Hosting / Target:** `el-reino-354ca`
-* **Detalles Funcionales:** Gestión de los Hunos con hábito «Impulso / Peso» (alternancia automática calle: días impares Impulso/sprints ⚡ vs días pares Peso/rucking 🎒 con estética minimalista de icono dinámico sin subtítulos agregados), sincronización automática con la base de datos de `Bosque` (`dailyLogs` y acumulados mensuales en `body`) al marcar/desmarcar el Huno hoy o retroactivamente, vista mensual y desglose estadístico diferenciado (⚡ vs 🎒), firewall matinal sin pantalla accesoria de entreno, visual lock screen de energía, conexión central, Brotes con registro cronológico e historial de cada interacción (fecha, hora y tipo: 🫂 presencial, 📞 llamada, 💬 mensaje, 🎁 detalle, 📸 foto) y conteo de última interacción por canal, barra de navegación inferior flotante y hub central de tareas (`TasksHubView`).
+* **Detalles Funcionales:** Dashboard principal con fila unificada de 5 botones compactos (Brotes, Leones, Roble, Passeggiata, Jumangiare) con menor protagonismo visual, seguidos por la cuadrícula de 12 recuadros semanales de Bosque centrada (con huecos laterales) y espaciado simétrico respecto a la fila superior y al bloque inferior de Hunos. Gestión de los Hunos con hábito «Impulso / Peso» (alternancia automática calle: días impares Impulso/sprints ⚡ vs días pares Peso/rucking 🎒 con estética minimalista de icono dinámico sin subtítulos agregados), sincronización automática con la base de datos de `Bosque` (`dailyLogs` y acumulados mensuales en `body`) al marcar/desmarcar el Huno hoy o retroactivamente, vista mensual y desglose estadístico diferenciado (⚡ vs 🎒), firewall matinal sin pantalla accesoria de entreno, visual lock screen de energía, conexión central, Brotes con registro cronológico e historial de cada interacción (fecha, hora y tipo: 🫂 presencial, 📞 llamada, 💬 mensaje, 🎁 detalle, 📸 foto) y conteo de última interacción por canal, barra de navegación inferior flotante y hub central de tareas (`TasksHubView`).
 * **Sincronización y Guardarraíl Anti-Sobreescritura:** 
   - `App.tsx` compara `JSON.stringify(data)` contra `lastSnapshotData.current`. Si no hay cambios locales reales, se bloquea el `writeBatch` para evitar que un dispositivo con caché fría o antigua sobreescriba cambios realizados en remoto o vía API.
   - Las semillas `MUSHROOM_TASKS` (10 setas) y `TRAIN_TASKS` (28 trenes) se sincronizan de forma idéntica con sus fuentes de verdad en `1_forjas/setas.md` y `1_forjas/trenes.md`.
