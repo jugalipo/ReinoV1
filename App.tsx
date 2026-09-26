@@ -1069,6 +1069,8 @@ function App() {
   // New Modo Telón form states
   const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'diary'>('energy');
   const [formDiaryContent, setFormDiaryContent] = useState<string>('');
+  const [formBitacoraContent, setFormBitacoraContent] = useState<string>('');
+  const [bitacoraDateTarget, setBitacoraDateTarget] = useState<'yesterday' | 'today'>('yesterday');
   const [focusCameFromTelon, setFocusCameFromTelon] = useState<boolean>(false);
   const [formEnergy, setFormEnergy] = useState<number | null>(null);
   const [formMovieWatched, setFormMovieWatched] = useState<boolean>(false);
@@ -1110,6 +1112,9 @@ function App() {
       setFormBookRead(false);
       setFormBookNote('');
       setFormFoodChoice('saltar');
+      setFormDiaryContent('');
+      setFormBitacoraContent('');
+      setBitacoraDateTarget(new Date().getHours() < 15 ? 'yesterday' : 'today');
       setModoTelonActive(true);
     }
     setHasCheckedInitialEnergy(true);
@@ -1956,6 +1961,42 @@ Ejemplo de respuesta en "text":
     }
   };
 
+  const getBitacoraTargetDateStr = (type: 'yesterday' | 'today') => {
+    const d = new Date();
+    if (type === 'yesterday') {
+      d.setDate(d.getDate() - 1);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const saveBitacoraToPuerto = async (content: string, dateType: 'yesterday' | 'today') => {
+    if (!user || !content.trim()) return;
+    try {
+      const targetDateStr = getBitacoraTargetDateStr(dateType);
+      const cleanContent = content.trim();
+      const noteText = `bitácora día ${targetDateStr}: ${cleanContent}`;
+      await addDoc(collection(puertoDb, 'notes'), {
+        title: `Bitácora día ${targetDateStr}`,
+        content: noteText,
+        category: 'Inbox',
+        color: 'default',
+        isPinned: false,
+        isArchived: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        userId: user.uid,
+        images: [],
+        tags: ['bitacora']
+      });
+      console.log("Guardada nota de bitácora en Puerto:", targetDateStr);
+    } catch (err) {
+      console.error("Error guardando nota de bitácora en Puerto DB:", err);
+    }
+  };
+
   const syncHunoWorkoutToBosque = async (dateStr: string, completed: boolean) => {
     if (!user) return;
     try {
@@ -2043,6 +2084,8 @@ Ejemplo de respuesta en "text":
 
     setFormFoodChoice('saltar');
     setFormDiaryContent('');
+    setFormBitacoraContent('');
+    setBitacoraDateTarget(new Date().getHours() < 15 ? 'yesterday' : 'today');
     setFocusCameFromTelon(false);
     setSelectedEnergy(null);
     
@@ -2625,36 +2668,83 @@ Ejemplo de respuesta en "text":
                 </div>
               )}
               {telonStep === 'diary' && (
-                <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
+                <div className="w-full space-y-4 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
                   <div className="space-y-1 text-center">
-                    <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
-                      Aspavientos
+                    <h2 className="text-xl font-black text-stone-100 tracking-tighter uppercase italic">
+                      Bitácora & Aspavientos
                     </h2>
                     <p className="text-stone-400 text-xs font-medium leading-relaxed">
-                      ¿Qué recuerdas de ayer?
+                      Pulso del día y reflexiones para el diario
                     </p>
                   </div>
 
-                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
-                    <div className="space-y-1">
-                      <textarea
-                        placeholder="Escribe aquí tus recuerdos de ayer..."
-                        value={formDiaryContent}
-                        onChange={(e) => setFormDiaryContent(e.target.value)}
-                        className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full min-h-[180px] resize-none transition-colors leading-relaxed"
-                      />
+                  {/* 1. Bitácora (Caja superior, más pequeña) */}
+                  <div className="bg-stone-900/90 backdrop-blur-md rounded-2xl p-4 space-y-2 border border-stone-800/80 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+                        <span>📜</span> Bitácora
+                      </label>
+                      <div className="flex items-center bg-stone-950 rounded-lg p-0.5 border border-stone-800 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setBitacoraDateTarget('yesterday')}
+                          className={`px-2 py-0.5 rounded transition-colors font-medium ${
+                            bitacoraDateTarget === 'yesterday'
+                              ? 'bg-amber-600/30 text-amber-300 font-semibold'
+                              : 'text-stone-500 hover:text-stone-300'
+                          }`}
+                        >
+                          Ayer ({getBitacoraTargetDateStr('yesterday').slice(5)})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBitacoraDateTarget('today')}
+                          className={`px-2 py-0.5 rounded transition-colors font-medium ${
+                            bitacoraDateTarget === 'today'
+                              ? 'bg-amber-600/30 text-amber-300 font-semibold'
+                              : 'text-stone-500 hover:text-stone-300'
+                          }`}
+                        >
+                          Hoy ({getBitacoraTargetDateStr('today').slice(5)})
+                        </button>
+                      </div>
                     </div>
+                    <textarea
+                      placeholder="En una o dos frases: ¿cómo fue el día anterior o cómo va hoy?..."
+                      value={formBitacoraContent}
+                      onChange={(e) => setFormBitacoraContent(e.target.value)}
+                      className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full min-h-[75px] resize-none transition-colors leading-relaxed"
+                    />
+                  </div>
+
+                  {/* 2. Aspavientos (Caja inferior, la existente) */}
+                  <div className="bg-stone-900/90 backdrop-blur-md rounded-2xl p-4 space-y-2 border border-stone-800/80 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black uppercase tracking-wider text-stone-300 flex items-center gap-1.5">
+                        <span>✍️</span> Aspavientos
+                      </label>
+                      <span className="text-[10px] text-stone-500 font-medium">Diario</span>
+                    </div>
+                    <textarea
+                      placeholder="Escribe aquí tus recuerdos de ayer para el diario..."
+                      value={formDiaryContent}
+                      onChange={(e) => setFormDiaryContent(e.target.value)}
+                      className="bg-stone-950 text-stone-200 placeholder-stone-600 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-full min-h-[135px] resize-none transition-colors leading-relaxed"
+                    />
                   </div>
 
                   <button
                     type="button"
                     onClick={async () => {
+                      if (formBitacoraContent.trim()) {
+                        await saveBitacoraToPuerto(formBitacoraContent.trim(), bitacoraDateTarget);
+                      }
                       if (formDiaryContent.trim()) {
                         await saveDiaryToAspavientos(formDiaryContent.trim());
                       }
                       await handleFinishTelon(formFoodChoice, formMovieWatched, formBookRead);
                     }}
-                    className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer text-center"
+                    className="w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer text-center"
                   >
                     Siguiente
                   </button>
