@@ -3003,6 +3003,8 @@ Ejemplo de respuesta en "text":
   // ----------------------------------
   const [authReady, setAuthReady] = useState(false);
   const lastSnapshotData = useRef<string>('');
+  const lastDocsData = useRef<Record<string, string>>({});
+  const isServerSynced = useRef<boolean>(false);
   const isFirstRender = useRef(true);
   const isRemoteUpdate = useRef(false);
   const pendingWritesTimer = useRef<NodeJS.Timeout | null>(null);
@@ -3114,9 +3116,11 @@ Ejemplo de respuesta en "text":
         let snapshot;
         try {
           snapshot = await getDocsFromServer(habitsRef);
+          isServerSynced.current = true;
         } catch (e) {
           console.log("No se pudo obtener del servidor, usando caché", e);
           snapshot = await getDocs(habitsRef);
+          isServerSynced.current = !snapshot.metadata.fromCache;
         }
 
         if (!snapshot.empty) {
@@ -3124,10 +3128,16 @@ Ejemplo de respuesta en "text":
           const newData = deserializeAppData(docs);
           const processedData = processResets(newData);
 
+          const serializedDocs = serializeAppData(processedData);
+          const initialDocsMap: Record<string, string> = {};
+          serializedDocs.forEach(d => {
+            initialDocsMap[d.id] = JSON.stringify(d.data);
+          });
+          lastDocsData.current = initialDocsMap;
+
           if (JSON.stringify(newData) !== JSON.stringify(processedData)) {
-            if (!snapshot.metadata.fromCache) {
+            if (!snapshot.metadata.fromCache && isServerSynced.current) {
               const batch = writeBatch(db);
-              const serializedDocs = serializeAppData(processedData);
               serializedDocs.forEach(d => {
                 batch.set(doc(habitsRef, d.id), d.data);
               });
@@ -3176,6 +3186,10 @@ Ejemplo de respuesta en "text":
 
         unsubscribe = onSnapshot(habitsRef, (snapshot) => {
           if (!snapshot.empty) {
+            if (!snapshot.metadata.fromCache) {
+              isServerSynced.current = true;
+            }
+
             // Si el snapshot viene directamente del servidor (ej. cambios hechos en el móvil),
             // la nube SIEMPRE tiene la máxima prioridad: cancelamos cualquier escritura local pendiente
             // para evitar que datos en caché obsoletos sobrescriban la nube.
@@ -3189,6 +3203,13 @@ Ejemplo de respuesta en "text":
             const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
             const newData = deserializeAppData(docs);
             const processedData = processResets(newData);
+
+            const serialized = serializeAppData(processedData);
+            const snapDocsMap: Record<string, string> = {};
+            serialized.forEach(d => {
+              snapDocsMap[d.id] = JSON.stringify(d.data);
+            });
+            lastDocsData.current = snapDocsMap;
 
             const newProcessedStr = JSON.stringify(processedData);
             if (lastSnapshotData.current !== newProcessedStr) {
@@ -3372,6 +3393,13 @@ Ejemplo de respuesta en "text":
       return;
     }
 
+    // 🛡️ GUARDARRAÍL 1: Cero escrituras a Firestore si los datos proceden de caché local
+    // y el dispositivo aún no ha recibido la versión fresca del servidor.
+    if (!isServerSynced.current) {
+      console.warn("🛡️ [Guardarraíl Anti-Sobreescritura] Escritura bloqueada: dispositivo con caché local no validada por el servidor.");
+      return;
+    }
+
     if (pendingWritesTimer.current) {
       clearTimeout(pendingWritesTimer.current);
     }
@@ -3382,13 +3410,30 @@ Ejemplo de respuesta en "text":
 
     pendingWritesTimer.current = setTimeout(async () => {
       try {
-        const batch = writeBatch(db);
         const docs = serializeAppData(data);
+        // 🛡️ GUARDARRAÍL 2: Escritura granular por documento.
+        // NUNCA escribir todos los 12 documentos a ciegas. Solo los que realmente difieren.
+        const dirtyDocs = docs.filter(d => {
+          const prevStr = lastDocsData.current[d.id];
+          const currStr = JSON.stringify(d.data);
+          return prevStr !== currStr;
+        });
+
+        if (dirtyDocs.length === 0) {
+          lastSnapshotData.current = JSON.stringify(data);
+          return;
+        }
+
+        const batch = writeBatch(db);
         const habitsRef = collection(db, 'users', user.uid, 'habits');
-        docs.forEach(d => {
+        dirtyDocs.forEach(d => {
           batch.set(doc(habitsRef, d.id), d.data);
         });
         await batch.commit();
+
+        dirtyDocs.forEach(d => {
+          lastDocsData.current[d.id] = JSON.stringify(d.data);
+        });
         lastSnapshotData.current = JSON.stringify(data);
       } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/habits`);
