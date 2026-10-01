@@ -189,7 +189,7 @@ const MUSHROOM_TASKS = [
 ];
 
 const TRAIN_TASKS = [
-  { text: "🦁 1. Cuentas y Cartera 2h", subtasks: ["Anotar gastos (pasar PDF a Sebastian) ⭐", "Presupuesto (mes entrante) ⭐", "Balance (fondos y patrimonio) ⭐", "Transferencias (huchas y alquiler) ⭐", "Cartera Renta 4: cotizaciones de los 3 fondos y rebalanceo", "Ejecutar compras o aportaciones e inscribir en Leones"] },
+  { text: "🦁 1. Cuentas y Cartera 50'", subtasks: ["Anotar gastos (pasar PDF a Sebastian) ⭐", "Presupuesto (mes entrante) ⭐", "Balance (fondos y patrimonio) ⭐", "Transferencias (huchas y alquiler) ⭐", "Cartera Renta 4: cotizaciones de los 3 fondos y rebalanceo", "Ejecutar compras o aportaciones e inscribir en Leones"] },
   { text: "🍏 2. Compra 30'", subtasks: ["Revisión de despensa contra lista permanente ⭐", "Primera compra fuerte del mes ⭐"] },
   { text: "🍏 3. Sillas 5'", subtasks: ["Comprobar presión de neumáticos de la silla e inflar"] },
   { text: "🦁 4. Reino 30'", subtasks: ["Agenda mensual: vista de pájaro de citas y focos del mes ⭐", "Actualizar Excel histórico del Reino", "Poner al día el tablón físico de propósitos", "Revisar visitas y métricas en YouTube"] },
