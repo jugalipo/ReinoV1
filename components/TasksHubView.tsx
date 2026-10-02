@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppData, ViewState } from '../types';
-import { ArrowLeft, CheckCircle2, ChevronRight, Check, Target, Zap } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronRight, Check, Target } from 'lucide-react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getCanonicalHunoShortcut } from '../App';
@@ -12,12 +12,28 @@ interface TasksHubViewProps {
   onNavigate: (view: ViewState) => void;
 }
 
+interface DailyFrontData {
+  text: string;
+  completed: boolean;
+}
+
+interface DailyFrontsState {
+  date: string;
+  fronts: {
+    tren?: DailyFrontData;
+    seta?: DailyFrontData;
+    roble?: DailyFrontData;
+    yunque?: DailyFrontData;
+    leones?: DailyFrontData;
+    brotes?: DailyFrontData;
+  };
+}
+
 interface FrontTaskItem {
   id: string;
   category: 'foco' | 'trains' | 'sets' | 'roble' | 'yunque' | 'leones' | 'projects';
   name: string;
   emoji: string;
-  color: string;
   taskText: string;
   completed: boolean;
   notes?: string;
@@ -44,7 +60,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
   onNavigate
 }) => {
   const [dailyFocus, setDailyFocus] = useState<{ date: string; text: string; completed: boolean } | null>(null);
+  const [injectedFronts, setInjectedFronts] = useState<DailyFrontsState | null>(null);
 
+  // Escuchar Foco Ineludible de Hoy
   useEffect(() => {
     try {
       const focusRef = doc(db, 'users', 'rrhzO4FVdwNTQW4DiVsJYBsuLbK2', 'habits', 'daily_focus');
@@ -63,9 +81,28 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     }
   }, []);
 
+  // Escuchar Frentes Diarios Inyectados por Sebastian
+  useEffect(() => {
+    try {
+      const frontsRef = doc(db, 'users', 'rrhzO4FVdwNTQW4DiVsJYBsuLbK2', 'habits', 'daily_fronts');
+      const unsub = onSnapshot(frontsRef, (snap) => {
+        if (snap.exists()) {
+          setInjectedFronts(snap.data() as any);
+        } else {
+          setInjectedFronts(null);
+        }
+      }, (err) => {
+        console.warn('Firestore daily_fronts onSnapshot error:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Error listening to daily_fronts:', e);
+    }
+  }, []);
+
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Helper para alternar el foco diario en Firestore
+  // Alternar el foco diario en Firestore
   const toggleDailyFocus = async () => {
     if (!dailyFocus) return;
     try {
@@ -80,13 +117,13 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     }
   };
 
-  // Sincronización bidireccional con Hunos
-  const syncHunoState = (currentHunos: typeof data.hunos, targetCompleted: boolean, matchFn: (huno: typeof data.hunos[0]) => boolean) => {
+  // Helper de sincronización: commitea el Huno en AppData SIN alterar las subtareas internas de trenes, setas ni roble
+  const syncHunoState = (targetCompleted: boolean, matchFn: (huno: typeof data.hunos[0]) => boolean) => {
     const todayKey = new Date().toDateString();
-    const targetHuno = currentHunos.find(matchFn);
-    if (!targetHuno) return { updatedHunos: currentHunos, updatedHistory: data.hunosHistory || {} };
+    const targetHuno = (data.hunos || []).find(matchFn);
+    if (!targetHuno) return;
 
-    const updatedHunos = currentHunos.map(h => {
+    const updatedHunos = (data.hunos || []).map(h => {
       if (h.id === targetHuno.id) {
         return { ...h, completed: targetCompleted };
       }
@@ -96,162 +133,151 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     const completedIds = updatedHunos.filter(t => t.completed).map(t => t.id);
     const updatedHistory = { ...(data.hunosHistory || {}), [todayKey]: completedIds };
 
-    return { updatedHunos, updatedHistory };
+    onUpdateData({
+      ...data,
+      hunos: updatedHunos,
+      hunosHistory: updatedHistory
+    });
   };
 
-  // 1. TRENES
-  const nextTrain = (data.trains || []).find(t => !t.completed) || (data.trains || [])[0];
-  const isTrainDone = nextTrain ? nextTrain.completed : false;
+  // Guardar cambio de estado en Firestore para el frente inyectado
+  const updateInjectedFrontStatus = async (frontKey: 'tren' | 'seta' | 'roble' | 'yunque' | 'leones' | 'brotes', newCompleted: boolean) => {
+    try {
+      const frontsRef = doc(db, 'users', 'rrhzO4FVdwNTQW4DiVsJYBsuLbK2', 'habits', 'daily_fronts');
+      const prevData = injectedFronts || { date: todayStr, fronts: {} };
+      const currentItem = prevData.fronts?.[frontKey] || { text: '', completed: false };
+
+      await setDoc(frontsRef, {
+        ...prevData,
+        date: prevData.date || todayStr,
+        updatedAt: Date.now(),
+        fronts: {
+          ...prevData.fronts,
+          [frontKey]: {
+            ...currentItem,
+            completed: newCompleted
+          }
+        }
+      }, { merge: true });
+    } catch (e) {
+      console.error(`Error actualizando frente inyectado ${frontKey}:`, e);
+    }
+  };
+
+  // Detectar estado cumplido del Huno correspondiente en la ventana de inicio
+  const isHunoDone = (matchFn: (huno: typeof data.hunos[0]) => boolean): boolean => {
+    const found = (data.hunos || []).find(matchFn);
+    return found ? found.completed : false;
+  };
+
+  // 1. TRENES (Huno: trains / tren)
+  const hunoTrenDone = isHunoDone(h => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return sc === 'trains' || h.text.toLowerCase().includes('tren');
+  });
+  const trenInjected = injectedFronts?.fronts?.tren;
+  const isTrenDone = trenInjected !== undefined ? trenInjected.completed : hunoTrenDone;
   const toggleTrain = () => {
-    if (!nextTrain) return;
-    const nextCompleted = !nextTrain.completed;
-    const updatedTrains = (data.trains || []).map(t =>
-      t.id === nextTrain.id ? { ...t, completed: nextCompleted } : t
-    );
-    const { updatedHunos, updatedHistory } = syncHunoState(
-      data.hunos,
-      nextCompleted,
-      h => {
-        const sc = h.shortcut || getCanonicalHunoShortcut(h);
-        return sc === 'trains' || h.text.toLowerCase().includes('tren');
-      }
-    );
-    onUpdateData({
-      ...data,
-      trains: updatedTrains,
-      hunos: updatedHunos,
-      hunosHistory: updatedHistory
+    const nextVal = !isTrenDone;
+    updateInjectedFrontStatus('tren', nextVal);
+    syncHunoState(nextVal, h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'trains' || h.text.toLowerCase().includes('tren');
     });
   };
 
-  // 2. SETAS
-  const nextSeta = (data.sets || []).find(t => !t.completed) || (data.sets || [])[0];
-  const isSetaDone = nextSeta ? nextSeta.completed : false;
+  // 2. SETAS (Huno: sets / seta)
+  const hunoSetaDone = isHunoDone(h => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return sc === 'sets' || h.text.toLowerCase().includes('seta');
+  });
+  const setaInjected = injectedFronts?.fronts?.seta;
+  const isSetaDone = setaInjected !== undefined ? setaInjected.completed : hunoSetaDone;
   const toggleSeta = () => {
-    if (!nextSeta) return;
-    const nextCompleted = !nextSeta.completed;
-    const updatedSets = (data.sets || []).map(t =>
-      t.id === nextSeta.id ? { ...t, completed: nextCompleted } : t
-    );
-    const { updatedHunos, updatedHistory } = syncHunoState(
-      data.hunos,
-      nextCompleted,
-      h => {
-        const sc = h.shortcut || getCanonicalHunoShortcut(h);
-        return sc === 'sets' || h.text.toLowerCase().includes('seta');
-      }
-    );
-    onUpdateData({
-      ...data,
-      sets: updatedSets,
-      hunos: updatedHunos,
-      hunosHistory: updatedHistory
+    const nextVal = !isSetaDone;
+    updateInjectedFrontStatus('seta', nextVal);
+    syncHunoState(nextVal, h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'sets' || h.text.toLowerCase().includes('seta');
     });
   };
 
-  // 3. ROBLE
-  const nextRoble = (data.forjaTasks || []).find(t => !t.completed) || (data.forjaTasks || [])[0];
-  const isRobleDone = nextRoble ? nextRoble.completed : false;
+  // 3. ROBLE (Huno: forjas / roble / T2)
+  const hunoRobleDone = isHunoDone(h => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return sc === 'forjas' || h.text.toLowerCase().includes('roble') || h.text.includes('T2');
+  });
+  const robleInjected = injectedFronts?.fronts?.roble;
+  const isRobleDone = robleInjected !== undefined ? robleInjected.completed : hunoRobleDone;
   const toggleRoble = () => {
-    if (!nextRoble) return;
-    const nextCompleted = !nextRoble.completed;
-    const updatedRoble = (data.forjaTasks || []).map(t =>
-      t.id === nextRoble.id ? { ...t, completed: nextCompleted } : t
-    );
-    const { updatedHunos, updatedHistory } = syncHunoState(
-      data.hunos,
-      nextCompleted,
-      h => {
-        const sc = h.shortcut || getCanonicalHunoShortcut(h);
-        return sc === 'forjas' || h.text.toLowerCase().includes('roble') || h.text.includes('T2');
-      }
-    );
-    onUpdateData({
-      ...data,
-      forjaTasks: updatedRoble,
-      hunos: updatedHunos,
-      hunosHistory: updatedHistory
+    const nextVal = !isRobleDone;
+    updateInjectedFrontStatus('roble', nextVal);
+    syncHunoState(nextVal, h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'forjas' || h.text.toLowerCase().includes('roble') || h.text.includes('T2');
     });
   };
 
-  // 4. YUNQUE
-  const hunoYunque = (data.hunos || []).find(h =>
+  // 4. YUNQUE (Huno: yunque / T3 / huno-8)
+  const hunoYunqueDone = isHunoDone(h =>
     h.text.toLowerCase().includes('yunque') || h.text.includes('T3') || h.id === 'huno-8'
   );
-  const isYunqueDone = hunoYunque ? hunoYunque.completed : false;
+  const yunqueInjected = injectedFronts?.fronts?.yunque;
+  const isYunqueDone = yunqueInjected !== undefined ? yunqueInjected.completed : hunoYunqueDone;
   const toggleYunque = () => {
-    if (!hunoYunque) return;
-    const nextCompleted = !hunoYunque.completed;
-    const { updatedHunos, updatedHistory } = syncHunoState(
-      data.hunos,
-      nextCompleted,
-      h => h.id === hunoYunque.id
+    const nextVal = !isYunqueDone;
+    updateInjectedFrontStatus('yunque', nextVal);
+    syncHunoState(nextVal, h =>
+      h.text.toLowerCase().includes('yunque') || h.text.includes('T3') || h.id === 'huno-8'
     );
-    onUpdateData({
-      ...data,
-      hunos: updatedHunos,
-      hunosHistory: updatedHistory
-    });
   };
 
-  // 5. LEONES
-  const nextLeon = (data.leones || []).find(t => t.current < t.target) || (data.leones || [])[0];
-  const isLeonDone = nextLeon ? nextLeon.current >= nextLeon.target : false;
+  // 5. LEONES (Huno: leones / T1)
+  const hunoLeonesDone = isHunoDone(h => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return sc === 'leones' || h.text.toLowerCase().includes('león') || h.text.toLowerCase().includes('leon') || h.text.includes('T1');
+  });
+  const leonesInjected = injectedFronts?.fronts?.leones;
+  const isLeonDone = leonesInjected !== undefined ? leonesInjected.completed : hunoLeonesDone;
   const toggleLeon = () => {
-    if (!nextLeon) return;
-    const nextTargetReached = !isLeonDone;
-    const updatedLeones = (data.leones || []).map(t =>
-      t.id === nextLeon.id ? { ...t, current: nextTargetReached ? t.target : 0 } : t
-    );
-    const { updatedHunos, updatedHistory } = syncHunoState(
-      data.hunos,
-      nextTargetReached,
-      h => {
-        const sc = h.shortcut || getCanonicalHunoShortcut(h);
-        return sc === 'leones' || h.text.toLowerCase().includes('león') || h.text.toLowerCase().includes('leon') || h.text.includes('T1');
-      }
-    );
-    onUpdateData({
-      ...data,
-      leones: updatedLeones,
-      hunos: updatedHunos,
-      hunosHistory: updatedHistory
+    const nextVal = !isLeonDone;
+    updateInjectedFrontStatus('leones', nextVal);
+    syncHunoState(nextVal, h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'leones' || h.text.toLowerCase().includes('león') || h.text.toLowerCase().includes('leon') || h.text.includes('T1');
     });
   };
 
-  // 6. BROTES (PROYECTOS / RELACIONES)
-  const nextProject = (data.projects || []).find(t => !t.completed) || (data.projects || [])[0];
-  const isProjectDone = nextProject ? nextProject.completed : false;
-  const toggleProject = () => {
-    if (!nextProject) return;
-    const nextCompleted = !nextProject.completed;
-    const updatedProjects = (data.projects || []).map(t =>
-      t.id === nextProject.id ? { ...t, completed: nextCompleted } : t
-    );
-    const { updatedHunos, updatedHistory } = syncHunoState(
-      data.hunos,
-      nextCompleted,
-      h => {
-        const sc = h.shortcut || getCanonicalHunoShortcut(h);
-        return sc === 'projects' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto') || h.text.startsWith('P ');
-      }
-    );
-    onUpdateData({
-      ...data,
-      projects: updatedProjects,
-      hunos: updatedHunos,
-      hunosHistory: updatedHistory
+  // 6. BROTES (Huno: projects / nube / proyecto / P )
+  const hunoBrotesDone = isHunoDone(h => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return sc === 'projects' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto') || h.text.startsWith('P ');
+  });
+  const brotesInjected = injectedFronts?.fronts?.brotes;
+  const isBrotesDone = brotesInjected !== undefined ? brotesInjected.completed : hunoBrotesDone;
+  const toggleBrotes = () => {
+    const nextVal = !isBrotesDone;
+    updateInjectedFrontStatus('brotes', nextVal);
+    syncHunoState(nextVal, h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'projects' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto') || h.text.startsWith('P ');
     });
   };
 
-  // Construcción de la lista de frentes diarios
+  // Fallbacks elegantes solo si aún no se ha ejecutado el rito matinal de inyección
+  const fallbackTrain = (data.trains || []).find(t => !t.completed)?.text || 'Mantenimiento mensual';
+  const fallbackSeta = (data.sets || []).find(t => !t.completed)?.text || 'Mantenimiento semanal';
+  const fallbackRoble = (data.forjaTasks || []).find(t => !t.completed)?.text || 'Propósito trimestral';
+  const fallbackLeon = (data.leones || []).find(t => t.current < t.target)?.name || 'Avance patrimonio';
+  const fallbackBrotes = (data.projects || []).find(t => !t.completed)?.text || 'Vínculos y proyectos';
+
+  // Cuadrícula de frentes
   const dailyFronts: FrontTaskItem[] = [
     ...(dailyFocus ? [{
       id: 'foco-diario',
       category: 'foco' as const,
       name: 'Foco Diario',
       emoji: '⚡',
-      color: 'amber',
       taskText: dailyFocus.text || 'Sin foco establecido',
       completed: dailyFocus.completed,
       notes: dailyFocus.date === todayStr ? 'Ineludible de hoy' : dailyFocus.date,
@@ -262,9 +288,8 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       category: 'trains',
       name: 'Trenes',
       emoji: '🚂',
-      color: 'indigo',
-      taskText: nextTrain?.text || 'Mantenimiento mensual al día',
-      completed: isTrainDone,
+      taskText: trenInjected?.text || fallbackTrain,
+      completed: isTrenDone,
       navigateView: 'trains',
       onToggle: toggleTrain
     },
@@ -273,8 +298,7 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       category: 'sets',
       name: 'Setas',
       emoji: '🍄',
-      color: 'rose',
-      taskText: nextSeta?.text || 'Mantenimiento semanal al día',
+      taskText: setaInjected?.text || fallbackSeta,
       completed: isSetaDone,
       navigateView: 'sets',
       onToggle: toggleSeta
@@ -284,8 +308,7 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       category: 'roble',
       name: 'Roble',
       emoji: '🌳',
-      color: 'emerald',
-      taskText: nextRoble?.text || (data.forjas?.[0]?.name ? `Avance en ${data.forjas[0].name}` : 'Propósitos trimestrales al día'),
+      taskText: robleInjected?.text || fallbackRoble,
       completed: isRobleDone,
       navigateView: 'forjas',
       onToggle: toggleRoble
@@ -295,10 +318,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       category: 'yunque',
       name: 'Yunque',
       emoji: '⚔️',
-      color: 'blue',
-      taskText: hunoYunque?.text || 'Despacho de grapas y argollas',
+      taskText: yunqueInjected?.text || 'Despacho de grapas y argollas',
       completed: isYunqueDone,
-      notes: 'Despacho diario (20\')',
+      notes: 'Despacho (20\')',
       onToggle: toggleYunque
     },
     {
@@ -306,8 +328,7 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       category: 'leones',
       name: 'Leones',
       emoji: '🦁',
-      color: 'amber',
-      taskText: nextLeon ? `${nextLeon.name} (${nextLeon.current}/${nextLeon.target} ${nextLeon.unit})` : 'Patrimonio y finanzas al día',
+      taskText: leonesInjected?.text || fallbackLeon,
       completed: isLeonDone,
       navigateView: 'leones',
       onToggle: toggleLeon
@@ -317,14 +338,13 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       category: 'projects',
       name: 'Brotes',
       emoji: '🌱',
-      color: 'teal',
-      taskText: nextProject?.text || 'Vínculos y proyectos al día',
-      completed: isProjectDone,
-      onToggle: toggleProject
+      taskText: brotesInjected?.text || fallbackBrotes,
+      completed: isBrotesDone,
+      onToggle: toggleBrotes
     }
   ];
 
-  // Ordenación estricta: PENDIENTES ARRIBA, COMPLETADOS ABAJO
+  // ORDENACIÓN: PENDIENTES ARRIBA, CUMPLIDOS ABAJO
   const sortedFronts = [...dailyFronts].sort((a, b) => {
     if (a.completed === b.completed) return 0;
     return a.completed ? 1 : -1;
@@ -376,7 +396,7 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
               Cuadro de Mando Diario
             </h1>
             <p className="text-[11px] text-stone-400 font-medium">
-              Frentes del día y sincronización con Hunos
+              Frentes inyectados y sincronización con Hunos
             </p>
           </div>
         </div>
