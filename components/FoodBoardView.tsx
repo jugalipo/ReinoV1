@@ -330,6 +330,7 @@ export const DailyFoodScoreModal = ({
   confirmButtonText,
   onDismissTelon,
   onSave, 
+  onConfirm,
   onClose 
 }: { 
   date: Date, 
@@ -340,6 +341,7 @@ export const DailyFoodScoreModal = ({
   confirmButtonText?: string,
   onDismissTelon?: () => void,
   onSave: (score: DailyFoodScore) => void, 
+  onConfirm?: (score: DailyFoodScore) => void,
   onClose: () => void 
 }) => {
   const [score, setScore] = useState<DailyFoodScore>(initialScore);
@@ -810,8 +812,12 @@ export const DailyFoodScoreModal = ({
                 <button
                   type="button"
                   onClick={() => {
-                    onSave(score);
-                    onClose();
+                    if (onConfirm) {
+                      onConfirm(score);
+                    } else {
+                      onSave(score);
+                      onClose();
+                    }
                   }}
                   className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 font-black text-xs uppercase tracking-wider transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-center gap-1.5"
                 >

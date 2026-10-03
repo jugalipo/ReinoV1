@@ -2752,10 +2752,15 @@ REGLAS DE SELECCIÓN:
                       setTelonDismissed(true);
                     }}
                     onSave={(score) => {
+                      if (!telonFoodDate) return;
+                      const nextFood = applyDailyFoodScoreToFoodState(data.food, telonFoodDate, score);
+                      setData({ ...data, food: nextFood });
+                    }}
+                    onConfirm={(score) => {
                       handleSaveAndAdvanceFood(score);
                     }}
                     onClose={() => {
-                      // Handled by onSave
+                      // Handled by onConfirm
                     }}
                   />
                 );
