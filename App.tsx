@@ -321,6 +321,79 @@ const PROJECT_DEFINITIONS = [
   { text: "Gympieza 🧹 1h", emoji: "🧹" }
 ];
 
+export const CANONICAL_ROBLE_OBJECTIVES: ResourceTask[] = [
+  { 
+    id: 'permanent-objective', 
+    name: 'Objetivo Principal Anual', 
+    current: 0, 
+    target: 100, 
+    unit: 'pts',
+    smartDescription: 'Conquista de metas anuales de largo alcance (Vaciado Cochera, Nutrición, Pino, Crónicas, RBG).'
+  },
+  { 
+    id: 'q1-money', 
+    name: 'Wallapop: Despeje Cochera', 
+    current: 0, 
+    target: 4, 
+    unit: 'lotes',
+    smartDescription: 'Subir 4 lotes de artículos voluminosos de la cochera a Wallapop (1 lote cada 10-20 días) para liberar espacio físico real.',
+    coinReward: 'Vender el Trastero (531)',
+    milestones: [
+      { id: 'm-leones-1', level: 1, title: 'Bulto Fuera I (Lote 1)', deadline: '2026-10-13', completed: false, targetValue: 1 },
+      { id: 'm-leones-2', level: 2, title: 'Bulto Fuera II (Lote 2)', deadline: '2026-10-23', completed: false, targetValue: 2 },
+      { id: 'm-leones-3', level: 3, title: 'Bulto Fuera III (Lote 3)', deadline: '2026-11-02', completed: false, targetValue: 3 },
+      { id: 'm-leones-4', level: 4, title: 'Suelo Despejado (Lote 4 y balance)', deadline: '2026-11-12', completed: false, targetValue: 4 }
+    ]
+  },
+  { 
+    id: 'q2-health', 
+    name: 'Nutrilio: Calibración 30 Días', 
+    current: 0, 
+    target: 30, 
+    unit: 'días',
+    smartDescription: '30 días consecutivos midiendo la ingesta en Nutrilio (con pesos aproximados o fotos) sin romper la racha para fijar 1 mes de referencia.',
+    coinReward: 'Calibración Nutricional (Meta Anual Salud)',
+    milestones: [
+      { id: 'm-salud-1', level: 1, title: 'Día Cero Roto (Día 1)', deadline: '2026-10-05', completed: false, targetValue: 1 },
+      { id: 'm-salud-2', level: 2, title: 'Tríada de Arranque (Día 3)', deadline: '2026-10-07', completed: false, targetValue: 3 },
+      { id: 'm-salud-3', level: 3, title: 'Semana Limpia (Día 7)', deadline: '2026-10-11', completed: false, targetValue: 7 },
+      { id: 'm-salud-4', level: 4, title: 'Ecuador Nutricional (Día 15)', deadline: '2026-10-19', completed: false, targetValue: 15 },
+      { id: 'm-salud-5', level: 5, title: 'Circuito Consolidado (Día 22)', deadline: '2026-10-26', completed: false, targetValue: 22 },
+      { id: 'm-salud-6', level: 6, title: 'Calibración Conquistada (Día 30)', deadline: '2026-11-03', completed: false, targetValue: 30 }
+    ]
+  },
+  { 
+    id: 'q3-love', 
+    name: 'Reino Resort Q4 & Crónicas', 
+    current: 0, 
+    target: 4, 
+    unit: 'hitos',
+    smartDescription: 'Pacto y reserva de la escapada trimestral Reino Resort Q4 con Alicia + Redacción de la Crónica Calicaseña 4 completa.',
+    coinReward: 'Crónicas Calicaseñas impresas',
+    milestones: [
+      { id: 'm-brotes-1', level: 1, title: 'Pacto REINO Resort Q4 (Escapada reservada)', deadline: '2026-10-15', completed: false, targetValue: 1 },
+      { id: 'm-brotes-2', level: 2, title: 'Armazón Crónica 4 (Cronología y notas)', deadline: '2026-10-25', completed: false, targetValue: 2 },
+      { id: 'm-brotes-3', level: 3, title: 'Texto en Limpio (Narrativa terminada)', deadline: '2026-11-05', completed: false, targetValue: 3 },
+      { id: 'm-brotes-4', level: 4, title: 'Crónica 4 Sellada (Revisión y archivo)', deadline: '2026-11-15', completed: false, targetValue: 4 }
+    ]
+  },
+  { 
+    id: 'q4-proj', 
+    name: 'RBG: Curso Iluminación Flash', 
+    current: 0, 
+    target: 4, 
+    unit: 'niveles',
+    smartDescription: 'Completar el Curso de Iluminación con flash (RBG Escuela) antes de fin de año para avanzar los Cimientos de la Fotografía.',
+    coinReward: 'Completar los másteres de RBG',
+    milestones: [
+      { id: 'm-nubes-1', level: 1, title: 'Domar el Destello (Bloque 1)', deadline: '2026-10-12', completed: false, targetValue: 1 },
+      { id: 'm-nubes-2', level: 2, title: 'Luz Suave en Mano (Bloque 2)', deadline: '2026-10-21', completed: false, targetValue: 2 },
+      { id: 'm-nubes-3', level: 3, title: 'Flash Fuera de Cámara (Bloque 3)', deadline: '2026-10-30', completed: false, targetValue: 3 },
+      { id: 'm-nubes-4', level: 4, title: 'Cimiento de Flash Conquistado (Práctica)', deadline: '2026-11-10', completed: false, targetValue: 4 }
+    ]
+  }
+];
+
 const INITIAL_DATA: AppData = {
   lastDate: new Date().toDateString(),
   lastSetsReset: Date.now(),
@@ -389,13 +462,7 @@ const INITIAL_DATA: AppData = {
     monthlyHistory: {},
     history: []
   },
-  forjas: [
-    { id: 'permanent-objective', name: 'Objetivo Principal', current: 0, target: 100, unit: 'pts' },
-    { id: 'q1-money', name: 'Dinero', current: 0, target: 1000, unit: '€' },
-    { id: 'q2-health', name: 'Salud', current: 0, target: 10, unit: 'kg' },
-    { id: 'q3-love', name: 'Amor', current: 0, target: 50, unit: 'pts' },
-    { id: 'q4-proj', name: 'Nubes', current: 0, target: 100, unit: 'h' }
-  ],
+  forjas: CANONICAL_ROBLE_OBJECTIVES,
   leones: [],
   forjaTasks: [],
   projects: PROJECT_DEFINITIONS.map((def, i) => ({
@@ -644,19 +711,33 @@ const processResets = (parsed: AppData): AppData => {
     result.stats.lastTotalInteractions = calculateTotalInteractions(result.friends || []);
   }
   if (!result.forjas) { result.forjas = []; }
-  const quarterlyDefaults = [
-    { id: 'q1-money', name: 'Dinero', current: 0, target: 1000, unit: '€' },
-    { id: 'q2-health', name: 'Salud', current: 0, target: 10, unit: 'kg' },
-    { id: 'q3-love', name: 'Amor', current: 0, target: 50, unit: 'pts' },
-    { id: 'q4-proj', name: 'Nubes', current: 0, target: 100, unit: 'h' }
-  ];
-  if (result.forjas.length < 5) {
-    if (result.forjas.length === 0) {
-      result.forjas.push({ id: 'permanent-objective', name: 'Objetivo Principal', current: 0, target: 100, unit: 'pts' });
-    }
-    for (let i = result.forjas.length; i < 5; i++) {
-      result.forjas.push(quarterlyDefaults[i - 1]);
-    }
+  if (!result.forjas || result.forjas.length === 0) { 
+    result.forjas = [...CANONICAL_ROBLE_OBJECTIVES]; 
+  } else {
+    // Enrich or update with canonical definitions if legacy placeholders exist
+    result.forjas = CANONICAL_ROBLE_OBJECTIVES.map((canonical, idx) => {
+      const existing = result.forjas[idx] || result.forjas.find((f: ResourceTask) => f.id === canonical.id);
+      if (!existing) return canonical;
+
+      // Check if existing task has legacy placeholder names (Dinero, Salud, Amor, Nubes)
+      const isLegacyPlaceholder = ['Dinero', 'Salud', 'Amor', 'Nubes', 'Objetivo Principal'].includes(existing.name.trim());
+      
+      return {
+        ...canonical,
+        name: isLegacyPlaceholder ? canonical.name : existing.name,
+        target: isLegacyPlaceholder ? canonical.target : (existing.target || canonical.target),
+        unit: isLegacyPlaceholder ? canonical.unit : (existing.unit || canonical.unit),
+        current: existing.current !== undefined ? existing.current : 0,
+        isPrincipal: existing.isPrincipal || false,
+        milestones: canonical.milestones?.map(m => {
+          const existingMilestone = existing.milestones?.find(em => em.id === m.id);
+          return existingMilestone || {
+            ...m,
+            completed: existing.current >= m.targetValue
+          };
+        })
+      };
+    });
   }
   if (!result.leones) { result.leones = []; }
   if (!result.forjaTasks) { result.forjaTasks = []; }

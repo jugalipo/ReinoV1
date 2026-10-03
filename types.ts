@@ -35,6 +35,15 @@ export interface WeeklyTask extends Task {
   dayCompleted?: number; // timestamp
 }
 
+export interface ResourceMilestone {
+  id: string;
+  level: number;
+  title: string;
+  deadline?: string; // YYYY-MM-DD
+  completed: boolean;
+  targetValue: number; // The progress value this milestone represents
+}
+
 export interface ResourceTask {
   id: string;
   name: string;
@@ -43,6 +52,9 @@ export interface ResourceTask {
   target: number;
   isPrincipal?: boolean;
   notes?: string; // Details/notes about this objective
+  smartDescription?: string; // Cualitative + Quantitative SMART definition
+  coinReward?: string; // Associated coin from limbo/monedas
+  milestones?: ResourceMilestone[];
 }
 
 export interface Book {
