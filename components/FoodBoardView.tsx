@@ -57,7 +57,7 @@ export const FIXED_SPECIAL_MEALS = [
   { name: 'A domicilio', max: 20, icon: '🛵' }
 ];
 
-const defaultDailyScore: DailyFoodScore = {
+export const defaultDailyScore: DailyFoodScore = {
   lunch: false,
   dinner: false,
   fasting: false,
@@ -157,7 +157,7 @@ const getDaysOfMonth = (offset: number) => {
   return days;
 };
 
-const getDerivedBonusesForMonth = (scores: Record<string, DailyFoodScore>, monthOffsetVal: number) => {
+export const getDerivedBonusesForMonth = (scores: Record<string, DailyFoodScore>, monthOffsetVal: number) => {
   const derived: Record<string, boolean[]> = {
     organs: [false, false, false, false],
     legumes: [false, false, false, false],
@@ -179,12 +179,156 @@ const getDerivedBonusesForMonth = (scores: Record<string, DailyFoodScore>, month
   return derived;
 };
 
-const DailyFoodScoreModal = ({ 
+export const applyDailyFoodScoreToFoodState = (
+  foodState: FoodState,
+  date: Date,
+  newDailyScore: DailyFoodScore,
+  isCurrentMonthView: boolean = true
+): FoodState => {
+  const now = new Date();
+  const dateStr = date.toDateString();
+  const dailyScores = foodState.dailyScores || {};
+  const oldDailyScore = dailyScores[dateStr] || defaultDailyScore;
+  const newScores = { ...dailyScores, [dateStr]: newDailyScore };
+
+  const oldTotal = calculateAllDaysTotal(dailyScores);
+  const newTotal = calculateAllDaysTotal(newScores);
+  const diff = newTotal - oldTotal;
+
+  const activeConfig = {
+    wheel: foodState.config?.wheel || [],
+    broccoli: foodState.config?.broccoli || [],
+    bonuses: foodState.config?.bonuses || [],
+    meals: foodState.config?.meals || DEFAULT_MEALS
+  };
+
+  const isCurrentMonthDate = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+
+  let effectiveDishes: Record<string, boolean> = {};
+  if (isCurrentMonthDate) {
+    effectiveDishes = foodState.dishes || {};
+  } else {
+    const targetMonth = date.getMonth();
+    const targetYear = date.getFullYear();
+    const targetMonthKey = `${targetYear}-${(targetMonth + 1).toString().padStart(2, '0')}`;
+    effectiveDishes = foodState.monthlyHistory?.[targetMonthKey]?.dishes || {};
+  }
+
+  const newDishes = { ...effectiveDishes };
+
+  const getDishCountLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+    let count = 0;
+    for (let i = 0; i < max; i++) {
+      const key = baseName + ' '.repeat(i);
+      if (currentDishes[key]) count++;
+    }
+    return count;
+  };
+
+  const decrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+    let count = getDishCountLocal(baseName, max, currentDishes);
+    if (count > 0) {
+      const key = baseName + ' '.repeat(count - 1);
+      currentDishes[key] = false;
+    }
+  };
+
+  const incrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
+    let count = getDishCountLocal(baseName, max, currentDishes);
+    if (count < max) {
+      const key = baseName + ' '.repeat(count);
+      currentDishes[key] = true;
+    }
+  };
+
+  const allConfigMeals = [...activeConfig.meals, ...FIXED_SPECIAL_MEALS];
+  if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
+    const mealConfig = allConfigMeals.find(m => m.name === oldDailyScore.lunchMeal);
+    if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+  }
+  if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
+    const mealConfig = allConfigMeals.find(m => m.name === newDailyScore.lunchMeal);
+    if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+  }
+
+  if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
+    const mealConfig = allConfigMeals.find(m => m.name === oldDailyScore.dinnerMeal);
+    if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+  }
+  if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
+    const mealConfig = allConfigMeals.find(m => m.name === newDailyScore.dinnerMeal);
+    if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
+  }
+
+  const targetMonthOffset = date.getMonth() - now.getMonth() + (date.getFullYear() - now.getFullYear()) * 12;
+  const oldDerived = getDerivedBonusesForMonth(dailyScores, targetMonthOffset);
+  const newDerived = getDerivedBonusesForMonth(newScores, targetMonthOffset);
+
+  const getBonusPoints = (bObj: any) => {
+    let pts = 0;
+    if (bObj.organs) pts += bObj.organs.filter((s: boolean) => s).length * 3;
+    if (bObj.legumes) pts += bObj.legumes.filter((s: boolean) => s).length * 3;
+    if (bObj.fast24) pts += bObj.fast24.filter((s: boolean) => s).length * 4;
+    return pts;
+  };
+
+  const bonusDiff = getBonusPoints(newDerived) - getBonusPoints(oldDerived);
+  const totalDiff = diff + bonusDiff;
+
+  const updateScore = (delta: number) => {
+    return Math.max(0, Math.min(50, (foodState.score || 0) + delta));
+  };
+
+  const addHistory = (action: string, delta: number) => {
+    return [
+      { action, timestamp: Date.now(), delta },
+      ...(foodState.history || [])
+    ].slice(0, 50);
+  };
+
+  if (isCurrentMonthDate) {
+    return {
+      ...foodState,
+      score: isCurrentMonthView ? updateScore(totalDiff) : foodState.score,
+      dailyScores: newScores,
+      dishes: newDishes,
+      monthlyBonuses: newDerived,
+      history: totalDiff !== 0 ? addHistory(isCurrentMonthView ? `Día: ${date.getDate()}` : `Retro-Día: ${date.getDate()}`, totalDiff) : (foodState.history || [])
+    };
+  } else {
+    const monthlyHistoryObj = foodState.monthlyHistory || {};
+    const monthKeyForDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    const oldMonthData = monthlyHistoryObj[monthKeyForDate] || {
+      wheelPlenoCount: 0,
+      broccoliPlenoCount: 0,
+      bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
+      dishes: {}
+    };
+
+    return {
+      ...foodState,
+      dailyScores: newScores,
+      monthlyHistory: {
+        ...monthlyHistoryObj,
+        [monthKeyForDate]: {
+          ...oldMonthData,
+          bonuses: newDerived,
+          dishes: newDishes
+        }
+      },
+      history: totalDiff !== 0 ? addHistory(`Retro-Día: ${date.getDate()} (${monthKeyForDate})`, totalDiff) : (foodState.history || [])
+    };
+  }
+};
+
+export const DailyFoodScoreModal = ({ 
   date, 
   initialScore, 
   allScores,
   meals,
   dishes,
+  confirmButtonText,
+  onDismissTelon,
   onSave, 
   onClose 
 }: { 
@@ -193,6 +337,8 @@ const DailyFoodScoreModal = ({
   allScores: Record<string, DailyFoodScore>,
   meals: { name: string; icon: string; max: number }[],
   dishes: Record<string, boolean>,
+  confirmButtonText?: string,
+  onDismissTelon?: () => void,
   onSave: (score: DailyFoodScore) => void, 
   onClose: () => void 
 }) => {
@@ -376,6 +522,19 @@ const DailyFoodScoreModal = ({
   const dateStr = date.toDateString();
   const total = calculateDailyScore(score, dateStr, allScores);
 
+  const getDayLabel = (targetDate: Date) => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const target = new Date(targetDate);
+    target.setHours(0, 0, 0, 0);
+    const diffTime = now.getTime() - target.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays === 2) return 'Antes de ayer';
+    return `Hace ${diffDays} días`;
+  };
+
   return (
     <div 
       className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 pb-24 animate-in fade-in duration-200"
@@ -389,17 +548,39 @@ const DailyFoodScoreModal = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-stone-800 flex items-center justify-between bg-stone-900/50 shrink-0">
-          <h2 className="text-base font-bold text-stone-200">
-            {selectingMealFor ? (selectingMealFor === 'lunch' ? 'Elegir Almuerzo' : 'Elegir Cena') : date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </h2>
+          <div className="flex flex-col">
+            {!selectingMealFor && (
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">
+                {getDayLabel(date)}
+              </span>
+            )}
+            <h2 className="text-base font-bold text-stone-200 capitalize">
+              {selectingMealFor ? (selectingMealFor === 'lunch' ? 'Elegir Almuerzo' : 'Elegir Cena') : date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </h2>
+          </div>
           {selectingMealFor ? (
             <button onClick={() => setSelectingMealFor(null)} className="p-2 rounded-full hover:bg-stone-800 text-stone-400 transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
           ) : (
-            <span className={`text-2xl font-black tracking-tighter ${total > 0 ? 'text-lime-500' : total < 0 ? 'text-red-500' : 'text-stone-400'}`}>
-              {total > 0 ? `+${total}` : total}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`text-2xl font-black tracking-tighter ${total > 0 ? 'text-lime-500' : total < 0 ? 'text-red-500' : 'text-stone-400'}`}>
+                {total > 0 ? `+${total}` : total}
+              </span>
+              {onDismissTelon && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDismissTelon();
+                  }}
+                  className="p-1 rounded-lg text-stone-500 hover:text-stone-300 hover:bg-stone-800 transition-colors"
+                  title="Cerrar Telón"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -617,6 +798,21 @@ const DailyFoodScoreModal = ({
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Bottom Confirm / Next Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSave(score);
+                    onClose();
+                  }}
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 font-black text-xs uppercase tracking-wider transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-center gap-1.5"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>{confirmButtonText || 'Guardar'}</span>
+                </button>
               </div>
             </>
           )}
@@ -950,115 +1146,9 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
   };
 
   const handleSaveDailyScore = (date: Date, newDailyScore: DailyFoodScore) => {
-    const now = new Date();
-    const dateStr = date.toDateString();
-    const oldDailyScore = dailyScores[dateStr] || defaultDailyScore;
-    const newScores = { ...dailyScores, [dateStr]: newDailyScore };
-    
-    const oldTotal = calculateAllDaysTotal(dailyScores);
-    const newTotal = calculateAllDaysTotal(newScores);
-    const diff = newTotal - oldTotal;
-
-    const newDishes = { ...effectiveDishes };
-
-    const getDishCountLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
-        let count = 0;
-        for (let i = 0; i < max; i++) {
-            const key = baseName + ' '.repeat(i);
-            if (currentDishes[key]) count++;
-        }
-        return count;
-    };
-
-    const decrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
-        let count = getDishCountLocal(baseName, max, currentDishes);
-        if (count > 0) {
-            const key = baseName + ' '.repeat(count - 1);
-            currentDishes[key] = false;
-        }
-    };
-
-    const incrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
-        let count = getDishCountLocal(baseName, max, currentDishes);
-        if (count < max) {
-            const key = baseName + ' '.repeat(count);
-            currentDishes[key] = true;
-        }
-    };
-
-    // Always update dishes for the month that the date belongs to
-    const allConfigMeals = [...activeConfig.meals, ...FIXED_SPECIAL_MEALS];
-    // Handle lunch meal changes
-    if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
-        const mealConfig = allConfigMeals.find(m => m.name === oldDailyScore.lunchMeal);
-        if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-    if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
-        const mealConfig = allConfigMeals.find(m => m.name === newDailyScore.lunchMeal);
-        if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-
-    // Handle dinner meal changes
-    if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
-        const mealConfig = allConfigMeals.find(m => m.name === oldDailyScore.dinnerMeal);
-        if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-    if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
-        const mealConfig = allConfigMeals.find(m => m.name === newDailyScore.dinnerMeal);
-        if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-
-    const targetMonthOffset = date.getMonth() - now.getMonth() + (date.getFullYear() - now.getFullYear()) * 12;
-    const oldDerived = getDerivedBonusesForMonth(dailyScores, targetMonthOffset);
-    const newDerived = getDerivedBonusesForMonth(newScores, targetMonthOffset);
-    
-    const getBonusPoints = (bObj: any) => {
-      let pts = 0;
-      if (bObj.organs) pts += bObj.organs.filter((s: boolean) => s).length * 3;
-      if (bObj.legumes) pts += bObj.legumes.filter((s: boolean) => s).length * 3;
-      if (bObj.fast24) pts += bObj.fast24.filter((s: boolean) => s).length * 4;
-      return pts;
-    };
-    
-    const bonusDiff = getBonusPoints(newDerived) - getBonusPoints(oldDerived);
-    const totalDiff = diff + bonusDiff;
-
-    const isCurrentMonthDate = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     const isCurrentMonthView = monthOffset === 0;
-
-    if (isCurrentMonthDate) {
-        onUpdate({
-            ...foodState,
-            score: isCurrentMonthView ? updateScore(totalDiff) : score,
-            dailyScores: newScores,
-            dishes: newDishes,
-            monthlyBonuses: newDerived,
-            history: totalDiff !== 0 ? addHistory(isCurrentMonthView ? `Día: ${date.getDate()}` : `Retro-Día: ${date.getDate()}`, totalDiff) : history
-        });
-    } else {
-        const monthlyHistoryObj = foodState.monthlyHistory || {};
-        const monthKeyForDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-        const oldMonthData = monthlyHistoryObj[monthKeyForDate] || {
-            wheelPlenoCount: 0,
-            broccoliPlenoCount: 0,
-            bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
-            dishes: {}
-        };
-        
-        onUpdate({
-            ...foodState,
-            dailyScores: newScores,
-            monthlyHistory: {
-                ...monthlyHistoryObj,
-                [monthKeyForDate]: {
-                    ...oldMonthData,
-                    bonuses: newDerived,
-                    dishes: newDishes
-                }
-            },
-            history: totalDiff !== 0 ? addHistory(`Retro-Día: ${date.getDate()} (${monthKeyForDate})`, totalDiff) : history
-        });
-    }
+    const nextFood = applyDailyFoodScoreToFoodState(foodState, date, newDailyScore, isCurrentMonthView);
+    onUpdate(nextFood);
   };
 
 

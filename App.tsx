@@ -4,7 +4,7 @@ import { DailyHunos } from './components/DailyHunos';
 import { TrainView } from './components/TrainView';
 import { SetsView } from './components/SetsView';
 import { LoveTreeView } from './components/LoveTreeView';
-import { FoodBoardView, calculateAllDaysTotal, DEFAULT_MEALS, FIXED_SPECIAL_MEALS } from './components/FoodBoardView';
+import { FoodBoardView, calculateAllDaysTotal, DEFAULT_MEALS, FIXED_SPECIAL_MEALS, DailyFoodScoreModal, applyDailyFoodScoreToFoodState, defaultDailyScore } from './components/FoodBoardView';
 import { ResourceTrackerView } from './components/ResourceTrackerView';
 import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
@@ -400,6 +400,8 @@ const INITIAL_DATA: AppData = {
   lastTrainsReset: Date.now(),
   lastFoodEntryClick: 0,
   lastBookFormSunday: "",
+  lastMovieFormDate: "",
+  lastDiaryFormDate: "",
   setsPlenoClaimed: false,
   trainsPlenoClaimed: false,
   stats: {
@@ -599,7 +601,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "" } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "" } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -628,6 +630,8 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.firewallLastCompletedDate = doc.data.firewallLastCompletedDate || "";
       result.firewallChecked = doc.data.firewallChecked || { ducha: false, calle: false, huno: false };
       result.lastBookFormSunday = doc.data.lastBookFormSunday || "";
+      result.lastMovieFormDate = doc.data.lastMovieFormDate || "";
+      result.lastDiaryFormDate = doc.data.lastDiaryFormDate || "";
     } else if (doc.id === 'hunos') {
       result.hunos = doc.data.items || INITIAL_DATA.hunos;
     } else if (doc.id === 'trains') {
@@ -1149,6 +1153,7 @@ function App() {
 
   // New Modo Telón form states
   const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'diary'>('energy');
+  const [telonFoodDate, setTelonFoodDate] = useState<Date | null>(null);
   const [formDiaryContent, setFormDiaryContent] = useState<string>('');
   const [formBitacoraContent, setFormBitacoraContent] = useState<string>('');
   const [bitacoraDateTarget, setBitacoraDateTarget] = useState<'yesterday' | 'today'>('yesterday');
@@ -1167,6 +1172,161 @@ function App() {
   const [priorityTaskId, setPriorityTaskId] = useState<string | null>(null);
   const [hasCheckedInitialEnergy, setHasCheckedInitialEnergy] = useState(false);
 
+  // Helper date & Telon condition functions
+  const getPrecedingSunday = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    const sunday = new Date(d.setDate(diff));
+    sunday.setHours(0, 0, 0, 0);
+    return sunday;
+  };
+
+  const shouldAskBookForm = (appData: AppData = data) => {
+    if (!appData) return false;
+    const today = new Date();
+    const sunday = getPrecedingSunday(today);
+    const sundayKey = sunday.toDateString();
+    return appData.lastBookFormSunday !== sundayKey;
+  };
+
+  const isMealLogged = (score: DailyFoodScore | undefined, mealType: 'lunch' | 'dinner'): boolean => {
+    if (!score) return false;
+    if (score.fasting) return true;
+    if (mealType === 'lunch') {
+      return !!(score.lunch || score.deliveryLunch || score.lunchMeal);
+    } else {
+      return !!(score.dinner || score.deliveryDinner || score.dinnerMeal);
+    }
+  };
+
+  const getPendingFoodDates = (appData: AppData = data): Date[] => {
+    if (!appData || !appData.food) return [];
+    const dailyScores = appData.food.dailyScores || {};
+    const pending: Date[] = [];
+    const now = new Date();
+
+    // 1. Past days from yesterday (offset 1) backwards to 7 days ago (offset 7)
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const dateStr = d.toDateString();
+      const score = dailyScores[dateStr];
+      const lunchLogged = isMealLogged(score, 'lunch');
+      const dinnerLogged = isMealLogged(score, 'dinner');
+      if (!lunchLogged || !dinnerLogged) {
+        pending.push(d);
+      }
+    }
+
+    // 2. Today (offset 0):
+    // >= 15:00 lunch is due
+    // >= 21:00 dinner is also due
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toDateString();
+    const todayScore = dailyScores[todayStr];
+    const todayLunchLogged = isMealLogged(todayScore, 'lunch');
+    const todayDinnerLogged = isMealLogged(todayScore, 'dinner');
+
+    const currentHour = now.getHours();
+    if (currentHour >= 21) {
+      if (!todayLunchLogged || !todayDinnerLogged) {
+        pending.push(today);
+      }
+    } else if (currentHour >= 15) {
+      if (!todayLunchLogged) {
+        pending.push(today);
+      }
+    }
+
+    return pending;
+  };
+
+  const getNextPendingTelonStep = (appData: AppData = data): {
+    step: 'energy' | 'movie_ask' | 'book_ask' | 'food' | 'diary' | null;
+    pendingFoodDate?: Date;
+  } => {
+    const todayStr = new Date().toDateString();
+
+    // 1. Energy
+    const hasEnergy = appData.energyHistory && appData.energyHistory[todayStr] !== undefined && appData.energyHistory[todayStr] !== null;
+    if (!hasEnergy) {
+      return { step: 'energy' };
+    }
+
+    // 2. Cartelera (Movie)
+    const hasMovieAnswered = appData.lastMovieFormDate === todayStr;
+    if (!hasMovieAnswered) {
+      return { step: 'movie_ask' };
+    }
+
+    // 3. Biblioteca (Book)
+    if (shouldAskBookForm(appData)) {
+      return { step: 'book_ask' };
+    }
+
+    // 4. Food (Jumangiare)
+    const pendingFood = getPendingFoodDates(appData);
+    if (pendingFood.length > 0) {
+      return { step: 'food', pendingFoodDate: pendingFood[0] };
+    }
+
+    // 5. Diary & Bitácora
+    const hasDiary = appData.lastDiaryFormDate === todayStr;
+    if (!hasDiary) {
+      return { step: 'diary' };
+    }
+
+    return { step: null };
+  };
+
+  const advanceToNextTelonStep = (currentData: AppData = data) => {
+    const next = getNextPendingTelonStep(currentData);
+    if (next.step) {
+      setTelonStep(next.step);
+      if (next.step === 'food' && next.pendingFoodDate) {
+        setTelonFoodDate(next.pendingFoodDate);
+      }
+      setModoTelonActive(true);
+    } else {
+      setModoTelonActive(false);
+      setTelonDismissed(true);
+      setFocusCameFromTelon(true);
+      fetchFocusRecommendation();
+    }
+  };
+
+  const handleSaveAndAdvanceFood = (savedScore: DailyFoodScore) => {
+    if (!telonFoodDate) return;
+    const nextFood = applyDailyFoodScoreToFoodState(data.food, telonFoodDate, savedScore);
+    const nextData = { ...data, food: nextFood };
+    setData(nextData);
+
+    const remainingPending = getPendingFoodDates(nextData);
+    if (remainingPending.length > 0) {
+      setTelonFoodDate(remainingPending[0]);
+    } else {
+      advanceToNextTelonStep(nextData);
+    }
+  };
+
+  const checkAndTriggerTelon = (currentData: AppData = data) => {
+    if (!loaded || isInitializing) return;
+    if (modoTelonActive) return;
+
+    const pending = getNextPendingTelonStep(currentData);
+    if (pending.step) {
+      setTelonStep(pending.step);
+      if (pending.step === 'food' && pending.pendingFoodDate) {
+        setTelonFoodDate(pending.pendingFoodDate);
+      }
+      setModoTelonActive(true);
+      setTelonDismissed(false);
+    }
+  };
+
   // Focus States
   const [showFocusModal, setShowFocusModal] = useState(false);
   const [dailyFocus, setDailyFocus] = useState<{ date: string; text: string; completed: boolean } | null>(null);
@@ -1182,26 +1342,29 @@ function App() {
   const [focusTimerEndTime, setFocusTimerEndTime] = useState<number | null>(null);
   const [focusTimerProgress, setFocusTimerProgress] = useState<number>(0);
 
+  // Check Telón on initial load
   useEffect(() => {
-    if (!loaded || isInitializing || hasCheckedInitialEnergy) return;
+    if (!loaded || isInitializing) return;
+    checkAndTriggerTelon(data);
+  }, [loaded, isInitializing]);
 
-    const todayStr = new Date().toDateString();
-    const hasTodayEnergy = data.energyHistory && data.energyHistory[todayStr] !== undefined;
-    if (!hasTodayEnergy) {
-      setTelonStep('energy');
-      setFormEnergy(null);
-      setFormMovieWatched(false);
-      setFormMovieNote('');
-      setFormBookRead(false);
-      setFormBookNote('');
-      setFormFoodChoice('saltar');
-      setFormDiaryContent('');
-      setFormBitacoraContent('');
-      setBitacoraDateTarget(new Date().getHours() < 15 ? 'yesterday' : 'today');
-      setModoTelonActive(true);
-    }
-    setHasCheckedInitialEnergy(true);
-  }, [loaded, isInitializing, data.energyHistory, hasCheckedInitialEnergy]);
+  // Check Telón every time user enters or returns to the app (visibilitychange or window focus)
+  useEffect(() => {
+    const handleReturnToApp = () => {
+      if (document.visibilityState === 'visible') {
+        setTelonDismissed(false);
+        checkAndTriggerTelon(data);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleReturnToApp);
+    window.addEventListener('focus', handleReturnToApp);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleReturnToApp);
+      window.removeEventListener('focus', handleReturnToApp);
+    };
+  }, [loaded, isInitializing, data, modoTelonActive]);
 
   useEffect(() => {
     if (view === 'food') {
@@ -1837,355 +2000,7 @@ REGLAS DE SELECCIÓN:
     return data.food.monthlyHistory?.[targetMonthKey]?.dishes || {};
   };
 
-  const getPrecedingSunday = (date: Date) => {
-    const d = new Date(date);
-    const day = d.getDay(); // 0 is Sunday, 1 is Monday, etc.
-    const diff = d.getDate() - day; // day is how many days since Sunday
-    const sunday = new Date(d.setDate(diff));
-    sunday.setHours(0, 0, 0, 0);
-    return sunday;
-  };
 
-  const shouldAskBookForm = () => {
-    if (!data) return false;
-    const today = new Date();
-    const sunday = getPrecedingSunday(today);
-    const sundayKey = sunday.toDateString();
-    return data.lastBookFormSunday !== sundayKey;
-  };
-
-  const getUnloggedMealInfo = () => {
-    if (!data || !data.food) return null;
-    const now = new Date();
-    const isBefore15 = now.getHours() < 15;
-    
-    // We will generate the sequence of meals going backwards.
-    // For offset 0:
-    //   if isBefore15: we don't ask about today's lunch yet (skip offset 0).
-    //   if >= 15: we ask about today's lunch first.
-    // For offset > 0 (1 to 7):
-    //   we check dinner, then lunch of (offset) days ago.
-    const candidates: { date: Date; mealType: 'lunch' | 'dinner'; dayOffset: number }[] = [];
-    
-    if (!isBefore15) {
-      const today = new Date();
-      candidates.push({ date: today, mealType: 'lunch', dayOffset: 0 });
-    }
-    
-    for (let i = 1; i <= 7; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      candidates.push({ date: d, mealType: 'dinner', dayOffset: i });
-      candidates.push({ date: d, mealType: 'lunch', dayOffset: i });
-    }
-    
-    for (const cand of candidates) {
-      const dateStr = cand.date.toDateString();
-      const score = data.food.dailyScores?.[dateStr] || {
-        lunch: false,
-        dinner: false,
-        fasting: false,
-        deliveryLunch: false,
-        deliveryDinner: false,
-        fah: [false, false, false, false]
-      };
-      
-      const isLogged = cand.mealType === 'lunch'
-        ? (score.lunch || score.fasting || score.deliveryLunch)
-        : (score.dinner || score.fasting || score.deliveryDinner);
-        
-      if (!isLogged) {
-        let question = '';
-        const isToday = cand.dayOffset === 0;
-        const isYesterday = cand.dayOffset === 1;
-        const dayName = cand.date.toLocaleDateString('es-ES', { weekday: 'long' });
-        
-        if (cand.mealType === 'lunch') {
-          if (isToday) {
-            question = '¿Qué almorzaste?';
-          } else if (isYesterday) {
-            question = '¿Qué almorzaste ayer?';
-          } else {
-            question = `¿Qué almorzaste el ${dayName}?`;
-          }
-        } else {
-          if (isYesterday) {
-            question = '¿Qué cenaste?';
-          } else {
-            question = `¿Qué cenaste el ${dayName}?`;
-          }
-        }
-        
-        return {
-          date: cand.date,
-          mealType: cand.mealType,
-          question
-        };
-      }
-    }
-    
-    return null;
-  };
-
-  const saveJumangiareChoice = (
-    currentFoodState: any,
-    targetDate: Date,
-    mealType: 'lunch' | 'dinner',
-    choice: string
-  ) => {
-    const dateStr = targetDate.toDateString();
-    const dailyScores = currentFoodState.dailyScores || {};
-    const oldDailyScore = dailyScores[dateStr] || {
-      lunch: false,
-      dinner: false,
-      fasting: false,
-      deliveryLunch: false,
-      deliveryDinner: false,
-      fah: [false, false, false, false]
-    };
-
-    const newDailyScore = { ...oldDailyScore };
-    if (choice === 'ayuno') {
-      if (mealType === 'lunch') {
-        newDailyScore.lunch = true;
-        newDailyScore.lunchMeal = 'Ayuno';
-      } else {
-        newDailyScore.dinner = true;
-        newDailyScore.dinnerMeal = 'Ayuno';
-      }
-    } else if (choice === 'delivery') {
-      if (mealType === 'lunch') {
-        newDailyScore.lunch = true;
-        newDailyScore.lunchMeal = 'A domicilio';
-        newDailyScore.deliveryLunch = true;
-      } else {
-        newDailyScore.dinner = true;
-        newDailyScore.dinnerMeal = 'A domicilio';
-        newDailyScore.deliveryDinner = true;
-      }
-    } else {
-      if (mealType === 'lunch') {
-        newDailyScore.lunch = true;
-        newDailyScore.lunchMeal = choice;
-      } else {
-        newDailyScore.dinner = true;
-        newDailyScore.dinnerMeal = choice;
-      }
-    }
-
-    const newScores = { ...dailyScores, [dateStr]: newDailyScore };
-    const oldTotal = calculateAllDaysTotal(dailyScores);
-    const newTotal = calculateAllDaysTotal(newScores);
-    const diff = newTotal - oldTotal;
-
-    const activeConfig = {
-      wheel: currentFoodState.config?.wheel || [],
-      broccoli: currentFoodState.config?.broccoli || [],
-      bonuses: currentFoodState.config?.bonuses || [],
-      meals: currentFoodState.config?.meals || DEFAULT_MEALS
-    };
-
-    const now = new Date();
-    const isCurrentMonthDate = targetDate.getMonth() === now.getMonth() && targetDate.getFullYear() === now.getFullYear();
-
-    let effectiveDishes = {};
-    if (isCurrentMonthDate) {
-      effectiveDishes = currentFoodState.dishes || {};
-    } else {
-      const targetMonth = targetDate.getMonth();
-      const targetYear = targetDate.getFullYear();
-      const targetMonthKey = `${targetYear}-${(targetMonth + 1).toString().padStart(2, '0')}`;
-      effectiveDishes = currentFoodState.monthlyHistory?.[targetMonthKey]?.dishes || {};
-    }
-
-    const newDishes = { ...effectiveDishes };
-
-    const getDishCountLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
-      let count = 0;
-      for (let i = 0; i < max; i++) {
-        const key = baseName + ' '.repeat(i);
-        if (currentDishes[key]) count++;
-      }
-      return count;
-    };
-
-    const decrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
-      let count = getDishCountLocal(baseName, max, currentDishes);
-      if (count > 0) {
-        const key = baseName + ' '.repeat(count - 1);
-        currentDishes[key] = false;
-      }
-    };
-
-    const incrementDishLocal = (baseName: string, max: number, currentDishes: Record<string, boolean>) => {
-      let count = getDishCountLocal(baseName, max, currentDishes);
-      if (count < max) {
-        const key = baseName + ' '.repeat(count);
-        currentDishes[key] = true;
-      }
-    };
-
-    const allKnownMeals = [...activeConfig.meals, ...FIXED_SPECIAL_MEALS];
-
-    if (oldDailyScore.lunchMeal && oldDailyScore.lunchMeal !== newDailyScore.lunchMeal) {
-      const mealConfig = allKnownMeals.find((m: any) => m.name === oldDailyScore.lunchMeal);
-      if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-    if (newDailyScore.lunchMeal && newDailyScore.lunchMeal !== oldDailyScore.lunchMeal) {
-      const mealConfig = allKnownMeals.find((m: any) => m.name === newDailyScore.lunchMeal);
-      if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-
-    if (oldDailyScore.dinnerMeal && oldDailyScore.dinnerMeal !== newDailyScore.dinnerMeal) {
-      const mealConfig = allKnownMeals.find((m: any) => m.name === oldDailyScore.dinnerMeal);
-      if (mealConfig) decrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-    if (newDailyScore.dinnerMeal && newDailyScore.dinnerMeal !== oldDailyScore.dinnerMeal) {
-      const mealConfig = allKnownMeals.find((m: any) => m.name === newDailyScore.dinnerMeal);
-      if (mealConfig) incrementDishLocal(mealConfig.name, mealConfig.max, newDishes);
-    }
-
-    const updateScore = (delta: number) => {
-      return currentFoodState.score + delta;
-    };
-
-    const addHistory = (action: string, delta: number) => {
-      return [
-        { action, timestamp: Date.now(), delta },
-        ...(currentFoodState.history || [])
-      ].slice(0, 50);
-    };
-
-    if (isCurrentMonthDate) {
-      return {
-        ...currentFoodState,
-        score: updateScore(diff),
-        dailyScores: newScores,
-        dishes: newDishes,
-        history: diff !== 0 ? addHistory(`Día: ${targetDate.getDate()}`, diff) : (currentFoodState.history || [])
-      };
-    } else {
-      const historyMap = currentFoodState.monthlyHistory || {};
-      const monthKeyForDate = `${targetDate.getFullYear()}-${(targetDate.getMonth() + 1).toString().padStart(2, '0')}`;
-      const oldMonthData = historyMap[monthKeyForDate] || {
-        wheelPlenoCount: 0,
-        broccoliPlenoCount: 0,
-        bonuses: { organs: [false, false, false, false], legumes: [false, false, false, false], fast24: [false, false, false, false] },
-        dishes: {}
-      };
-
-      return {
-        ...currentFoodState,
-        dailyScores: newScores,
-        monthlyHistory: {
-          ...historyMap,
-          [monthKeyForDate]: {
-            ...oldMonthData,
-            dishes: newDishes
-          }
-        },
-        history: diff !== 0 ? addHistory(`Retro-Día: ${targetDate.getDate()} (${monthKeyForDate})`, diff) : (currentFoodState.history || [])
-      };
-    }
-  };
-
-  const handleCompleteDailyForm = async (
-    foodChoiceParam: string = 'saltar',
-    movieWatchedParam: boolean = formMovieWatched,
-    bookReadParam: boolean = formBookRead
-  ) => {
-    if (formEnergy === null) return;
-    
-    // 1. Process Energy Level
-    setSelectedEnergy(formEnergy);
-    const todayStr = new Date().toDateString();
-    
-    let nextData = { ...data };
-    nextData.energy = formEnergy;
-    nextData.energyHistory = {
-      ...(nextData.energyHistory || {}),
-      [todayStr]: formEnergy
-    };
-
-    // 2. Process Movie (Send note to Puerto)
-    if (movieWatchedParam && formMovieNote.trim()) {
-      try {
-        if (user) {
-          await addDoc(collection(puertoDb, 'notes'), {
-            title: '',
-            content: formMovieNote.trim(),
-            category: 'Inbox',
-            color: 'default',
-            isPinned: false,
-            isArchived: false,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            userId: user.uid,
-            images: [],
-            tags: []
-          });
-        }
-      } catch (err) {
-        console.error("Error saving movie note to Puerto DB:", err);
-      }
-    }
-
-    // 3. Process Book (Send note to Puerto)
-    const sundayKey = getPrecedingSunday(new Date()).toDateString();
-    if (shouldAskBookForm()) {
-      nextData.lastBookFormSunday = sundayKey;
-      
-      if (bookReadParam && formBookNote.trim()) {
-        try {
-          if (user) {
-            await addDoc(collection(puertoDb, 'notes'), {
-              title: '',
-              content: formBookNote.trim(),
-              category: 'Inbox',
-              color: 'default',
-              isPinned: false,
-              isArchived: false,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-              userId: user.uid,
-              images: [],
-              tags: []
-            });
-          }
-        } catch (err) {
-          console.error("Error saving book note to Puerto DB:", err);
-        }
-      }
-    }
-
-    // 4. Process Jumangiare
-    const unloggedMeal = getUnloggedMealInfo();
-    const finalFoodChoice = foodChoiceParam;
-    if (unloggedMeal && finalFoodChoice !== 'saltar') {
-      const updatedFood = saveJumangiareChoice(
-        nextData.food || { score: 0, dishes: {}, dailyScores: {}, history: [] },
-        unloggedMeal.date,
-        unloggedMeal.mealType,
-        finalFoodChoice
-      );
-      nextData.food = updatedFood;
-    }
-
-    // Update state to trigger Firestore sync
-    setData(nextData);
-  };
-
-  const handleFinishTelon = async (
-    foodChoice: string = 'saltar',
-    movieWatched: boolean = formMovieWatched,
-    bookRead: boolean = formBookRead
-  ) => {
-    await handleCompleteDailyForm(foodChoice, movieWatched, bookRead);
-    setModoTelonActive(false);
-    setTelonDismissed(true);
-    setFocusCameFromTelon(true);
-    await fetchFocusRecommendation();
-  };
 
   const saveDiaryToAspavientos = async (content: string) => {
     if (!user) return;
@@ -2608,8 +2423,9 @@ REGLAS DE SELECCIÓN:
         }
       }
     } else if (telonStep === 'diary') {
-      const unlogged = getUnloggedMealInfo();
-      if (unlogged) {
+      const pendingFood = getPendingFoodDates(data);
+      if (pendingFood.length > 0) {
+        setTelonFoodDate(pendingFood[pendingFood.length - 1]);
         setTelonStep('food');
       } else if (shouldAskBookForm()) {
         if (formBookRead) {
@@ -2624,39 +2440,10 @@ REGLAS DE SELECCIÓN:
           setTelonStep('movie_ask');
         }
       }
-    } else if (telonStep === 'focus') {
-      setTelonStep('diary');
     }
   };
 
   const renderModoTelon = () => {
-    const isCompleted = isPriorityTaskCompleted(priorityTaskId);
-    const taskText = getPriorityTaskText(priorityTaskId);
-    const taskType = getPriorityTaskType(priorityTaskId);
-    const unloggedMeal = getUnloggedMealInfo();
-
-    const activeConfig = {
-      wheel: data.food?.config?.wheel || [],
-      broccoli: data.food?.config?.broccoli || [],
-      bonuses: data.food?.config?.bonuses || [],
-      meals: data.food?.config?.meals || DEFAULT_MEALS
-    };
-
-    const targetDate = unloggedMeal?.date;
-    const currentDishes = targetDate ? getEffectiveDishesForDate(targetDate) : {};
-    const availableDishes = activeConfig.meals.filter(meal => {
-      let count = 0;
-      for (let i = 0; i < meal.max; i++) {
-        const key = meal.name + ' '.repeat(i);
-        if (currentDishes[key]) count++;
-      }
-      return count < meal.max;
-    });
-
-    const isMovieFormValid = !formMovieWatched || formMovieNote.trim().length > 0;
-    const isBookFormValid = !formBookRead || formBookNote.trim().length > 0;
-    const isFormValid = formEnergy !== null && isMovieFormValid && isBookFormValid;
-
     return (
       <div className="flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-amber-500/5 blur-3xl rounded-full pointer-events-none" />
@@ -2706,15 +2493,16 @@ REGLAS DE SELECCIÓN:
                           onClick={() => {
                             setFormEnergy(val);
                             const todayStr = new Date().toDateString();
-                            setData(prev => ({
-                              ...prev,
+                            const nextData = {
+                              ...data,
                               energy: val,
                               energyHistory: {
-                                ...(prev.energyHistory || {}),
+                                ...(data.energyHistory || {}),
                                 [todayStr]: val
                               }
-                            }));
-                            setTelonStep('movie_ask');
+                            };
+                            setData(nextData);
+                            advanceToNextTelonStep(nextData);
                           }}
                           className="aspect-square rounded-full border-2 border-amber-300 dark:border-amber-900/40 bg-amber-50 dark:bg-stone-900 text-amber-900 dark:text-amber-200 hover:border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-sm hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
                         >
@@ -2755,18 +2543,15 @@ REGLAS DE SELECCIÓN:
                     
                     <button
                       type="button"
-                      onClick={async () => {
+                      onClick={() => {
                         setFormMovieWatched(false);
-                        if (shouldAskBookForm()) {
-                          setTelonStep('book_ask');
-                        } else {
-                          const unlogged = getUnloggedMealInfo();
-                          if (unlogged) {
-                            setTelonStep('food');
-                          } else {
-                            setTelonStep('diary');
-                          }
-                        }
+                        const todayStr = new Date().toDateString();
+                        const nextData = {
+                          ...data,
+                          lastMovieFormDate: todayStr
+                        };
+                        setData(nextData);
+                        advanceToNextTelonStep(nextData);
                       }}
                       className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
                     >
@@ -2819,16 +2604,13 @@ REGLAS DE SELECCIÓN:
                           console.error("Error saving movie note to Puerto DB:", err);
                         }
                       }
-                      if (shouldAskBookForm()) {
-                        setTelonStep('book_ask');
-                      } else {
-                        const unlogged = getUnloggedMealInfo();
-                        if (unlogged) {
-                          setTelonStep('food');
-                        } else {
-                          setTelonStep('diary');
-                        }
-                      }
+                      const todayStr = new Date().toDateString();
+                      const nextData = {
+                        ...data,
+                        lastMovieFormDate: todayStr
+                      };
+                      setData(nextData);
+                      advanceToNextTelonStep(nextData);
                     }}
                     className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
                       ${formMovieNote.trim()
@@ -2869,14 +2651,15 @@ REGLAS DE SELECCIÓN:
                     
                     <button
                       type="button"
-                      onClick={async () => {
+                      onClick={() => {
                         setFormBookRead(false);
-                        const unlogged = getUnloggedMealInfo();
-                        if (unlogged) {
-                          setTelonStep('food');
-                        } else {
-                          setTelonStep('diary');
-                        }
+                        const sundayKey = getPrecedingSunday(new Date()).toDateString();
+                        const nextData = {
+                          ...data,
+                          lastBookFormSunday: sundayKey
+                        };
+                        setData(nextData);
+                        advanceToNextTelonStep(nextData);
                       }}
                       className="py-4 px-6 rounded-2xl bg-stone-900 border border-stone-800 hover:border-stone-700 active:scale-95 text-stone-300 font-bold text-sm uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-2"
                     >
@@ -2929,12 +2712,13 @@ REGLAS DE SELECCIÓN:
                           console.error("Error saving book note to Puerto DB:", err);
                         }
                       }
-                      const unlogged = getUnloggedMealInfo();
-                      if (unlogged) {
-                        setTelonStep('food');
-                      } else {
-                        setTelonStep('diary');
-                      }
+                      const sundayKey = getPrecedingSunday(new Date()).toDateString();
+                      const nextData = {
+                        ...data,
+                        lastBookFormSunday: sundayKey
+                      };
+                      setData(nextData);
+                      advanceToNextTelonStep(nextData);
                     }}
                     className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 border border-transparent
                       ${formBookNote.trim()
@@ -2946,78 +2730,36 @@ REGLAS DE SELECCIÓN:
                 </div>
               )}
 
-              {telonStep === 'food' && unloggedMeal && (
-                <div className="w-full space-y-6 animate-in fade-in duration-500 max-w-lg mx-auto text-left">
-                  <div className="space-y-1 text-center">
-                    <div className="flex items-center justify-center gap-3 mb-2">
-                      <div className="w-8 h-8 bg-emerald-950/40 border border-emerald-500/30 text-emerald-500 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.1)] shrink-0">
-                        <Utensils className="w-4 h-4" />
-                      </div>
-                      <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic leading-none">
-                        Jumangiare
-                      </h2>
-                    </div>
-                    <p className="text-stone-400 text-xs font-medium text-center">
-                      {unloggedMeal.question}
-                    </p>
-                  </div>
+              {telonStep === 'food' && telonFoodDate && (() => {
+                const dateKey = telonFoodDate.toDateString();
+                const currentScore = (data.food?.dailyScores || {})[dateKey] || defaultDailyScore;
+                const activeConfig = {
+                  meals: data.food?.config?.meals || DEFAULT_MEALS
+                };
+                const currentDishes = getEffectiveDishesForDate(telonFoodDate);
 
-                  <div className="bg-stone-900 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-xl">
-                    <div className="flex flex-wrap gap-2 pr-1">
-                      {availableDishes.map((meal) => (
-                        <button
-                          key={meal.name}
-                          type="button"
-                          onClick={() => {
-                            setFormFoodChoice(meal.name);
-                            setTelonStep('diary');
-                          }}
-                          className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-300 hover:border-emerald-500 hover:bg-emerald-950/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
-                        >
-                          <span className="text-sm">{meal.icon}</span>
-                          <span>{meal.name}</span>
-                        </button>
-                      ))}
+                return (
+                  <DailyFoodScoreModal
+                    date={telonFoodDate}
+                    initialScore={currentScore}
+                    allScores={data.food?.dailyScores || {}}
+                    meals={activeConfig.meals}
+                    dishes={currentDishes}
+                    confirmButtonText="Siguiente"
+                    onDismissTelon={() => {
+                      setModoTelonActive(false);
+                      setTelonDismissed(true);
+                    }}
+                    onSave={(score) => {
+                      handleSaveAndAdvanceFood(score);
+                    }}
+                    onClose={() => {
+                      // Handled by onSave
+                    }}
+                  />
+                );
+              })()}
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormFoodChoice('ayuno');
-                          setTelonStep('diary');
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-blue-950/30 border border-blue-900/30 text-blue-300 hover:border-blue-500 hover:bg-blue-950/50 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
-                      >
-                        <Timer className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span>Ayuno</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormFoodChoice('delivery');
-                          setTelonStep('diary');
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-red-950/50 border border-red-900/40 text-red-300 hover:border-red-500 hover:bg-red-950/70 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
-                      >
-                        <Bike className="w-4 h-4 text-red-400 shrink-0" />
-                        <span>A domicilio</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormFoodChoice('Meh');
-                          setTelonStep('diary');
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-stone-950 border border-transparent text-stone-400 hover:border-stone-600 hover:bg-stone-900/20 active:scale-95 transition-all text-left font-bold text-xs flex items-center gap-2"
-                      >
-                        <span className="text-sm">🤷</span>
-                        <span>Meh</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
               {telonStep === 'diary' && (
                 <div className="w-full space-y-4 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
                   <div className="space-y-1 text-center">
@@ -3093,7 +2835,13 @@ REGLAS DE SELECCIÓN:
                       if (formDiaryContent.trim()) {
                         await saveDiaryToAspavientos(formDiaryContent.trim());
                       }
-                      await handleFinishTelon(formFoodChoice, formMovieWatched, formBookRead);
+                      const todayStr = new Date().toDateString();
+                      const nextData = {
+                        ...data,
+                        lastDiaryFormDate: todayStr
+                      };
+                      setData(nextData);
+                      advanceToNextTelonStep(nextData);
                     }}
                     className="w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer text-center"
                   >
@@ -3101,8 +2849,8 @@ REGLAS DE SELECCIÓN:
                   </button>
                 </div>
               )}
-            </div>
           </div>
+        </div>
 
         <footer className="mt-12 text-center text-stone-800 text-[10px] font-bold tracking-widest uppercase z-10 shrink-0">
           Sebastian · Reino de la Voluntad
