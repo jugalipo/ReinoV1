@@ -2748,6 +2748,11 @@ REGLAS DE SELECCIÓN:
                     dishes={currentDishes}
                     confirmButtonText="Siguiente"
                     onDismissTelon={() => {
+                      // X avanza a la siguiente pantalla en lugar de cerrar toda la app
+                      advanceToNextTelonStep(data);
+                    }}
+                    onBack={handleTelonBack}
+                    onSkipToApp={() => {
                       setModoTelonActive(false);
                       setTelonDismissed(true);
                     }}
@@ -2760,7 +2765,7 @@ REGLAS DE SELECCIÓN:
                       handleSaveAndAdvanceFood(score);
                     }}
                     onClose={() => {
-                      // Handled by onConfirm
+                      // Handled by onConfirm / onDismissTelon
                     }}
                   />
                 );

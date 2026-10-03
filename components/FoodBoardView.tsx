@@ -329,6 +329,8 @@ export const DailyFoodScoreModal = ({
   dishes,
   confirmButtonText,
   onDismissTelon,
+  onBack,
+  onSkipToApp,
   onSave, 
   onConfirm,
   onClose 
@@ -340,6 +342,8 @@ export const DailyFoodScoreModal = ({
   dishes: Record<string, boolean>,
   confirmButtonText?: string,
   onDismissTelon?: () => void,
+  onBack?: () => void,
+  onSkipToApp?: () => void,
   onSave: (score: DailyFoodScore) => void, 
   onConfirm?: (score: DailyFoodScore) => void,
   onClose: () => void 
@@ -544,12 +548,42 @@ export const DailyFoodScoreModal = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 pb-24 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 pb-24 animate-in fade-in duration-200"
       onClick={() => {
         onSave(score);
         onClose();
       }}
     >
+      {/* Top Telón Navigation Bar when applicable */}
+      {(onBack || onSkipToApp) && (
+        <div 
+          className="w-full max-w-sm flex justify-between items-center mb-3 px-1 z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div>
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors py-1 px-2 rounded-full hover:bg-stone-900/50"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Atrás
+              </button>
+            )}
+          </div>
+          {onSkipToApp && (
+            <button
+              type="button"
+              onClick={onSkipToApp}
+              className="text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors py-1 px-2 rounded-full hover:bg-stone-900/50"
+            >
+              Saltar a la App
+            </button>
+          )}
+        </div>
+      )}
+
       <div 
         className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[72vh]"
         onClick={(e) => e.stopPropagation()}
@@ -582,7 +616,7 @@ export const DailyFoodScoreModal = ({
                     onDismissTelon();
                   }}
                   className="p-1 rounded-lg text-stone-500 hover:text-stone-300 hover:bg-stone-800 transition-colors"
-                  title="Cerrar Telón"
+                  title="Siguiente pantalla"
                 >
                   <X className="w-5 h-5" />
                 </button>
