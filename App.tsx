@@ -1088,6 +1088,8 @@ function App() {
 
   // Focus States
   const [showFocusModal, setShowFocusModal] = useState(false);
+  const [dailyFocus, setDailyFocus] = useState<{ date: string; text: string; completed: boolean } | null>(null);
+  const [dailyFronts, setDailyFronts] = useState<any | null>(null);
 
   const [bosqueWeeklyMinutes, setBosqueWeeklyMinutes] = useState(0);
   const [bosqueTrainedToday, setBosqueTrainedToday] = useState(false);
@@ -1357,6 +1359,196 @@ Ejemplo de respuesta en "text":
     }
   };
 
+  // Helper: Encuentra el Huno diario correspondiente a un frente o foco
+  const findHunoForFrontOrFocus = (key: 'foco' | 'leones' | 'sets' | 'trains' | 'forjas' | 'yunque' | 'projects'): Task | undefined => {
+    if (key === 'leones') {
+      return data.hunos.find(h => {
+        const sc = h.shortcut || getCanonicalHunoShortcut(h);
+        return sc === 'leones' || h.text.toLowerCase().includes('león') || h.text.toLowerCase().includes('leon') || h.text.includes('T1');
+      });
+    }
+    if (key === 'sets') {
+      return data.hunos.find(h => {
+        const sc = h.shortcut || getCanonicalHunoShortcut(h);
+        return sc === 'sets' || h.text.toLowerCase().includes('seta');
+      });
+    }
+    if (key === 'trains') {
+      return data.hunos.find(h => {
+        const sc = h.shortcut || getCanonicalHunoShortcut(h);
+        return sc === 'trains' || h.text.toLowerCase().includes('tren');
+      });
+    }
+    if (key === 'forjas') {
+      return data.hunos.find(h => {
+        const sc = h.shortcut || getCanonicalHunoShortcut(h);
+        return sc === 'forjas' || h.text.toLowerCase().includes('roble') || h.text.includes('T2');
+      });
+    }
+    if (key === 'yunque') {
+      return data.hunos.find(h =>
+        h.text.toLowerCase().includes('yunque') || h.text.includes('T3') || h.id === 'huno-8'
+      );
+    }
+    if (key === 'projects') {
+      return data.hunos.find(h => {
+        const sc = h.shortcut || getCanonicalHunoShortcut(h);
+        return sc === 'projects' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto') || h.text.startsWith('P ');
+      });
+    }
+    return undefined;
+  };
+
+  // Helper: Construye el inventario de candidatos para Modo Enfoque cruzando frentes de hoy con Hunos
+  const getFocusCandidates = () => {
+    const candidates: Array<{
+      id: string; // ID único para el prompt y selección
+      hunoId?: string; // ID del Huno real a completar si se pulsa
+      frontKey?: 'tren' | 'seta' | 'roble' | 'yunque' | 'leones' | 'brotes';
+      text: string; // Frase concreta real de la tarea
+      typeName: string; // Categoría ("Foco Ineludible", "Leones", "Setas", etc.)
+      emoji: string;
+      isPriorityDaily: boolean; // Si viene del foco / frentes de hoy
+      completed: boolean;
+    }> = [];
+
+    const fronts = dailyFronts?.fronts || {};
+
+    // 1. Foco Ineludible de Hoy
+    if (dailyFocus?.text?.trim()) {
+      candidates.push({
+        id: 'front-daily-focus',
+        hunoId: undefined,
+        text: dailyFocus.text.trim(),
+        typeName: 'Foco Ineludible',
+        emoji: '⚡',
+        isPriorityDaily: true,
+        completed: !!dailyFocus.completed
+      });
+    }
+
+    // 2. Leones
+    const leonesHuno = findHunoForFrontOrFocus('leones');
+    const leonesFront = fronts.leones;
+    const leonesText = leonesFront?.text?.trim() || leonesHuno?.text || 'T1 Leones 20\'';
+    const leonesDone = leonesFront ? !!leonesFront.completed : (leonesHuno ? leonesHuno.completed : false);
+    candidates.push({
+      id: leonesHuno ? leonesHuno.id : 'front-leones',
+      hunoId: leonesHuno?.id,
+      frontKey: 'leones',
+      text: leonesText,
+      typeName: 'Leones (T1)',
+      emoji: '🦁',
+      isPriorityDaily: !!leonesFront?.text?.trim(),
+      completed: leonesDone
+    });
+
+    // 3. Setas
+    const setsHuno = findHunoForFrontOrFocus('sets');
+    const setaFront = fronts.seta;
+    const setaText = setaFront?.text?.trim() || setsHuno?.text || 'Setas 30\'';
+    const setaDone = setaFront ? !!setaFront.completed : (setsHuno ? setsHuno.completed : false);
+    candidates.push({
+      id: setsHuno ? setsHuno.id : 'front-seta',
+      hunoId: setsHuno?.id,
+      frontKey: 'seta',
+      text: setaText,
+      typeName: 'Setas (Semanal)',
+      emoji: '🍄',
+      isPriorityDaily: !!setaFront?.text?.trim(),
+      completed: setaDone
+    });
+
+    // 4. Trenes
+    const trainsHuno = findHunoForFrontOrFocus('trains');
+    const trenFront = fronts.tren;
+    const trenText = trenFront?.text?.trim() || trainsHuno?.text || 'Trenes 110\'';
+    const trenDone = trenFront ? !!trenFront.completed : (trainsHuno ? trainsHuno.completed : false);
+    candidates.push({
+      id: trainsHuno ? trainsHuno.id : 'front-tren',
+      hunoId: trainsHuno?.id,
+      frontKey: 'tren',
+      text: trenText,
+      typeName: 'Trenes (Mensual)',
+      emoji: '🚂',
+      isPriorityDaily: !!trenFront?.text?.trim(),
+      completed: trenDone
+    });
+
+    // 5. Roble
+    const robleHuno = findHunoForFrontOrFocus('forjas');
+    const robleFront = fronts.roble;
+    const robleText = robleFront?.text?.trim() || robleHuno?.text || 'T2 Roble 40\'';
+    const robleDone = robleFront ? !!robleFront.completed : (robleHuno ? robleHuno.completed : false);
+    candidates.push({
+      id: robleHuno ? robleHuno.id : 'front-roble',
+      hunoId: robleHuno?.id,
+      frontKey: 'roble',
+      text: robleText,
+      typeName: 'Roble (T2)',
+      emoji: '🔥',
+      isPriorityDaily: !!robleFront?.text?.trim(),
+      completed: robleDone
+    });
+
+    // 6. Yunque
+    const yunqueHuno = findHunoForFrontOrFocus('yunque');
+    const yunqueFront = fronts.yunque;
+    const yunqueText = yunqueFront?.text?.trim() || yunqueHuno?.text || 'T3 Yunque 20\'';
+    const yunqueDone = yunqueFront ? !!yunqueFront.completed : (yunqueHuno ? yunqueHuno.completed : false);
+    candidates.push({
+      id: yunqueHuno ? yunqueHuno.id : 'front-yunque',
+      hunoId: yunqueHuno?.id,
+      frontKey: 'yunque',
+      text: yunqueText,
+      typeName: 'Yunque (T3)',
+      emoji: '🚢',
+      isPriorityDaily: !!yunqueFront?.text?.trim(),
+      completed: yunqueDone
+    });
+
+    // 7. Brotes / Proyectos
+    const brotesHuno = findHunoForFrontOrFocus('projects');
+    const brotesFront = fronts.brotes;
+    const brotesText = brotesFront?.text?.trim() || brotesHuno?.text || 'Proyectos / Brotes 44\'';
+    const brotesDone = brotesFront ? !!brotesFront.completed : (brotesHuno ? brotesHuno.completed : false);
+    candidates.push({
+      id: brotesHuno ? brotesHuno.id : 'front-brotes',
+      hunoId: brotesHuno?.id,
+      frontKey: 'brotes',
+      text: brotesText,
+      typeName: 'Brotes (Vínculos)',
+      emoji: '🌱',
+      isPriorityDaily: !!brotesFront?.text?.trim(),
+      completed: brotesDone
+    });
+
+    // 8. Resto de Hunos diarios que no están cubiertos por los frentes anteriores
+    const coveredHunoIds = new Set([
+      leonesHuno?.id,
+      setsHuno?.id,
+      trainsHuno?.id,
+      robleHuno?.id,
+      yunqueHuno?.id,
+      brotesHuno?.id
+    ].filter(Boolean));
+
+    (data.hunos || []).forEach(h => {
+      if (coveredHunoIds.has(h.id)) return;
+      candidates.push({
+        id: h.id,
+        hunoId: h.id,
+        text: h.text,
+        typeName: 'Hábito Diario',
+        emoji: getEmoji(h.text),
+        isPriorityDaily: false,
+        completed: h.completed
+      });
+    });
+
+    return candidates;
+  };
+
   const fetchFocusRecommendation = async (isReload = false) => {
     const startTime = Date.now();
     setFocusLoading(true);
@@ -1374,28 +1566,25 @@ Ejemplo de respuesta en "text":
     setFocusRecommendedTaskId(null);
     setShowFocusModal(true);
 
-    let hunosPending = data.hunos.filter(t => !t.completed && !currentRejected.includes(t.id));
-    let roblePending = (data.forjaTasks || []).filter(t => !t.completed && !currentRejected.includes(t.id));
-    let leonesPending = (data.leones || []).filter(t => t.current < t.target && !currentRejected.includes(t.id));
+    const candidates = getFocusCandidates();
+    let pendingCandidates = candidates.filter(c => !c.completed && !currentRejected.includes(c.id));
 
-    let totalUncompleted = hunosPending.length + roblePending.length + leonesPending.length;
-
-    if (totalUncompleted === 0 && currentRejected.length > 0) {
-      // Clear rejected list and retry with full pending list
+    if (pendingCandidates.length === 0 && currentRejected.length > 0) {
       currentRejected = [];
       setRejectedFocusTaskIds([]);
-      hunosPending = data.hunos.filter(t => !t.completed);
-      roblePending = (data.forjaTasks || []).filter(t => !t.completed);
-      leonesPending = (data.leones || []).filter(t => t.current < t.target);
-      totalUncompleted = hunosPending.length + roblePending.length + leonesPending.length;
+      pendingCandidates = candidates.filter(c => !c.completed);
     }
 
-    if (totalUncompleted === 0) {
-      setFocusRecommendation("Vuestros backlogs están completamente vacíos, mi señor. Disfrutad de un merecido descanso.");
+    if (pendingCandidates.length === 0) {
+      setFocusRecommendation("Vuestras tareas y hábitos del día están completamente completados, mi señor. Disfrutad de un merecido descanso.");
       setFocusRecommendedTaskId("none");
       setFocusLoading(false);
       return;
     }
+
+    // Dividir en prioritarios de hoy (con tarea real de tareas.md) y hábitos diarios generales
+    const priorityDailyPending = pendingCandidates.filter(c => c.isPriorityDaily);
+    const regularPending = pendingCandidates.filter(c => !c.isPriorityDaily);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -1410,30 +1599,29 @@ Ejemplo de respuesta en "text":
 
       const energyLevel = data.energy;
       const promptText = `
-Eres Sebastian, el mayordomo del Reino. Tu señor te ha pedido una recomendación rápida ("Enfoque") para retomar el hilo del día.
-Analiza la lista de tareas pendientes en sus backlogs y selecciona una única tarea prioritaria para retomar el rumbo de forma inmediata.
+Eres Sebastian, el mayordomo leal y riguroso de El Reino. Tu señor Julián te ha pedido una recomendación rápida ("Modo Enfoque") para decidir en qué tarea concreta centrarse ahora mismo.
 
-${energyLevel !== undefined && energyLevel !== null ? `El nivel de energía actual de tu señor para hoy es: ${energyLevel}/10. Selecciona una tarea acorde a este nivel de energía (por ejemplo, si su energía es baja, prioriza tareas más rápidas o simples; si su energía es alta, puedes proponer una tarea compleja o de mayor esfuerzo).
+${energyLevel !== undefined && energyLevel !== null ? `Nivel de energía registrado para hoy: ${energyLevel}/10. (Adapta la sugerencia a su energía actual: si es baja, sugiere tareas más mecánicas o ligeras; si es alta, empuja el foco principal o tareas de mayor esfuerzo).
+` : ''}
+${dailyFocus?.text ? `🎯 FOCO INELUDIBLE ACORDADO PARA HOY: «${dailyFocus.text}»
 ` : ''}
 ${data.sebastianInstructions ? `Directrices y preferencias de tu señor:
 ${data.sebastianInstructions}
 
-` : ''}Backlogs de tareas pendientes:
-1. Hunos (Tareas Diarias):
-${hunosPending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
+` : ''}LISTA DE TAREAS Y HÁBITOS PENDIENTES DE HOY:
+${priorityDailyPending.length > 0 ? `### Frentes y Tareas Reales de Hoy (PRIORIDAD MÁXIMA - Extraídas de tareas.md):
+${priorityDailyPending.map(t => `- [${t.id}] [${t.typeName}] ${t.text}`).join('\n')}
+` : ''}
+${regularPending.length > 0 ? `### Hábitos Diarios (Hunos Satélites):
+${regularPending.map(t => `- [${t.id}] ${t.text}`).join('\n')}
+` : ''}
 
-2. Roble (Tareas Trimestrales/Proyectos):
-${roblePending.map(t => `- [${t.id}] ${t.text}${t.notes ? ` (Nota: ${t.notes})` : ''}`).join('\n')}
-
-3. Leones (Objetivos de Recursos):
-${leonesPending.map(t => `- [${t.id}] ${t.name} (${t.current}/${t.target} ${t.unit})`).join('\n')}
-
-Por favor, responde con un objeto JSON que contenga:
-- "text": Una única frase muy breve y directa (máximo 15-20 palabras) que explique qué tarea sugieres y por qué, de forma motivadora y respetuosa para tu señor. NO firmes con tu nombre al final, no pongas "Sebastian, su mayordomo" ni nada parecido. Sólo la frase.
-- "taskId": El ID de la tarea seleccionada de la lista anterior. Debe coincidir exactamente con el ID proporcionado en el contexto.
-
-Ejemplo de respuesta en "text":
-"Os sugiero priorizar hoy la tarea de hacer la compra ya que vuestros recursos de comida se están agotando."
+REGLAS DE SELECCIÓN:
+1. Da PREFERENCIA ABSOLUTA a las Tareas Reales de Hoy fijadas en tareas.md frente a los hábitos satélites generales, salvo que todas las tareas reales estén completadas o el nivel de energía exija otra cosa.
+2. Si sugieres una tarea real, menciona de forma específica su acción concreta (ej. "Subir voluminoso Wallapop", "Estatutos CBT PDF", "Plugins", etc.) y por qué avanzar en ella ahora.
+3. Responde con un objeto JSON:
+   - "text": Una única frase muy breve, directa y motivadora (máximo 15-20 palabras) explicando qué tarea concreta sugieres y por qué. NO firmes con tu nombre al final, no añadas "Sebastian, su mayordomo". Sólo la frase.
+   - "taskId": El ID exacto de la tarea seleccionada de la lista anterior (ej. "front-daily-focus", "${pendingCandidates[0]?.id}").
 `;
 
       const response = await fetch(
@@ -1456,11 +1644,11 @@ Ejemplo de respuesta en "text":
                 properties: {
                   text: {
                     type: 'STRING',
-                    description: "A single very brief sentence explaining what to do and why. Maximum 20 words. No signature."
+                    description: "A single very brief sentence explaining what concrete task to do and why. Maximum 20 words. No signature."
                   },
                   taskId: {
                     type: 'STRING',
-                    description: "The ID of the single priority task selected from the context backlogs."
+                    description: "The exact ID of the single priority task selected from the context."
                   }
                 },
                 required: ['text', 'taskId']
@@ -1489,25 +1677,20 @@ Ejemplo de respuesta en "text":
       }
     } catch (e) {
       console.error("Error in focus recommendation:", e);
-      applyFocusFallback(hunosPending, roblePending, leonesPending);
+      applyFocusFallback(pendingCandidates);
     } finally {
       clearTimeout(timeoutId);
       setFocusLoading(false);
     }
   };
 
-  const applyFocusFallback = (
-    hunosPending: any[],
-    roblePending: any[],
-    leonesPending: any[]
-  ) => {
-    let selected = null;
-    if (hunosPending.length > 0) selected = hunosPending[0];
-    else if (roblePending.length > 0) selected = roblePending[0];
-    else if (leonesPending.length > 0) selected = leonesPending[0];
+  const applyFocusFallback = (pendingCandidates: any[]) => {
+    // Prioridad a las tareas reales de hoy
+    const priorityDaily = pendingCandidates.filter(c => c.isPriorityDaily);
+    const selected = priorityDaily.length > 0 ? priorityDaily[0] : pendingCandidates[0];
 
     if (selected) {
-      setFocusRecommendation(`Os sugiero avanzar con la tarea de "${selected.text || selected.name}" para mantener el rumbo de hoy.`);
+      setFocusRecommendation(`Os sugiero avanzar con "${selected.text}" para mantener el rumbo de hoy.`);
       setFocusRecommendedTaskId(selected.id);
     } else {
       setFocusRecommendation("Vuestros backlogs están completamente vacíos, disfrutad de un merecido descanso.");
@@ -1515,17 +1698,30 @@ Ejemplo de respuesta en "text":
     }
   };
 
-  const getFocusRecommendedTask = (): { text: string; completed: boolean; typeName: string } | null => {
+  const getFocusRecommendedTask = (): { text: string; completed: boolean; typeName: string; emoji: string } | null => {
     if (!focusRecommendedTaskId || focusRecommendedTaskId === 'none') return null;
-    
+
+    const candidates = getFocusCandidates();
+    const candidate = candidates.find(c => c.id === focusRecommendedTaskId);
+    if (candidate) {
+      return {
+        text: candidate.text,
+        completed: candidate.completed,
+        typeName: candidate.typeName,
+        emoji: candidate.emoji
+      };
+    }
+
+    // Fallback si por alguna razón no coincidió exactamente
     const huno = data.hunos.find(t => t.id === focusRecommendedTaskId);
-    if (huno) return { text: huno.text, completed: huno.completed, typeName: "Diaria" };
-
-    const ft = (data.forjaTasks || []).find(t => t.id === focusRecommendedTaskId);
-    if (ft) return { text: ft.text, completed: ft.completed, typeName: "Roble" };
-
-    const lion = (data.leones || []).find(t => t.id === focusRecommendedTaskId);
-    if (lion) return { text: lion.name, completed: lion.current >= lion.target, typeName: "Recurso (Leones)" };
+    if (huno) {
+      return {
+        text: huno.text,
+        completed: huno.completed,
+        typeName: "Hábito Diario",
+        emoji: getEmoji(huno.text)
+      };
+    }
 
     return null;
   };
@@ -2096,6 +2292,17 @@ Ejemplo de respuesta en "text":
 
   const isPriorityTaskCompleted = (taskId: string | null): boolean => {
     if (!taskId || taskId === 'none') return false;
+
+    // Si es candidato del Modo Enfoque
+    const candidates = getFocusCandidates();
+    const candidate = candidates.find(c => c.id === taskId);
+    if (candidate) {
+      if (candidate.hunoId) {
+        const huno = data.hunos.find(t => t.id === candidate.hunoId);
+        return huno ? huno.completed : candidate.completed;
+      }
+      return candidate.completed;
+    }
     
     const huno = data.hunos.find(t => t.id === taskId);
     if (huno) return huno.completed;
@@ -2136,6 +2343,10 @@ Ejemplo de respuesta en "text":
   const getPriorityTaskText = (taskId: string | null): string => {
     if (!taskId || taskId === 'none') return "";
 
+    const candidates = getFocusCandidates();
+    const candidate = candidates.find(c => c.id === taskId);
+    if (candidate) return candidate.text;
+
     const huno = data.hunos.find(t => t.id === taskId);
     if (huno) return huno.text;
 
@@ -2163,6 +2374,10 @@ Ejemplo de respuesta en "text":
   const getPriorityTaskType = (taskId: string | null): string => {
     if (!taskId || taskId === 'none') return "";
 
+    const candidates = getFocusCandidates();
+    const candidate = candidates.find(c => c.id === taskId);
+    if (candidate) return candidate.typeName;
+
     if (data.hunos.some(t => t.id === taskId)) return "Hunos";
     if ((data.forjaTasks || []).some(t => t.id === taskId)) return "Roble";
     if ((data.leones || []).some(t => t.id === taskId)) return "Leones";
@@ -2178,11 +2393,66 @@ Ejemplo de respuesta en "text":
     if (!taskId || taskId === 'none') return;
 
     const isCompleted = isPriorityTaskCompleted(taskId);
+    const nextCompleted = !isCompleted;
+
+    // 1. Caso especial: Foco Ineludible
+    if (taskId === 'front-daily-focus') {
+      if (user) {
+        try {
+          const focusRef = doc(db, 'users', user.uid, 'habits', 'daily_focus');
+          setDoc(focusRef, {
+            date: dailyFocus?.date || new Date().toISOString().split('T')[0],
+            text: dailyFocus?.text || '',
+            completed: nextCompleted,
+            updatedAt: Date.now()
+          }, { merge: true }).catch(err => console.warn('Error saving daily_focus:', err));
+        } catch (e) {
+          console.warn('Error saving daily_focus:', e);
+        }
+      }
+      return;
+    }
+
+    // 2. Si es un candidato del inventario de Enfoque con hunoId o frontKey asociado
+    const candidates = getFocusCandidates();
+    const candidate = candidates.find(c => c.id === taskId);
+    if (candidate) {
+      // Si tiene frente en Firestore, actualizar el estado del frente
+      if (candidate.frontKey && user) {
+        try {
+          const frontsRef = doc(db, 'users', user.uid, 'habits', 'daily_fronts');
+          const prevFronts = dailyFronts?.fronts || {};
+          const currentItem = prevFronts[candidate.frontKey] || { text: candidate.text, completed: false };
+          setDoc(frontsRef, {
+            date: dailyFronts?.date || new Date().toISOString().split('T')[0],
+            updatedAt: Date.now(),
+            fronts: {
+              ...prevFronts,
+              [candidate.frontKey]: {
+                ...currentItem,
+                completed: nextCompleted
+              }
+            }
+          }, { merge: true }).catch(err => console.warn('Error updating front status:', err));
+        } catch (e) {
+          console.warn('Error updating front status:', e);
+        }
+      }
+
+      // VINCULACIÓN EXCLUSIVA CON HÁBITO DIARIO (HUNO)
+      if (candidate.hunoId) {
+        const targetHuno = data.hunos.find(t => t.id === candidate.hunoId);
+        if (targetHuno && targetHuno.text.includes('Gim')) return;
+        const nextHunos = data.hunos.map(t => t.id === candidate.hunoId ? { ...t, completed: nextCompleted } : t);
+        handleHunosUpdate(nextHunos);
+        return;
+      }
+    }
 
     if (data.hunos.some(t => t.id === taskId)) {
       const hunoTask = data.hunos.find(t => t.id === taskId);
       if (hunoTask && (hunoTask.text.includes('Gim'))) return;
-      const nextHunos = data.hunos.map(t => t.id === taskId ? { ...t, completed: !isCompleted } : t);
+      const nextHunos = data.hunos.map(t => t.id === taskId ? { ...t, completed: nextCompleted } : t);
       handleHunosUpdate(nextHunos);
       return;
     }
@@ -2191,7 +2461,7 @@ Ejemplo de respuesta en "text":
     if ((data.sets || []).some(t => t.id === taskId)) {
       const setaHuno = data.hunos.find(h => h.text.toLowerCase().includes('seta'));
       if (setaHuno) {
-        const nextHunos = data.hunos.map(t => t.id === setaHuno.id ? { ...t, completed: !isCompleted } : t);
+        const nextHunos = data.hunos.map(t => t.id === setaHuno.id ? { ...t, completed: nextCompleted } : t);
         handleHunosUpdate(nextHunos);
       }
       return;
@@ -2201,7 +2471,7 @@ Ejemplo de respuesta en "text":
     if ((data.trains || []).some(t => t.id === taskId) || (data.annualTrains || []).some(t => t.id === taskId)) {
       const trenHuno = data.hunos.find(h => h.text.toLowerCase().includes('tren'));
       if (trenHuno) {
-        const nextHunos = data.hunos.map(t => t.id === trenHuno.id ? { ...t, completed: !isCompleted } : t);
+        const nextHunos = data.hunos.map(t => t.id === trenHuno.id ? { ...t, completed: nextCompleted } : t);
         handleHunosUpdate(nextHunos);
       }
       return;
@@ -2211,7 +2481,7 @@ Ejemplo de respuesta en "text":
     if ((data.projects || []).some(t => t.id === taskId)) {
       const nubeHuno = data.hunos.find(h => h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto'));
       if (nubeHuno) {
-        const nextHunos = data.hunos.map(t => t.id === nubeHuno.id ? { ...t, completed: !isCompleted } : t);
+        const nextHunos = data.hunos.map(t => t.id === nubeHuno.id ? { ...t, completed: nextCompleted } : t);
         handleHunosUpdate(nextHunos);
       }
       return;
@@ -2221,7 +2491,7 @@ Ejemplo de respuesta en "text":
     if ((data.leones || []).some(t => t.id === taskId)) {
       const leonesHuno = data.hunos.find(h => h.text.toLowerCase().includes('león') || h.text.toLowerCase().includes('leon') || h.text.toLowerCase().includes('leones'));
       if (leonesHuno) {
-        const nextHunos = data.hunos.map(t => t.id === leonesHuno.id ? { ...t, completed: !isCompleted } : t);
+        const nextHunos = data.hunos.map(t => t.id === leonesHuno.id ? { ...t, completed: nextCompleted } : t);
         handleHunosUpdate(nextHunos);
       }
       return;
@@ -3279,10 +3549,41 @@ Ejemplo de respuesta en "text":
           console.error('Desencadenado Firestore sync error:', error);
         });
 
+        let unsubscribeDailyFocus: (() => void) | undefined;
+        let unsubscribeDailyFronts: (() => void) | undefined;
+
+        try {
+          const focusRef = doc(db, 'users', user.uid, 'habits', 'daily_focus');
+          unsubscribeDailyFocus = onSnapshot(focusRef, (snap) => {
+            if (snap.exists()) {
+              setDailyFocus(snap.data() as any);
+            } else {
+              setDailyFocus(null);
+            }
+          }, (err) => console.warn('daily_focus onSnapshot error:', err));
+        } catch (e) {
+          console.warn('Error listening to daily_focus:', e);
+        }
+
+        try {
+          const frontsRef = doc(db, 'users', user.uid, 'habits', 'daily_fronts');
+          unsubscribeDailyFronts = onSnapshot(frontsRef, (snap) => {
+            if (snap.exists()) {
+              setDailyFronts(snap.data() as any);
+            } else {
+              setDailyFronts(null);
+            }
+          }, (err) => console.warn('daily_fronts onSnapshot error:', err));
+        } catch (e) {
+          console.warn('Error listening to daily_fronts:', e);
+        }
+
         return () => {
           if (unsubscribe) unsubscribe();
           if (unsubscribeBosque) unsubscribeBosque();
           if (unsubscribeDesencadenado) unsubscribeDesencadenado();
+          if (unsubscribeDailyFocus) unsubscribeDailyFocus();
+          if (unsubscribeDailyFronts) unsubscribeDailyFronts();
           document.removeEventListener('visibilitychange', handleSyncFromServer);
           window.removeEventListener('focus', handleSyncFromServer);
         };
@@ -4751,15 +5052,17 @@ Ejemplo de respuesta en "text":
                       );
 
                       const getFocusTaskEmoji = (task: any) => {
-                        if (task.typeName === "Diaria") {
+                        if (task.emoji && task.emoji !== '❓') return task.emoji;
+
+                        if (task.typeName === "Diaria" || task.typeName === "Hábito Diario") {
                           return getEmoji(task.text);
                         }
                         let shortcut = "";
-                        if (task.typeName === "Roble") shortcut = "forjas";
+                        if (task.typeName.includes("Roble")) shortcut = "forjas";
                         else if (task.typeName.includes("Leones")) shortcut = "leones";
                         else if (task.typeName.includes("Setas")) shortcut = "sets";
                         else if (task.typeName.includes("Trenes")) shortcut = "trains";
-                        else if (task.typeName.includes("Nubes")) shortcut = "projects";
+                        else if (task.typeName.includes("Nubes") || task.typeName.includes("Brotes")) shortcut = "projects";
 
                         if (shortcut) {
                           const parentHuno = data.hunos.find(h => h.shortcut === shortcut);
@@ -4771,11 +5074,13 @@ Ejemplo de respuesta en "text":
                         const ownEmoji = getEmoji(task.text);
                         if (ownEmoji !== '❓') return ownEmoji;
 
-                        if (task.typeName === "Roble") return "🍁";
+                        if (task.typeName.includes("Roble")) return "🔥";
                         if (task.typeName.includes("Leones")) return "🦁";
                         if (task.typeName.includes("Setas")) return "🍄";
                         if (task.typeName.includes("Trenes")) return "🚂";
-                        if (task.typeName.includes("Nubes")) return "🌦️";
+                        if (task.typeName.includes("Yunque")) return "🚢";
+                        if (task.typeName.includes("Brotes")) return "🌱";
+                        if (task.typeName.includes("Foco")) return "⚡";
 
                         return "❓";
                       };
