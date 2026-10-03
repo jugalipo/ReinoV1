@@ -1154,6 +1154,7 @@ function App() {
   // New Modo Telón form states
   const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'diary'>('energy');
   const [telonFoodDate, setTelonFoodDate] = useState<Date | null>(null);
+  const [sessionHandledFoodDates, setSessionHandledFoodDates] = useState<string[]>([]);
   const [formDiaryContent, setFormDiaryContent] = useState<string>('');
   const [formBitacoraContent, setFormBitacoraContent] = useState<string>('');
   const [bitacoraDateTarget, setBitacoraDateTarget] = useState<'yesterday' | 'today'>('yesterday');
@@ -1200,7 +1201,7 @@ function App() {
     }
   };
 
-  const getPendingFoodDates = (appData: AppData = data): Date[] => {
+  const getPendingFoodDates = (appData: AppData = data, excludedDateKeys: string[] = []): Date[] => {
     if (!appData || !appData.food) return [];
     const dailyScores = appData.food.dailyScores || {};
     const pending: Date[] = [];
@@ -1213,6 +1214,8 @@ function App() {
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
       const dateStr = d.toDateString();
+      if (excludedDateKeys.includes(dateStr)) continue;
+
       const score = dailyScores[dateStr];
       const lunchLogged = isMealLogged(score, 'lunch');
       const dinnerLogged = isMealLogged(score, 'dinner');
@@ -1227,25 +1230,30 @@ function App() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toDateString();
-    const todayScore = dailyScores[todayStr];
-    const todayLunchLogged = isMealLogged(todayScore, 'lunch');
-    const todayDinnerLogged = isMealLogged(todayScore, 'dinner');
+    if (!excludedDateKeys.includes(todayStr)) {
+      const todayScore = dailyScores[todayStr];
+      const todayLunchLogged = isMealLogged(todayScore, 'lunch');
+      const todayDinnerLogged = isMealLogged(todayScore, 'dinner');
 
-    const currentHour = now.getHours();
-    if (currentHour >= 21) {
-      if (!todayLunchLogged || !todayDinnerLogged) {
-        pending.push(today);
-      }
-    } else if (currentHour >= 15) {
-      if (!todayLunchLogged) {
-        pending.push(today);
+      const currentHour = now.getHours();
+      if (currentHour >= 21) {
+        if (!todayLunchLogged || !todayDinnerLogged) {
+          pending.push(today);
+        }
+      } else if (currentHour >= 15) {
+        if (!todayLunchLogged) {
+          pending.push(today);
+        }
       }
     }
 
     return pending;
   };
 
-  const getNextPendingTelonStep = (appData: AppData = data): {
+  const getNextPendingTelonStep = (
+    appData: AppData = data,
+    excludedFoodDateKeys: string[] = sessionHandledFoodDates
+  ): {
     step: 'energy' | 'movie_ask' | 'book_ask' | 'food' | 'diary' | null;
     pendingFoodDate?: Date;
   } => {
@@ -1269,7 +1277,7 @@ function App() {
     }
 
     // 4. Food (Jumangiare)
-    const pendingFood = getPendingFoodDates(appData);
+    const pendingFood = getPendingFoodDates(appData, excludedFoodDateKeys);
     if (pendingFood.length > 0) {
       return { step: 'food', pendingFoodDate: pendingFood[0] };
     }
@@ -1283,8 +1291,11 @@ function App() {
     return { step: null };
   };
 
-  const advanceToNextTelonStep = (currentData: AppData = data) => {
-    const next = getNextPendingTelonStep(currentData);
+  const advanceToNextTelonStep = (
+    currentData: AppData = data,
+    excludedFoodDateKeys: string[] = sessionHandledFoodDates
+  ) => {
+    const next = getNextPendingTelonStep(currentData, excludedFoodDateKeys);
     if (next.step) {
       setTelonStep(next.step);
       if (next.step === 'food' && next.pendingFoodDate) {
@@ -1294,6 +1305,7 @@ function App() {
     } else {
       setModoTelonActive(false);
       setTelonDismissed(true);
+      setSessionHandledFoodDates([]);
       setFocusCameFromTelon(true);
       fetchFocusRecommendation();
     }
@@ -1301,15 +1313,21 @@ function App() {
 
   const handleSaveAndAdvanceFood = (savedScore: DailyFoodScore) => {
     if (!telonFoodDate) return;
+    const currentFoodDateKey = telonFoodDate.toDateString();
+    const updatedHandledKeys = sessionHandledFoodDates.includes(currentFoodDateKey)
+      ? sessionHandledFoodDates
+      : [...sessionHandledFoodDates, currentFoodDateKey];
+    setSessionHandledFoodDates(updatedHandledKeys);
+
     const nextFood = applyDailyFoodScoreToFoodState(data.food, telonFoodDate, savedScore);
     const nextData = { ...data, food: nextFood };
     setData(nextData);
 
-    const remainingPending = getPendingFoodDates(nextData);
+    const remainingPending = getPendingFoodDates(nextData, updatedHandledKeys);
     if (remainingPending.length > 0) {
       setTelonFoodDate(remainingPending[0]);
     } else {
-      advanceToNextTelonStep(nextData);
+      advanceToNextTelonStep(nextData, updatedHandledKeys);
     }
   };
 
@@ -1317,7 +1335,7 @@ function App() {
     if (!loaded || isInitializing) return;
     if (modoTelonActive) return;
 
-    const pending = getNextPendingTelonStep(currentData);
+    const pending = getNextPendingTelonStep(currentData, sessionHandledFoodDates);
     if (pending.step) {
       setTelonStep(pending.step);
       if (pending.step === 'food' && pending.pendingFoodDate) {
@@ -2467,6 +2485,7 @@ REGLAS DE SELECCIÓN:
             onClick={() => {
               setModoTelonActive(false);
               setTelonDismissed(true);
+              setSessionHandledFoodDates([]);
             }}
             className="text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors py-1.5 px-3 rounded-full hover:bg-stone-900/50"
           >
@@ -2748,13 +2767,19 @@ REGLAS DE SELECCIÓN:
                     dishes={currentDishes}
                     confirmButtonText="Siguiente"
                     onDismissTelon={() => {
-                      // X avanza a la siguiente pantalla en lugar de cerrar toda la app
-                      advanceToNextTelonStep(data);
+                      // X avanza a la siguiente pantalla sin repetir este mismo día en esta sesión
+                      const currentFoodDateKey = telonFoodDate.toDateString();
+                      const updatedHandledKeys = sessionHandledFoodDates.includes(currentFoodDateKey)
+                        ? sessionHandledFoodDates
+                        : [...sessionHandledFoodDates, currentFoodDateKey];
+                      setSessionHandledFoodDates(updatedHandledKeys);
+                      advanceToNextTelonStep(data, updatedHandledKeys);
                     }}
                     onBack={handleTelonBack}
                     onSkipToApp={() => {
                       setModoTelonActive(false);
                       setTelonDismissed(true);
+                      setSessionHandledFoodDates([]);
                     }}
                     onSave={(score) => {
                       if (!telonFoodDate) return;
