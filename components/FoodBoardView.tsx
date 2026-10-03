@@ -345,6 +345,11 @@ export const DailyFoodScoreModal = ({
   const [score, setScore] = useState<DailyFoodScore>(initialScore);
   const [selectingMealFor, setSelectingMealFor] = useState<'lunch' | 'dinner' | null>(null);
 
+  useEffect(() => {
+    setScore(initialScore);
+    setSelectingMealFor(null);
+  }, [date.toDateString(), initialScore]);
+
   const selectableMeals = [
     ...meals,
     { name: "Meh", icon: "🤷", max: 20 },

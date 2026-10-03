@@ -1206,8 +1206,9 @@ function App() {
     const pending: Date[] = [];
     const now = new Date();
 
-    // 1. Past days from yesterday (offset 1) backwards to 7 days ago (offset 7)
-    for (let i = 1; i <= 7; i++) {
+    // Ventana corrediza de los últimos 5 días (desde hace 4 días hasta hoy)
+    // Orden cronológico: del más antiguo al más reciente
+    for (let i = 4; i >= 1; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
@@ -1220,9 +1221,9 @@ function App() {
       }
     }
 
-    // 2. Today (offset 0):
-    // >= 15:00 lunch is due
-    // >= 21:00 dinner is also due
+    // Hoy (offset 0):
+    // >= 15:00 se exige almuerzo
+    // >= 21:00 se exige también cena
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toDateString();
