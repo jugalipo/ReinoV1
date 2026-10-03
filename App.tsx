@@ -2840,18 +2840,26 @@ REGLAS DE SELECCIÓN:
                   <button
                     type="button"
                     onClick={async () => {
-                      if (formBitacoraContent.trim()) {
+                      const hasBitacora = !!formBitacoraContent.trim();
+                      const hasDiary = !!formDiaryContent.trim();
+
+                      if (hasBitacora) {
                         await saveBitacoraToPuerto(formBitacoraContent.trim(), bitacoraDateTarget);
                       }
-                      if (formDiaryContent.trim()) {
+                      if (hasDiary) {
                         await saveDiaryToAspavientos(formDiaryContent.trim());
                       }
+
+                      // Solo si escribió algo se marca como cumplido para no volver a preguntar hoy.
+                      // Si lo dejó en blanco en ambas, no se marca lastDiaryFormDate y volverá a salir la próxima vez.
                       const todayStr = new Date().toDateString();
                       const nextData = {
                         ...data,
-                        lastDiaryFormDate: todayStr
+                        ...(hasBitacora || hasDiary ? { lastDiaryFormDate: todayStr } : {})
                       };
-                      setData(nextData);
+                      if (hasBitacora || hasDiary) {
+                        setData(nextData);
+                      }
                       advanceToNextTelonStep(nextData);
                     }}
                     className="w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer text-center"
