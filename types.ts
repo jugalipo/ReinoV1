@@ -310,4 +310,5 @@ export interface AppData {
   lastBookFormSunday?: string; // Date string of the Sunday for which the book form was last processed
   lastMovieFormDate?: string; // Date string (toDateString) for which the movie form was answered
   lastDiaryFormDate?: string; // Date string (toDateString) for which the diary/bitacora form was processed
+  lastFocusDate?: string; // Date string (toDateString) for which Focus mode was last displayed automatically in Modo Telón
 }

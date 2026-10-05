@@ -402,6 +402,7 @@ const INITIAL_DATA: AppData = {
   lastBookFormSunday: "",
   lastMovieFormDate: "",
   lastDiaryFormDate: "",
+  lastFocusDate: "",
   setsPlenoClaimed: false,
   trainsPlenoClaimed: false,
   stats: {
@@ -601,7 +602,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "" } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastFocusDate: data.lastFocusDate || "" } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -632,6 +633,7 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.lastBookFormSunday = doc.data.lastBookFormSunday || "";
       result.lastMovieFormDate = doc.data.lastMovieFormDate || "";
       result.lastDiaryFormDate = doc.data.lastDiaryFormDate || "";
+      result.lastFocusDate = doc.data.lastFocusDate || "";
     } else if (doc.id === 'hunos') {
       result.hunos = doc.data.items || INITIAL_DATA.hunos;
     } else if (doc.id === 'trains') {
@@ -1306,8 +1308,29 @@ function App() {
       setModoTelonActive(false);
       setTelonDismissed(true);
       setSessionHandledFoodDates([]);
-      setFocusCameFromTelon(true);
-      fetchFocusRecommendation();
+
+      const todayStr = new Date().toDateString();
+      let localFocusDate = '';
+      try {
+        localFocusDate = localStorage.getItem('last_focus_telon_date') || '';
+      } catch (_) {}
+
+      const alreadyShownToday = currentData.lastFocusDate === todayStr || localFocusDate === todayStr;
+
+      if (!alreadyShownToday || focusCameFromTelon) {
+        try {
+          localStorage.setItem('last_focus_telon_date', todayStr);
+        } catch (_) {}
+        const nextData = {
+          ...currentData,
+          lastFocusDate: todayStr
+        };
+        setData(nextData);
+        setFocusCameFromTelon(true);
+        fetchFocusRecommendation();
+      } else {
+        setFocusCameFromTelon(false);
+      }
     }
   };
 
@@ -4885,7 +4908,10 @@ REGLAS DE SELECCIÓN:
                       </button>
                     )}
                     <button 
-                      onClick={() => setShowFocusModal(false)} 
+                      onClick={() => {
+                        setShowFocusModal(false);
+                        setFocusCameFromTelon(false);
+                      }} 
                       className="p-2 hover:bg-stone-900 rounded-xl transition-colors active:scale-95"
                       title="Salir"
                     >
@@ -5073,6 +5099,13 @@ REGLAS DE SELECCIÓN:
                 type="button"
                 onClick={() => {
                   setFocusCameFromTelon(false);
+                  const todayStr = new Date().toDateString();
+                  try {
+                    localStorage.setItem('last_focus_telon_date', todayStr);
+                  } catch (_) {}
+                  if (data.lastFocusDate !== todayStr) {
+                    setData(prev => ({ ...prev, lastFocusDate: todayStr }));
+                  }
                   fetchFocusRecommendation();
                 }}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-amber-400 hover:text-amber-300 hover:bg-stone-900/50 transition-all active:scale-95 font-bold text-xs uppercase tracking-tight italic cursor-pointer"
