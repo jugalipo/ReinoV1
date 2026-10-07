@@ -995,7 +995,7 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                   {[
                     { title: 'Vender el Trastero / Cochera', target: '4 lotes Wallapop', domain: '🦁 Leones' },
                     { title: 'Calibración Nutricional (Meta Anual)', target: '30 días Nutrilio', domain: '🍏 Bosque' },
-                    { title: 'Crónicas Calicaseñas impresas', target: 'Crónica 4 sellada', domain: '🌿 Brotes' },
+                    { title: 'Crónicas Calicaseñas impresas', target: 'Crónica 4 sellada', domain: '❤️ Brotes' },
                     { title: 'Máster RBG de Fotografía', target: 'Curso Flash completado', domain: '☁️ Nubes' },
                   ].map((target, idx) => (
                     <div key={idx} className="p-2.5 rounded-xl bg-stone-950 border border-stone-800 flex items-center justify-between">

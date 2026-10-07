@@ -337,7 +337,7 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       id: 'brotes-front',
       category: 'projects',
       name: 'Brotes',
-      emoji: '🌱',
+      emoji: '❤️',
       taskText: brotesInjected?.text || fallbackBrotes,
       completed: isBrotesDone,
       onToggle: toggleBrotes

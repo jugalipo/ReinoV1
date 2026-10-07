@@ -1804,7 +1804,7 @@ Ejemplo de respuesta en "text":
       frontKey: 'brotes',
       text: brotesText,
       typeName: 'Brotes (Vínculos)',
-      emoji: '🌱',
+      emoji: '❤️',
       isPriorityDaily: !!brotesFront?.text?.trim(),
       completed: brotesDone
     });
@@ -4978,7 +4978,7 @@ REGLAS DE SELECCIÓN:
                         if (task.typeName.includes("Setas")) return "🍄";
                         if (task.typeName.includes("Trenes")) return "🚂";
                         if (task.typeName.includes("Yunque")) return "🚢";
-                        if (task.typeName.includes("Brotes")) return "🌱";
+                        if (task.typeName.includes("Brotes")) return "❤️";
                         if (task.typeName.includes("Foco")) return "⚡";
 
                         return "❓";
