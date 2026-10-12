@@ -1321,7 +1321,7 @@ export const FoodBoardView: React.FC<FoodBoardViewProps> = ({ foodState, onUpdat
 
 
   return (
-    <div className={`fixed inset-0 max-w-md mx-auto z-50 flex flex-col animate-in fade-in duration-200 transition-colors duration-1000 ${isLegendary ? 'bg-[#FFD700]' : 'bg-stone-950'}`}>
+    <div className={`fixed inset-0 max-w-md mx-auto z-50 flex flex-col animate-in fade-in duration-200 transition-colors duration-1000 lg:my-6 lg:rounded-3xl lg:border lg:border-stone-800 lg:shadow-[0_0_60px_rgba(0,0,0,0.85)] overflow-hidden ${isLegendary ? 'bg-[#FFD700]' : 'bg-stone-950'}`}>
       <div className={`p-4 shadow-sm flex items-center justify-between border-b shrink-0 transition-colors duration-1000 ${isLegendary ? 'bg-[#FFD700] border-black/20' : 'bg-stone-900 border-stone-800'}`}>
         <div className="flex items-center gap-4">
              <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isLegendary ? 'hover:bg-black/10' : 'hover:bg-stone-800'}`}>

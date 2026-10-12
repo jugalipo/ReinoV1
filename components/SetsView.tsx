@@ -5,10 +5,11 @@ import { ArrowLeft, Check } from 'lucide-react';
 interface SetsViewProps {
   tasks: WeeklyTask[];
   onUpdate: (tasks: WeeklyTask[]) => void;
-  onBack: () => void;
+  onBack?: () => void;
+  embedded?: boolean;
 }
 
-export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) => {
+export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack, embedded = false }) => {
   // Sort for Chart: Completed first (descending boolean)
   const chartTasks = [...tasks].sort((a, b) => Number(b.completed) - Number(a.completed));
 
@@ -101,35 +102,55 @@ export const SetsView: React.FC<SetsViewProps> = ({ tasks, onUpdate, onBack }) =
   `;
 
   return (
-    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+    <div className={embedded
+      ? "bg-stone-900/90 rounded-2xl border border-stone-800 flex flex-col h-full overflow-hidden shadow-sm"
+      : "fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200"
+    }>
       <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full transition-colors">
-            <ArrowLeft className="w-6 h-6 text-red-500" />
-          </button>
+        <div className="flex items-center gap-3">
+          {!embedded && onBack && (
+            <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full transition-colors">
+              <ArrowLeft className="w-6 h-6 text-red-500" />
+            </button>
+          )}
+          {embedded && <span className="text-xl select-none">🍄</span>}
           <h1 className="text-xl font-bold text-stone-100 leading-none">Setas</h1>
         </div>
+        {embedded && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-red-400 bg-stone-950/80 px-3 py-1.5 rounded-full border border-red-900/30 shadow-sm">
+              {getWeekLabel()}
+            </span>
+            {totalMinutes >= 0 && (
+              <span className="flex items-center gap-1 text-xs font-mono font-bold text-stone-400 bg-stone-800 px-3 py-1.5 rounded-full border border-stone-700 shadow-sm">
+                {totalMinutes}min
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pb-28 bg-red-950/10">
+      <div className={`flex-1 overflow-y-auto p-4 ${embedded ? 'pb-6' : 'pb-28'} bg-red-950/10`}>
         
-        {/* Week Label Centered */}
-        <div className="flex justify-center items-center gap-3 mb-6 mt-2">
-          <span className="text-lg font-bold text-red-400 bg-stone-900/80 px-6 py-2 rounded-full border border-red-900/30 shadow-sm">
-            {getWeekLabel()}
-          </span>
-          {totalMinutes >= 0 && (
-            <span className="flex items-center gap-1 text-sm font-mono font-bold text-stone-400 bg-stone-800 px-4 py-2 rounded-full border border-stone-700 shadow-sm">
-              {totalMinutes}min
+        {/* Week Label Centered (Mobile only) */}
+        {!embedded && (
+          <div className="flex justify-center items-center gap-3 mb-6 mt-2">
+            <span className="text-lg font-bold text-red-400 bg-stone-900/80 px-6 py-2 rounded-full border border-red-900/30 shadow-sm">
+              {getWeekLabel()}
             </span>
-          )}
-        </div>
+            {totalMinutes >= 0 && (
+              <span className="flex items-center gap-1 text-sm font-mono font-bold text-stone-400 bg-stone-800 px-4 py-2 rounded-full border border-stone-700 shadow-sm">
+                {totalMinutes}min
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Mushroom Visualization */}
         {tasks.length > 0 && (
-          <div className="flex justify-center mb-8 py-4">
-            <div className="relative w-64 h-64 drop-shadow-md">
-              <svg width="256" height="256" viewBox="0 0 200 200">
+          <div className={`flex justify-center ${embedded ? 'mb-3 py-1' : 'mb-8 py-4'}`}>
+            <div className={`relative ${embedded ? 'w-36 h-32' : 'w-64 h-64'} drop-shadow-md`}>
+              <svg width="100%" height="100%" viewBox={embedded ? "0 5 200 165" : "0 0 200 200"}>
                 {/* Mushroom Cap (Progress) */}
                 {chartTasks.map((task, index) => (
                   <path

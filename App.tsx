@@ -12,6 +12,7 @@ import { StatsView } from './components/StatsView';
 import { FootTasksModal } from './components/FootTasksModal';
 import { CaminosView } from './components/CaminosView';
 import { TasksHubView } from './components/TasksHubView';
+import { DesktopDashboard } from './components/DesktopDashboard';
 import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -4144,7 +4145,8 @@ REGLAS DE SELECCIÓN:
         const currentFoodScore = getCurrentMonthlyFoodScore();
         const isFoodPleno = currentFoodScore >= 200;
         return (
-          <div className={`flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-6 relative ${!hideFloatingButtons ? 'pb-28' : ''}`}>
+          <div className={`flex flex-col min-h-screen lg:min-h-0 max-w-md lg:max-w-none mx-auto bg-stone-950 p-6 lg:p-0 relative ${!hideFloatingButtons ? 'pb-28 lg:pb-0' : ''}`}>
+            <div className="flex flex-col lg:hidden">
             <header className="mb-6 mt-4 flex justify-between items-center w-full gap-2">
               {/* Small Streak Dial in Header */}
               <div className="flex-1 flex items-center justify-between">
@@ -4536,6 +4538,7 @@ REGLAS DE SELECCIÓN:
             </div>
 
             <footer className="mt-12 text-center text-stone-700 text-sm">SEMPER ITERVM RVDIS</footer>
+            </div>
             {showHistory && (
               <HistoryEditorModal 
                 data={data} 
@@ -4871,7 +4874,7 @@ REGLAS DE SELECCIÓN:
             )}
 
             {showFocusModal && (
-              <div className="fixed inset-0 max-w-md mx-auto z-[200] bg-stone-950 flex flex-col p-6 animate-in fade-in duration-300">
+              <div className="fixed inset-0 max-w-md mx-auto z-[200] bg-stone-950 flex flex-col p-6 animate-in fade-in duration-300 lg:my-8 lg:rounded-3xl lg:border lg:border-stone-800 lg:shadow-[0_0_60px_rgba(0,0,0,0.85)] overflow-hidden">
                 {/* Header */}
                 <div className="flex justify-between items-center pb-2 mb-2">
                   <div className="flex items-center gap-3">
@@ -5070,14 +5073,105 @@ REGLAS DE SELECCIÓN:
 
   const hideFloatingButtons = modoTelonActive || showHistory || showFirewallModal || showProjectPromptModal || showProjectConfirm || showFootModal || showGympiezaModal || showCongratulations.show || showFocusModal;
 
+  const desktopCurrentFoodScore = getCurrentMonthlyFoodScore();
+  const desktopFootTasks = [
+    ...data.trains.flatMap(t => t.subtasks || []),
+    ...data.sets.flatMap(s => s.subtasks || [])
+  ].filter(s => s && s.text && s.text.includes('🦶'));
+  const desktopFootProgress = desktopFootTasks.length > 0
+    ? desktopFootTasks.filter(s => s.completed).length / desktopFootTasks.length
+    : 0;
+  const { pendingHunoIds: desktopPendingHunoIds } = calculateHunosPlenosAndPending(
+    data.hunos,
+    data.hunosHistory || {},
+    data.hunos.filter(t => t.completed).map(t => t.id)
+  );
+  const desktopGimHuno = data.hunos.find(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
+  const desktopLockedHunoIds = desktopGimHuno ? [desktopGimHuno.id] : [];
+
   return (
     <div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative">
-      <div className="max-w-md mx-auto bg-stone-950 min-h-screen shadow-2xl overflow-hidden relative border-x border-stone-900">
+      {!modoTelonActive && (
+        <DesktopDashboard
+          data={data}
+          onUpdateData={setData}
+          onNavigate={setView}
+          onTriggerFocus={() => {
+            setFocusCameFromTelon(false);
+            const todayStr = new Date().toDateString();
+            try {
+              localStorage.setItem('last_focus_telon_date', todayStr);
+            } catch (_) {}
+            if (data.lastFocusDate !== todayStr) {
+              setData(prev => ({ ...prev, lastFocusDate: todayStr }));
+            }
+            fetchFocusRecommendation();
+          }}
+          onOpenFootModal={() => setShowFootModal(true)}
+          onOpenGympiezaModal={() => setShowGympiezaModal(true)}
+          onOpenHistory={() => setShowHistory(true)}
+          onLogout={() => { if (isGuest) setIsGuest(false); else logout(); }}
+          pastDays={getPastFiveDays()}
+          onToggleStreakDayReview={toggleStreakDayReview}
+          currentStreak={calculateStreak()}
+          bosqueWeeklyMinutes={bosqueWeeklyMinutes}
+          hasImportantLoveEventToday={hasImportantLoveEventToday()}
+          loveProgress={getLoveProgress()}
+          leonesProgress={getResourceProgress(data.leones)}
+          forjasProgress={getResourceProgress(data.forjas, true)}
+          footProgress={desktopFootProgress}
+          currentFoodScore={desktopCurrentFoodScore}
+          isFoodPleno={desktopCurrentFoodScore >= 200}
+          shouldJumangiareBounce={shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {})}
+          onFoodClick={() => {
+            setView('food');
+            setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
+          }}
+          pendingHunoIds={desktopPendingHunoIds}
+          lockedHunoIds={desktopLockedHunoIds}
+          onHunosUpdate={handleHunosUpdate}
+          onSetsUpdate={handleSetsUpdate}
+          onTrainsUpdate={handleTrainsUpdate}
+          isNubesCollapsed={isNubesCollapsed}
+          setIsNubesCollapsed={setIsNubesCollapsed}
+          isEditingProjects={isEditingProjects}
+          setIsEditingProjects={setIsEditingProjects}
+          onToggleProject={toggleProject}
+          onProjectTextChange={handleProjectTextChange}
+          onInitiateDeleteProject={initiateDeleteProject}
+          onInitiateAddProject={initiateAddProject}
+          onOpenProjectNotes={(id, notes) => {
+            setNoteEditingProjectId(id);
+            setTempProjectNoteText(notes);
+          }}
+          getEmoji={getEmoji}
+        />
+      )}
+
+      {/* Backdrop en escritorio cuando se abre cualquier vista secundaria o modal de página */}
+      {!modoTelonActive && (view !== 'home' || showHistory || showFocusModal) && (
+        <div
+          className="hidden lg:block fixed inset-0 z-40 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => {
+            if (view !== 'home') setView('home');
+            if (showHistory) {
+              setShowHistory(false);
+              setHistoryInitialDate(undefined);
+            }
+            if (showFocusModal) {
+              setShowFocusModal(false);
+              setFocusCameFromTelon(false);
+            }
+          }}
+        />
+      )}
+
+      <div className="max-w-md lg:max-w-none mx-auto bg-stone-950 min-h-screen lg:min-h-0 shadow-2xl overflow-hidden relative border-x lg:border-x-0 border-stone-900">
         {renderView()}
 
-        {/* Fixed Bottom Footer: Botón único dividido en 3 partes flotantes (Inicio, Enfoque, Tareas) */}
+        {/* Fixed Bottom Footer: Botón único dividido en 3 partes flotantes (Solo móvil: lg:hidden) */}
         {!hideFloatingButtons && (
-          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-stone-900/90 backdrop-blur-md border-t border-stone-800 border-x border-stone-900 px-4 py-3 z-[90] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+          <div className="lg:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-stone-900/90 backdrop-blur-md border-t border-stone-800 border-x border-stone-900 px-4 py-3 z-[90] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
             <div className="w-full flex items-stretch bg-stone-950/70 border border-stone-800/90 rounded-2xl p-1 shadow-inner divide-x divide-stone-800/80">
               {/* Botón 1: Inicio */}
               <button 

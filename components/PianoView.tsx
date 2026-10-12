@@ -459,7 +459,7 @@ export const PianoView: React.FC<PianoViewProps> = ({ pianoState, onUpdate, onBa
   ] as const;
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-200 p-4 max-w-md mx-auto animate-in slide-in-from-right-8 duration-300 pb-24">
+    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 text-stone-200 p-4 overflow-y-auto animate-in slide-in-from-right-8 duration-300 pb-24 lg:pb-6 lg:my-6 lg:rounded-3xl lg:border lg:border-stone-800 lg:shadow-[0_0_60px_rgba(0,0,0,0.85)]">
       <div className="flex items-center mb-6">
         <button onClick={onBack} className="p-2 mr-2 bg-stone-900 rounded-full hover:bg-stone-800 transition-colors">
           <ArrowLeft className="w-6 h-6 text-stone-400" />

@@ -8,12 +8,13 @@ interface TrainViewProps {
   annualTasks: Task[];
   onUpdate: (tasks: Task[]) => void;
   onUpdateAnnual: (tasks: Task[]) => void;
-  onBack: () => void;
+  onBack?: () => void;
   reminderDismissedToday: boolean;
   onDismissReminder: () => void;
+  embedded?: boolean;
 }
 
-export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpdate, onUpdateAnnual, onBack, reminderDismissedToday, onDismissReminder }) => {
+export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpdate, onUpdateAnnual, onBack, reminderDismissedToday, onDismissReminder, embedded = false }) => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [showAnnualReminder, setShowAnnualReminder] = useState(!reminderDismissedToday);
   const [newSubtask, setNewSubtask] = useState('');
@@ -21,7 +22,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   const [activeFilter, setActiveFilter] = useState<'star' | 'foot' | 'subtasks' | null>(null);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useModalHistory(!!activeTaskId, () => setActiveTaskId(null));
+  useModalHistory(!embedded && !!activeTaskId, () => setActiveTaskId(null));
   useModalHistory(!!subtaskToDelete, () => setSubtaskToDelete(null));
   // ---------------------------------------------
 
@@ -318,6 +319,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                const { name, duration, accentColor } = parseTrainInfo(task.text);
                const finalAccentColor = isAnnual ? 'bg-stone-200' : accentColor;
                const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+               const isExpandedInline = (activeFilter === 'subtasks' && hasSubtasks) || (embedded && activeTaskId === task.id);
 
                return (
                 <div key={task.id} className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden shadow-sm">
@@ -327,7 +329,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                             ? 'bg-stone-900/40 opacity-50'
                             : 'bg-stone-900 hover:bg-stone-800 cursor-pointer'
                         }`}
-                        onClick={() => setActiveTaskId(task.id)}
+                        onClick={() => setActiveTaskId(prev => embedded && prev === task.id ? null : task.id)}
                     >
                         {/* Left Accent Line */}
                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${finalAccentColor} h-full`} />
@@ -369,14 +371,17 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                                     {duration}
                                 </span>
                             )}
-                            <ChevronRight className="w-5 h-5 text-stone-600" />
+                            <ChevronRight className={`w-5 h-5 text-stone-600 transition-transform duration-200 ${embedded && activeTaskId === task.id ? 'rotate-90 text-blue-400' : ''}`} />
                         </div>
                     </div>
 
-                    {/* Subtasks Inline List when activeFilter === 'subtasks' */}
-                    {activeFilter === 'subtasks' && hasSubtasks && (
-                        <div className="border-t border-stone-800/80 bg-stone-950/60 p-3 pl-6 pr-4 space-y-2">
-                            {[...task.subtasks!]
+                    {/* Subtasks Inline List when activeFilter === 'subtasks' or expanded in-place in desktop mode */}
+                    {isExpandedInline && (
+                        <div className="border-t border-stone-800/80 bg-stone-950/60 p-3 pl-6 pr-4 space-y-2 animate-in fade-in duration-150">
+                            {(!task.subtasks || task.subtasks.length === 0) && embedded && (
+                                <p className="text-center text-stone-600 py-1 italic text-xs">Añade pasos para completar este tren.</p>
+                            )}
+                            {[...(task.subtasks || [])]
                                 .sort((a, b) => Number(a.completed) - Number(b.completed))
                                 .map((sub) => (
                                 <div
@@ -385,26 +390,63 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                                         e.stopPropagation();
                                         toggleSubtask(task.id, sub.id, isAnnual);
                                     }}
-                                    className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                                    className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
                                         sub.completed
                                             ? 'bg-stone-900/40 border-stone-800/60 opacity-60'
+                                            : sub.isProvisional
+                                            ? 'bg-indigo-900/30 border-indigo-500/40'
                                             : 'bg-stone-900 border-stone-800 hover:border-stone-700 shadow-sm'
                                     }`}
                                 >
-                                    <div
-                                        className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                                            sub.completed
-                                                ? 'bg-blue-600 border-blue-600 text-white'
-                                                : 'border-stone-600 hover:border-blue-400'
-                                        }`}
-                                    >
-                                        {sub.completed && <Check className="w-3.5 h-3.5 text-white" />}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div
+                                            className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                                                sub.completed
+                                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                                    : 'border-stone-600 hover:border-blue-400'
+                                            }`}
+                                        >
+                                            {sub.completed && <Check className="w-3.5 h-3.5 text-white" />}
+                                        </div>
+                                        <span className={`text-sm font-semibold truncate ${sub.completed ? 'line-through text-stone-500' : 'text-stone-200'}`}>
+                                            {sub.text}
+                                        </span>
                                     </div>
-                                    <span className={`text-sm font-semibold truncate ${sub.completed ? 'line-through text-stone-500' : 'text-stone-200'}`}>
-                                        {sub.text}
-                                    </span>
+                                    {sub.isProvisional && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveTaskId(task.id);
+                                                setSubtaskToDelete({ id: sub.id, text: sub.text });
+                                            }}
+                                            className="text-stone-600 hover:text-red-400 p-1 shrink-0"
+                                            title="Eliminar subtarea provisional"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
+
+                            {embedded && activeTaskId === task.id && (
+                                <div className="flex gap-2 pt-2 border-t border-stone-800/80" onClick={(e) => e.stopPropagation()}>
+                                    <input
+                                        type="text"
+                                        value={newSubtask}
+                                        onChange={(e) => setNewSubtask(e.target.value)}
+                                        placeholder="Nueva subtarea..."
+                                        className="flex-1 px-3 py-1.5 rounded-lg border border-stone-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-stone-950 text-stone-200 placeholder-stone-600 text-xs"
+                                        onKeyDown={(e) => e.key === 'Enter' && addSubtask()}
+                                    />
+                                    <button
+                                        onClick={addSubtask}
+                                        className="bg-blue-700 text-white px-2.5 py-1.5 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
+                                        title="Añadir subtarea"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -416,7 +458,10 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   )};
 
   return (
-    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+    <div className={embedded
+      ? "bg-stone-900/90 rounded-2xl border border-stone-800 flex flex-col h-full overflow-hidden shadow-sm relative"
+      : "fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200"
+    }>
 
       {/* Daily Annual Train Reminder Modal */}
       {showAnnualReminder && (() => {
@@ -449,7 +494,13 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                   ¡Hecho!
                 </button>
                 <button
-                  onClick={onBack}
+                  onClick={() => {
+                    if (embedded) {
+                      setShowAnnualReminder(false);
+                    } else if (onBack) {
+                      onBack();
+                    }
+                  }}
                   className="w-full py-3 rounded-2xl bg-stone-800 text-stone-400 font-bold text-sm hover:bg-stone-700 hover:text-stone-300 transition-all active:scale-95"
                 >
                   Todavía no
@@ -460,39 +511,59 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
         );
       })()}
       <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
-        <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
-            <ArrowLeft className="w-6 h-6 text-blue-400" />
-            </button>
-            <h1 className="text-xl font-bold text-blue-100">Trenes</h1>
+        <div className="flex items-center gap-3">
+            {!embedded && onBack && (
+              <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
+                <ArrowLeft className="w-6 h-6 text-blue-400" />
+              </button>
+            )}
+            {embedded && <span className="text-xl select-none">🚂</span>}
+            <h1 className="text-xl font-bold text-blue-100 leading-none">Trenes</h1>
         </div>
+        {embedded && (
+          <div className="flex items-center gap-1.5">
+            <div className="bg-stone-950 text-blue-400 text-[11px] font-black px-3 py-1 rounded-full border border-stone-800 shadow-sm uppercase tracking-widest">
+              {new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(new Date())}
+            </div>
+            <div className="bg-blue-600 text-white text-[11px] font-black px-2.5 py-1 rounded-full shadow-sm border border-blue-400">
+              {Math.round(progress)}%
+            </div>
+            {totalMonthlyHours >= 0 && (
+              <div className="bg-blue-900/20 text-blue-400 text-[11px] font-black px-2.5 py-1 rounded-full border border-blue-800/50 shadow-sm">
+                {totalMonthlyHours}h
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pb-28 bg-blue-950/20">
+      <div className={`flex-1 overflow-y-auto p-4 ${embedded ? 'pb-6' : 'pb-28'} bg-blue-950/20`}>
         {/* Train Visualization */}
-        <div className="mb-8 py-2">
-                {/* Monthly Progress Information Bullets (Above the SVG) */}
-                <div className="flex justify-center flex-wrap gap-2 mb-4">
-                    {/* Month Bullet */}
-                    <div className="bg-stone-950 text-blue-400 text-xs font-black px-4 py-2 rounded-full border border-stone-800 shadow-sm uppercase tracking-widest">
-                        {new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date())}
-                    </div>
+        <div className={embedded ? "mb-4 py-1" : "mb-8 py-2"}>
+                {/* Monthly Progress Information Bullets (Above the SVG - Mobile only) */}
+                {!embedded && (
+                  <div className="flex justify-center flex-wrap gap-2 mb-4">
+                      {/* Month Bullet */}
+                      <div className="bg-stone-950 text-blue-400 text-xs font-black px-4 py-2 rounded-full border border-stone-800 shadow-sm uppercase tracking-widest">
+                          {new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date())}
+                      </div>
 
-                    {/* Progress Percentage Bullet */}
-                    <div className="bg-blue-600 text-white text-xs font-black px-4 py-2 rounded-full shadow-lg border border-blue-400">
-                        {Math.round(progress)}%
-                    </div>
+                      {/* Progress Percentage Bullet */}
+                      <div className="bg-blue-600 text-white text-xs font-black px-4 py-2 rounded-full shadow-lg border border-blue-400">
+                          {Math.round(progress)}%
+                      </div>
 
-                    {/* Hours Bullet */}
-                    {totalMonthlyHours >= 0 && (
-                        <div className="bg-blue-900/20 text-blue-400 text-xs font-black px-4 py-2 rounded-full border border-blue-800/50 shadow-sm">
-                            {totalMonthlyHours}h
-                        </div>
-                    )}
-                </div>
+                      {/* Hours Bullet */}
+                      {totalMonthlyHours >= 0 && (
+                          <div className="bg-blue-900/20 text-blue-400 text-xs font-black px-4 py-2 rounded-full border border-blue-800/50 shadow-sm">
+                              {totalMonthlyHours}h
+                          </div>
+                      )}
+                  </div>
+                )}
 
                 {/* Monthly Progress (Zigzag) */}
-                <div className="relative w-full py-4 pt-4">
+                <div className={`relative w-full ${embedded ? 'max-w-[310px] mx-auto py-1' : 'py-4 pt-4'}`}>
                     <svg viewBox="-5 0 435 120" className="w-full h-auto drop-shadow-2xl">
                         {/* Background Path (Track) - INVERTED */}
                         <path 
@@ -640,8 +711,8 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
         )}
       </div>
 
-      {/* Subtasks Modal - Changed from absolute to fixed */}
-      {activeTaskId && activeTask && (
+      {/* Subtasks Modal - Mobile only (!embedded) */}
+      {!embedded && activeTaskId && activeTask && (
         <div 
           className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           onClick={() => setActiveTaskId(null)}

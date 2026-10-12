@@ -322,7 +322,7 @@ export const LoveTreeView: React.FC<LoveTreeViewProps> = ({
   const selectedFriendDays = selectedFriend ? getDaysSince(selectedFriend.lastInteraction) : 0;
 
   return (
-    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200 lg:my-6 lg:rounded-3xl lg:border lg:border-stone-800 lg:shadow-[0_0_60px_rgba(0,0,0,0.85)] overflow-hidden">
       <div className="p-4 bg-stone-900 shadow-sm flex items-center gap-4 border-b border-stone-800 shrink-0">
         <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full">
           <ArrowLeft className="w-6 h-6 text-pink-500" />

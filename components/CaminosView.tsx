@@ -65,7 +65,7 @@ export const CaminosView: React.FC<CaminosViewProps> = ({ caminos, onUpdate, onB
   });
 
   return (
-    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in slide-in-from-right duration-300 lg:my-6 lg:rounded-3xl lg:border lg:border-stone-800 lg:shadow-[0_0_60px_rgba(0,0,0,0.85)] overflow-hidden">
       <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800 shrink-0">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-stone-800 rounded-full transition-colors">
