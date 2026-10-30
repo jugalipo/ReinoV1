@@ -16,6 +16,9 @@ export interface Task {
   notes?: string; // Additional details for AI recommendations
   isMain?: boolean;
   skipThisWeek?: boolean;
+  skipThisMonth?: boolean;
+  isActiveAnnual?: boolean;
+  annualRegime?: 'estricto' | 'preferente' | 'arrastre';
 }
 
 export interface GympiezaTask {

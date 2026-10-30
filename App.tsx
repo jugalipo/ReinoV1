@@ -252,16 +252,19 @@ const GYMPIEZA_TASKS_LIST = [
 ] as const;
 
 const ANNUAL_TRAIN_TASKS = [
-  { text: "🚂 Peluquería (IMPAR)", subtasks: ["Cita Peluquería", "Corte", "Descafeinado 15"] },
-  { text: "🚂 Pulsera FIT-09", subtasks: ["Sacar pulsera", "Configurar móvil", "Medir", "Anotar resultados"] },
-  { text: "🚂 Agenda (DIC)", subtasks: ["Revisar mejoras de Agenda", "Maquetar nueva Agenda", "Imprimir Agenda"] },
-  { text: "🚂 Inventarios (DIC)", subtasks: ["Anotar inventarios", "Biblioteca", "Legenda", "Cartelera", "Videnda", "Cancionero", "Memorando", "Gimnasio", "Flores", "Alcancía", "Museo", "Baúl mundo", "Amortizaciones", "Palabrario", "Liceo"] },
-  { text: "🚂 Prontuario (DIC)", subtasks: ["Añadir textos Prontuario", "Ordenar textos", "Corregir y refinar", "Maquetar", "Imprimir"] },
-  { text: "🚂 Álbum (DIC)", subtasks: ["Elegir fotos", "Editar fotos", "Maquetar", "Imprimir"] },
-  { text: "🚂 Confesiones (DIC)", subtasks: ["Añadir novedades", "Revisar", "Maquetar", "Imprimir"] },
-  { text: "🚂 Testamento (DIC)", subtasks: ["Revisar testamento", "(Pedir cita)"] },
-  { text: "🚂 Aspavientos (DIC)", subtasks: ["Ordenar textos", "Revisar y corregir", "Maquetar", "Imprimir"] },
-  { text: "🚂 Cosas del Reino (DIC)", subtasks: ["Actualizar Índices de la Biblioteca", "Revisar mapa Reino", "Excel Servanda", "Nuevos propósitos anuales", "Los Illustrator del Reino", "Excel del Reino"] }
+  { text: "🍏 1. Pulsera FIT 2h", repeaterMonths: [8], annualRegime: 'estricto' as const, subtasks: ["Sacar y cargar la pulsera", "Configurar app y enlace con el móvil (Huawei Salud)", "Medir y registrar datos durante el mes", "Anotar resultados y medias anuales (Pasos, Sueño, Pulso en reposo) y guardar pulsera"] },
+  { text: "🍏 2. Dora la Exploradora 2h", repeaterMonths: [0], annualRegime: 'arrastre' as const, subtasks: ["Elegir experiencia o disciplina a explorar 🦶 [Calle] ⭐ [Arranque]", "Decir y comprometerse con el plan 🦶 [Calle] ⭐ [Arranque]", "Ejecutar la jornada de exploración", "Redactar reflexión sobre lo descubierto 🦶 [Calle]"] },
+  { text: "🚂 3. Agenda 5h", repeaterMonths: [11], annualRegime: 'estricto' as const, subtasks: ["Revisar notas de mejoras y aprendizajes de diseño del año ⭐ [Arranque]", "Maquetar nueva Agenda física", "Mandar a imprimir y encuadernar (Bubok)"] },
+  { text: "🚂 4. Inventarios 5h", repeaterMonths: [11], annualRegime: 'preferente' as const, subtasks: ["Anotar y actualizar inventarios en borrador ⭐ [Arranque]", "Biblioteca y Legenda", "Cartelera y Videnda", "Sensacine (4 vídeos Alejandro G. Calvo)", "Cancionero", "Memorando general", "Gimnasio (marcas y progreso)", "Flores (frases de otros)", "Alcancía (porcentajes de patrimonio)", "Museo (obras de arte)", "Baúl Mundo (censo físico de objetos)", "Amortizaciones (vida útil cachivaches)", "Palabrario y Liceo (etimologías y mentores)"] },
+  { text: "🚂 5. Prontuario 10h", repeaterMonths: [11], annualRegime: 'arrastre' as const, subtasks: ["Compilar y volcar novedades y aforismos del año", "Ordenar y categorizar textos", "Corregir y pulir estilo con El Editor", "Maquetar tomo anual de Prontuario", "Mandar a imprimir nuevo ejemplar (destruyendo el previo)"] },
+  { text: "🚂 6. Álbum 10h", repeaterMonths: [11], annualRegime: 'arrastre' as const, subtasks: ["Selección rigurosa de las mejores fotos del año (criba estética)", "Revelado y retoque de imágenes", "Maquetación del álbum", "Enviar a imprimir ejemplar físico"] },
+  { text: "☁️ 7. Confesiones 10h", repeaterMonths: [11], annualRegime: 'arrastre' as const, subtasks: ["Revisar entradas del año y seleccionar las reservadas a Confesiones", "Remodelar o pulir entradas previas", "Remaquetar volumen privado", "Imprimir ejemplar actualizado (destruyendo el anterior)"] },
+  { text: "🦁 8. Testamento 5h", repeaterMonths: [11], annualRegime: 'arrastre' as const, subtasks: ["Revisar testamento, reparto patrimonial y disposiciones legales", "Revisar y actualizar cartas póstumas a seres queridos", "(Pedir cita en notaría si procede formalizar cambios)"] },
+  { text: "☁️ 9. Aspavientos 25h", repeaterMonths: [11], annualRegime: 'arrastre' as const, subtasks: ["Compilar y ordenar textos del año previo (app Aspavientos)", "Revisar, podar y corregir estilo como obra literaria (con El Editor)", "Integrar los Apéndices de Inventarios del año", "Maquetar volumen anual", "Enviar a imprenta y encuadernación"] },
+  { text: "🚂 10. Cosas del Reino 10h", repeaterMonths: [11], annualRegime: 'arrastre' as const, subtasks: ["Actualizar catálogo de Biblioteca con Libib (escaneo físico y ubicación en cajas)", "Revisar mapa de El Reino, imprimirlo y actualizar el cuadro del salón", "Poner al día base de datos Servanda", "Actualizar láminas de diseño oficial (en Affinity)", "Poner al día el cuadro maestro del sistema"] },
+  { text: "🍏 11. Reset Trimestral de Cafeína 15'", repeaterMonths: [2, 5, 8, 11], annualRegime: 'estricto' as const, subtasks: ["Comprar o aprovisionar café descafeinado de calidad ⭐ [Arranque]", "Cumplir los 7 días continuos a café 100% descafeinado (última semana de Q)"] },
+  { text: "🍏 12. Peluquería 1h", repeaterMonths: [0, 2, 4, 6, 8, 10], annualRegime: 'estricto' as const, subtasks: ["Pedir cita y corte de pelo en peluquería (segunda quincena) 🦶 [Calle]"] },
+  { text: "🌳 13. Propósitos Trimestrales de Roble 2h", repeaterMonths: [2, 5, 8, 11], annualRegime: 'estricto' as const, subtasks: ["Balance y cierre de propósitos del trimestre saliente en roble.md ⭐ [Arranque]", "Formular y aprobar los 4 nuevos propósitos trimestrales en roble.md (y Metas Anuales en diciembre) ⭐ [Arranque]"] }
 ];
 
 export const getCanonicalHunoShortcut = (task: { text?: string; shortcut?: string; id?: string }): string | undefined => {
@@ -297,7 +300,7 @@ const HUNOS_TASKS = [
   { text: "WH - m 🫁 15'" },
   { text: "Impulso/Peso ⚡🎒", hunoType: 'enanito', notes: 'Días impares: carreritas/sprints en calle · Días pares: rucking/peso en calle' },
   { text: "🍄🍄 30'", shortcut: 'sets' },
-  { text: "🚂🚂🚂 110'", shortcut: 'trains' },
+  { text: "Trenes 🚂 25'", shortcut: 'trains' },
   { text: "P ⚙️ 44'", shortcut: 'projects' },
   { text: "Masajercicio ✋ 20'" },
 
@@ -441,10 +444,13 @@ const INITIAL_DATA: AppData = {
     subtasks: task.subtasks.map((st, j) => ({ id: `sub-${i}-${j}`, text: st, completed: false }))
   })),
   annualTrains: ANNUAL_TRAIN_TASKS.map((task, i) => ({
-    id: `annual-train-${i}`,
+    id: `annual-train-${i + 1}`,
     text: task.text,
     completed: false,
-    subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i}-${j}`, text: st, completed: false }))
+    isActiveAnnual: false,
+    repeaterMonths: [...task.repeaterMonths],
+    annualRegime: task.annualRegime,
+    subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i + 1}-${j}`, text: st, completed: false }))
   })),
   sets: MUSHROOM_TASKS.map((task, i) => ({
     id: `set-${i}`,
@@ -750,10 +756,13 @@ const processResets = (parsed: AppData): AppData => {
   if (!result.forjaTasks) { result.forjaTasks = []; }
   if (!result.annualTrains) {
     result.annualTrains = ANNUAL_TRAIN_TASKS.map((task, i) => ({
-      id: `annual-train-${i}`,
+      id: `annual-train-${i + 1}`,
       text: task.text,
       completed: false,
-      subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i}-${j}`, text: st, completed: false }))
+      isActiveAnnual: false,
+      repeaterMonths: [...task.repeaterMonths],
+      annualRegime: task.annualRegime,
+      subtasks: task.subtasks.map((st, j) => ({ id: `annual-sub-${i + 1}-${j}`, text: st, completed: false }))
     }));
   }
   if (!result.exercise) {
@@ -929,18 +938,16 @@ const processResets = (parsed: AppData): AppData => {
   const currentYear = new Date().getFullYear();
   const resetMonth = lastTrainsResetDate.getMonth();
   const resetYear = lastTrainsResetDate.getFullYear();
-  if (currentYear > resetYear) {
-    result.annualTrains = result.annualTrains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.filter(s => !s.isProvisional).map(s => ({ ...s, completed: false })) }));
-  }
   if (currentYear > resetYear || (currentYear === resetYear && currentMonth > resetMonth)) {
-    const completedCount = result.trains.filter(t => t.completed).length;
+    const actionableTrains = result.trains.filter(t => !t.skipThisMonth);
+    const completedCount = actionableTrains.filter(t => t.completed).length;
 
-    const completedTrainIds = result.trains.filter(t => t.completed).map(t => t.id);
+    const completedTrainIds = actionableTrains.filter(t => t.completed).map(t => t.id);
     if (!result.trainsHistoryMap) result.trainsHistoryMap = {};
     const todayStr = new Date(Date.now()).toDateString();
     if (completedTrainIds.length > 0) result.trainsHistoryMap[todayStr] = completedTrainIds;
 
-    const allTrainsCompleted = result.trains.every(t => t.completed);
+    const allTrainsCompleted = actionableTrains.length > 0 && actionableTrains.every(t => t.completed);
     if (allTrainsCompleted && !result.trainsPlenoClaimed) {
       result.stats.perfectTrainMonths += 1;
     }
@@ -954,9 +961,10 @@ const processResets = (parsed: AppData): AppData => {
     if (result.stats.interactionsHistory.length > 12) result.stats.interactionsHistory.shift();
     result.stats.lastTotalInteractions = currentTotalInteractions;
     result.trains = result.trains.map(t => ({ ...t, completed: false, subtasks: t.subtasks?.filter(s => !s.isProvisional).map(s => ({ ...s, completed: false })) }));
+    // Arrastre vivo anual: nunca borrar todos los anuales el 1 de enero; solo desbloquear los cuya ventana repeaterMonths incluya currentMonth
     result.annualTrains = result.annualTrains.map(t => {
-      if (currentYear === resetYear && t.repeaterMonths && t.repeaterMonths.includes(currentMonth)) {
-        return { ...t, completed: false, subtasks: t.subtasks?.filter(s => !s.isProvisional).map(s => ({ ...s, completed: false })) };
+      if (t.repeaterMonths && t.repeaterMonths.includes(currentMonth)) {
+        return { ...t, completed: false, isActiveAnnual: true, subtasks: t.subtasks?.filter(s => !s.isProvisional).map(s => ({ ...s, completed: false })) };
       }
       return t;
     });

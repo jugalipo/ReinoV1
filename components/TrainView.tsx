@@ -26,11 +26,12 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
   useModalHistory(!!subtaskToDelete, () => setSubtaskToDelete(null));
   // ---------------------------------------------
 
-  // Monthly Stats
+  // Monthly Stats (exclude resting monthly trains such as Peluquería on even months)
   let completedSubtasksCount = 0;
   let totalSubtasksCount = 0;
   
   tasks.forEach(task => {
+      if (task.skipThisMonth) return;
       const subs = task.subtasks || [];
       if (subs.length > 0) {
           totalSubtasksCount += subs.length;
@@ -43,14 +44,37 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
   const progress = totalSubtasksCount === 0 ? 0 : (completedSubtasksCount / totalSubtasksCount) * 100;
 
-  // Annual Stats
+  // Annual Stats & Active Regime Ordering
   const annualCompletedCount = annualTasks.filter((t) => t.completed).length;
   const annualTotalCount = annualTasks.length;
   const annualProgress = annualTotalCount === 0 ? 0 : (annualCompletedCount / annualTotalCount) * 100;
 
-  // Sort tasks: Incomplete first, Completed last
-  const sortedTasks = [...tasks].sort((a, b) => Number(a.completed) - Number(b.completed));
-  const sortedAnnualTasks = [...annualTasks].sort((a, b) => Number(a.completed) - Number(b.completed));
+  const isAnnualActiveNow = (t: Task): boolean => {
+    if (t.completed) return false;
+    if (typeof t.isActiveAnnual === 'boolean') return t.isActiveAnnual;
+    const curM = new Date().getMonth();
+    return Boolean(t.repeaterMonths?.includes(curM) || t.subtasks?.some(s => s.completed));
+  };
+
+  const regimeRank = (t: Task): number =>
+    t.annualRegime === 'estricto' ? 0 : t.annualRegime === 'preferente' ? 1 : 2;
+
+  const activeAnnualTasks = [...annualTasks]
+    .filter(isAnnualActiveNow)
+    .sort((a, b) => regimeRank(a) - regimeRank(b));
+
+  // Sort tasks: Active/Incomplete first, Resting next, Completed last
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const rankA = a.completed ? 2 : a.skipThisMonth ? 1 : 0;
+    const rankB = b.completed ? 2 : b.skipThisMonth ? 1 : 0;
+    return rankA - rankB;
+  });
+  const sortedAnnualTasks = [...annualTasks].sort((a, b) => {
+    const rankA = a.completed ? 2 : isAnnualActiveNow(a) ? 0 : 1;
+    const rankB = b.completed ? 2 : isAnnualActiveNow(b) ? 0 : 1;
+    if (rankA !== rankB) return rankA - rankB;
+    return regimeRank(a) - regimeRank(b);
+  });
 
   // Determine which list the active task belongs to
   const activeTask = tasks.find(t => t.id === activeTaskId) || annualTasks.find(t => t.id === activeTaskId);
@@ -63,6 +87,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                 return {
                     ...t,
                     completed: newCompleted,
+                    isActiveAnnual: newCompleted ? false : true,
                     subtasks: t.subtasks?.map(s => ({ ...s, completed: newCompleted })) || []
                 };
             }
@@ -143,9 +168,11 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                     s.id === subId ? { ...s, completed: !s.completed } : s
                 );
                 const allCompleted = newSubtasks.length > 0 && newSubtasks.every(s => s.completed);
+                const anyCompleted = newSubtasks.some(s => s.completed);
                 return {
                     ...t,
                     completed: allCompleted,
+                    isActiveAnnual: allCompleted ? false : (t.isActiveAnnual || anyCompleted),
                     subtasks: newSubtasks
                 };
             }
@@ -201,9 +228,9 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
 
   // Helper to parse Name, Duration and Color based on Emoji
   const parseTrainInfo = (text: string) => {
-    const timeMatch = text.match(/\s(\d+(?:h|'|min))$/);
+    const timeMatch = text.match(/\s(\d+(?:h|'|min))(?:\s*\([^)]*\))?$/);
     const duration = timeMatch ? timeMatch[1] : '';
-    const name = timeMatch ? text.replace(timeMatch[0], '') : text;
+    const name = timeMatch ? text.replace(/\s(\d+(?:h|'|min))(?=\s*\([^)]*\)$|$)/, '') : text;
     
     let accentColor = 'bg-stone-600'; // Default
     if (name.includes('🦁')) {
@@ -317,7 +344,11 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
       <div className="space-y-3">
             {list.map((task) => {
                const { name, duration, accentColor } = parseTrainInfo(task.text);
-               const finalAccentColor = isAnnual ? 'bg-stone-200' : accentColor;
+               const isRestingAnnual = isAnnual && !task.completed && !isAnnualActiveNow(task);
+               const isRestingMonthly = !isAnnual && Boolean(task.skipThisMonth) && !task.completed;
+               const finalAccentColor = isAnnual
+                   ? (task.annualRegime === 'estricto' ? 'bg-red-500' : task.annualRegime === 'preferente' ? 'bg-amber-500' : 'bg-stone-200')
+                   : accentColor;
                const hasSubtasks = task.subtasks && task.subtasks.length > 0;
                const isExpandedInline = (activeFilter === 'subtasks' && hasSubtasks) || (embedded && activeTaskId === task.id);
 
@@ -325,7 +356,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                 <div key={task.id} className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden shadow-sm">
                     <div
                         className={`relative flex items-center p-4 transition-all ${
-                        task.completed
+                        task.completed || isRestingAnnual || isRestingMonthly
                             ? 'bg-stone-900/40 opacity-50'
                             : 'bg-stone-900 hover:bg-stone-800 cursor-pointer'
                         }`}
@@ -365,7 +396,12 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                         </div>
 
                         {/* Right Side: Delete in Edit Mode, Info in View Mode */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            {isRestingAnnual && (
+                                <span className="text-[10px] uppercase tracking-wider font-bold text-stone-500 bg-stone-950 px-2 py-1 rounded-full border border-stone-800">
+                                    En reposo
+                                </span>
+                            )}
                             {duration && (
                                 <span className="flex items-center gap-1 text-xs font-mono font-bold text-stone-400 bg-stone-800 px-3 py-1.5 rounded-full border border-stone-700">
                                     {duration}
@@ -463,9 +499,9 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
       : "fixed inset-0 max-w-md mx-auto z-50 bg-stone-950 flex flex-col animate-in fade-in duration-200"
     }>
 
-      {/* Daily Annual Train Reminder Modal */}
+      {/* Daily Annual Train Reminder Modal — only fires when at least 1 Annual Train is genuinely active this month */}
       {showAnnualReminder && (() => {
-        const nextAnnual = [...annualTasks].find(t => !t.completed);
+        const nextAnnual = activeAnnualTasks[0];
         if (!nextAnnual) return null;
         return (
           <div className="absolute inset-0 z-[200] flex items-center justify-center p-6 bg-black/75 backdrop-blur-sm animate-in fade-in duration-300">
@@ -475,8 +511,8 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                 <div className="w-16 h-16 bg-blue-900/30 rounded-full flex items-center justify-center border border-blue-500/40 shadow-[0_0_24px_rgba(59,130,246,0.2)]">
                   <span className="text-3xl">🎯</span>
                 </div>
-                <h2 className="text-xl font-black text-stone-100 tracking-tight uppercase italic">Tren Anual del Día</h2>
-                <p className="text-stone-400 text-sm leading-relaxed">Dedica al menos <span className="text-blue-400 font-bold">3 minutos</span> a este tren antes de continuar.</p>
+                <h2 className="text-xl font-black text-stone-100 tracking-tight uppercase italic">Tren Anual Activo</h2>
+                <p className="text-stone-400 text-sm leading-relaxed">Prioridad activa en curso (régimen <span className="text-blue-400 font-bold">{nextAnnual.annualRegime === 'estricto' ? 'cierre en el mes' : nextAnnual.annualRegime === 'preferente' ? 'preferente' : 'arrastre vivo'}</span>).</p>
               </div>
 
               {/* Annual train card */}
@@ -623,10 +659,10 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                 </div>
             </div>
 
-        {/* Next Annual Train Highlight */}
-        {sortedAnnualTasks.find(t => !t.completed) && (
+        {/* Next Active Annual Train Highlight */}
+        {activeAnnualTasks[0] && (
             <div className="mb-6">
-                {renderTaskList([sortedAnnualTasks.find(t => !t.completed)!], true)}
+                {renderTaskList([activeAnnualTasks[0]], true)}
             </div>
         )}
 
@@ -705,7 +741,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ tasks, annualTasks, onUpda
                 <h2 className="text-xl font-bold text-stone-300 mb-4 flex items-center gap-2">
                     <span className="text-2xl">🌍</span> Trenes Anuales
                 </h2>
-                <p className="text-xs text-stone-500 mb-4 px-1">Estas tareas solo se reinician al finalizar el año.</p>
+                <p className="text-xs text-stone-500 mb-4 px-1">Se activan en su mes y permanecen en arrastre vivo hasta cerrarse (sin borrarse el 1 de enero).</p>
                 {renderTaskList(currentAnnualTasks, true)}
             </div>
         )}
