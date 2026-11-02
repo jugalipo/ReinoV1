@@ -191,7 +191,7 @@ const MUSHROOM_TASKS = [
 
 const TRAIN_TASKS = [
   { text: "🦁 1. Cuentas y Cartera 50'", subtasks: ["Anotar gastos (pasar PDF a Sebastian) ⭐", "Presupuesto (mes entrante) ⭐", "Balance (fondos y patrimonio) ⭐", "Transferencias (huchas y alquiler) ⭐", "Cartera Renta 4: cotizaciones de los 3 fondos y rebalanceo", "Ejecutar compras o aportaciones e inscribir en Leones"] },
-  { text: "🍏 2. Compra 30'", subtasks: ["Revisión de despensa contra lista permanente ⭐", "Primera compra fuerte del mes ⭐"] },
+  { text: "🍏 2. Compra 15'", subtasks: ["Revisión de despensa contra lista permanente ⭐"] },
   { text: "🍏 3. Sillas 5'", subtasks: ["Comprobar presión de neumáticos de la silla e inflar"] },
   { text: "🦁 4. Reino 30'", subtasks: ["Agenda mensual: vista de pájaro de citas y focos del mes ⭐", "Actualizar Excel histórico del Reino", "Poner al día el tablón físico de propósitos", "Revisar visitas y métricas en YouTube"] },
   { text: "🍏 5. Medidas 2h", subtasks: ["Horas de móvil en StayFocused", "Calcular pasos (fórmula: podómetro + 3.000/día, +4.000 entreno)", "Ver app Reino (estadísticas deportivas)", "Actualizar DTH (balance mensual hucha y entrenos del grupo)", "Peso (Julián y Alicia)", "Fotos de progreso (frente y perfil)", "Plicómetro (pliegues y % grasa)", "Perímetros (cintura, pierna, bíceps)", "Tensión arterial (media de 2-3 tomas)", "Test de fuerza: dominadas, flexiones, pistols, abdominales colgado", "Segundos de pino", "Pactar desafío FerroCopos del mes con Raúl"] },
