@@ -384,14 +384,14 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
     });
   };
 
-  // 6. BROTES
+  // 6. BROTES (Huno: huno-2 / love / ❤️ Brotes)
   const hunoBrotesDone = isHunoDone((h) => {
     const sc = h.shortcut || getCanonicalHunoShortcut(h);
     return (
-      sc === 'projects' ||
-      h.text.toLowerCase().includes('nube') ||
-      h.text.toLowerCase().includes('proyecto') ||
-      h.text.startsWith('P ')
+      sc === 'love' ||
+      h.id === 'huno-2' ||
+      h.text.includes('❤️') ||
+      h.text.toLowerCase().includes('brote')
     );
   });
   const brotesInjected = injectedFronts?.fronts?.brotes;
@@ -402,10 +402,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
     syncHunoState(nextVal, (h) => {
       const sc = h.shortcut || getCanonicalHunoShortcut(h);
       return (
-        sc === 'projects' ||
-        h.text.toLowerCase().includes('nube') ||
-        h.text.toLowerCase().includes('proyecto') ||
-        h.text.startsWith('P ')
+        sc === 'love' ||
+        h.id === 'huno-2' ||
+        h.text.includes('❤️') ||
+        h.text.toLowerCase().includes('brote')
       );
     });
   };
@@ -414,7 +414,10 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
   const fallbackSeta = (data.sets || []).find((t) => !t.completed)?.text || 'Mantenimiento semanal';
   const fallbackRoble = (data.forjaTasks || []).find((t) => !t.completed)?.text || 'Propósito trimestral';
   const fallbackLeon = (data.leones || []).find((t) => t.current < t.target)?.name || 'Avance patrimonio';
-  const fallbackBrotes = (data.projects || []).find((t) => !t.completed)?.text || 'Vínculos y proyectos';
+  const urgentFriendDesktop = [...(data.friends || [])]
+    .filter((f) => !f.isSporadic && f.orbit !== 'hogar' && f.lastInteraction > 0)
+    .sort((a, b) => a.lastInteraction - b.lastInteraction)[0];
+  const fallbackBrotes = urgentFriendDesktop ? `Cuidar vínculo: ${urgentFriendDesktop.name}` : 'Cuidar un vínculo hoy';
 
   const dailyFronts: FrontTaskItem[] = [
     {

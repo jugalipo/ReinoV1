@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppData, ViewState, Friend, Task, ResourceTask, WeeklyTask, GympiezaState, DailyFoodScore } from './types';
+import { AppData, ViewState, Friend, FriendInteractions, Task, ResourceTask, WeeklyTask, GympiezaState, DailyFoodScore } from './types';
 import { DailyHunos } from './components/DailyHunos';
 import { TrainView } from './components/TrainView';
 import { SetsView } from './components/SetsView';
-import { LoveTreeView } from './components/LoveTreeView';
+import { LoveTreeView, evaluateFriendHealth, getEffectiveOrbit } from './components/LoveTreeView';
 import { FoodBoardView, calculateAllDaysTotal, DEFAULT_MEALS, FIXED_SPECIAL_MEALS, DailyFoodScoreModal, applyDailyFoodScoreToFoodState, defaultDailyScore } from './components/FoodBoardView';
 import { ResourceTrackerView } from './components/ResourceTrackerView';
 import { PianoView } from './components/PianoView';
@@ -501,7 +501,8 @@ const INITIAL_DATA: AppData = {
       type: t.type as 'superficies' | 'barrer' | 'fregar'
     }))
   },
-  caminos: []
+  caminos: [],
+  lastBrotesTelonDate: ""
 };
 
 const MushroomIcon = ({ className }: { className?: string }) => (
@@ -609,7 +610,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastFocusDate: data.lastFocusDate || "" } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastBrotesTelonDate: data.lastBrotesTelonDate || "", lastFocusDate: data.lastFocusDate || "" } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -640,6 +641,7 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.lastBookFormSunday = doc.data.lastBookFormSunday || "";
       result.lastMovieFormDate = doc.data.lastMovieFormDate || "";
       result.lastDiaryFormDate = doc.data.lastDiaryFormDate || "";
+      result.lastBrotesTelonDate = doc.data.lastBrotesTelonDate || "";
       result.lastFocusDate = doc.data.lastFocusDate || "";
     } else if (doc.id === 'hunos') {
       result.hunos = doc.data.items || INITIAL_DATA.hunos;
@@ -1163,9 +1165,13 @@ function App() {
   const [selectedEnergy, setSelectedEnergy] = useState<number | null>(null);
 
   // New Modo Telón form states
-  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'diary'>('energy');
+  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'brotes' | 'diary'>('energy');
   const [telonFoodDate, setTelonFoodDate] = useState<Date | null>(null);
   const [sessionHandledFoodDates, setSessionHandledFoodDates] = useState<string[]>([]);
+  const [telonBrotesIds, setTelonBrotesIds] = useState<string[]>([]);
+  const [telonBrotesChannel, setTelonBrotesChannel] = useState<keyof FriendInteractions>('person');
+  const [telonBrotesTargetDay, setTelonBrotesTargetDay] = useState<'yesterday' | 'today'>(() => new Date().getHours() < 15 ? 'yesterday' : 'today');
+  const [telonBrotesFilter, setTelonBrotesFilter] = useState<string>('');
   const [formDiaryContent, setFormDiaryContent] = useState<string>('');
   const [formBitacoraContent, setFormBitacoraContent] = useState<string>('');
   const [bitacoraDateTarget, setBitacoraDateTarget] = useState<'yesterday' | 'today'>('yesterday');
@@ -1265,7 +1271,7 @@ function App() {
     appData: AppData = data,
     excludedFoodDateKeys: string[] = sessionHandledFoodDates
   ): {
-    step: 'energy' | 'movie_ask' | 'book_ask' | 'food' | 'diary' | null;
+    step: 'energy' | 'movie_ask' | 'book_ask' | 'food' | 'brotes' | 'diary' | null;
     pendingFoodDate?: Date;
   } => {
     const todayStr = new Date().toDateString();
@@ -1293,7 +1299,13 @@ function App() {
       return { step: 'food', pendingFoodDate: pendingFood[0] };
     }
 
-    // 5. Diary & Bitácora
+    // 5. Brotes (3s quick tap check)
+    const hasBrotesTelon = appData.lastBrotesTelonDate === todayStr;
+    if (!hasBrotesTelon) {
+      return { step: 'brotes' };
+    }
+
+    // 6. Diary & Bitácora
     const hasDiary = appData.lastDiaryFormDate === todayStr;
     if (!hasDiary) {
       return { step: 'diary' };
@@ -1655,7 +1667,7 @@ Ejemplo de respuesta en "text":
   };
 
   // Helper: Encuentra el Huno diario correspondiente a un frente o foco
-  const findHunoForFrontOrFocus = (key: 'foco' | 'leones' | 'sets' | 'trains' | 'forjas' | 'yunque' | 'projects'): Task | undefined => {
+  const findHunoForFrontOrFocus = (key: 'foco' | 'leones' | 'sets' | 'trains' | 'forjas' | 'yunque' | 'love' | 'projects'): Task | undefined => {
     if (key === 'leones') {
       return data.hunos.find(h => {
         const sc = h.shortcut || getCanonicalHunoShortcut(h);
@@ -1684,6 +1696,12 @@ Ejemplo de respuesta en "text":
       return data.hunos.find(h =>
         h.text.toLowerCase().includes('yunque') || h.text.includes('T3') || h.id === 'huno-8'
       );
+    }
+    if (key === 'love') {
+      return data.hunos.find(h => {
+        const sc = h.shortcut || getCanonicalHunoShortcut(h);
+        return sc === 'love' || h.id === 'huno-2' || h.text.includes('❤️') || h.text.toLowerCase().includes('brote');
+      });
     }
     if (key === 'projects') {
       return data.hunos.find(h => {
@@ -1802,10 +1820,16 @@ Ejemplo de respuesta en "text":
       completed: yunqueDone
     });
 
-    // 7. Brotes / Proyectos
-    const brotesHuno = findHunoForFrontOrFocus('projects');
+    // 7. Brotes (Vínculos -> huno-2 ❤️, separado de Nubes/Proyectos)
+    const brotesHuno = findHunoForFrontOrFocus('love');
     const brotesFront = fronts.brotes;
-    const brotesText = brotesFront?.text?.trim() || brotesHuno?.text || 'Proyectos / Brotes 44\'';
+    const urgentFriend = [...(data.friends || [])]
+      .filter(f => getEffectiveOrbit(f) !== 'hogar')
+      .sort((a, b) => evaluateFriendHealth(b).urgencyScore - evaluateFriendHealth(a).urgencyScore)[0];
+    const fallbackBrotesText = urgentFriend
+      ? `Hablar con ${urgentFriend.name} (${evaluateFriendHealth(urgentFriend).days === 999 ? 'sin registro' : `${evaluateFriendHealth(urgentFriend).days}d`})`
+      : (brotesHuno?.text || "Brotes 20'");
+    const brotesText = brotesFront?.text?.trim() || fallbackBrotesText;
     const brotesDone = brotesFront ? !!brotesFront.completed : (brotesHuno ? brotesHuno.completed : false);
     candidates.push({
       id: brotesHuno ? brotesHuno.id : 'front-brotes',
@@ -2226,6 +2250,10 @@ REGLAS DE SELECCIÓN:
     setFormBookNote('');
 
     setFormFoodChoice('saltar');
+    setTelonBrotesIds([]);
+    setTelonBrotesFilter('');
+    setTelonBrotesChannel('person');
+    setTelonBrotesTargetDay(new Date().getHours() < 15 ? 'yesterday' : 'today');
     setFormDiaryContent('');
     setFormBitacoraContent('');
     setBitacoraDateTarget(new Date().getHours() < 15 ? 'yesterday' : 'today');
@@ -2473,7 +2501,7 @@ REGLAS DE SELECCIÓN:
           setTelonStep('movie_ask');
         }
       }
-    } else if (telonStep === 'diary') {
+    } else if (telonStep === 'brotes') {
       const pendingFood = getPendingFoodDates(data);
       if (pendingFood.length > 0) {
         setTelonFoodDate(pendingFood[pendingFood.length - 1]);
@@ -2491,6 +2519,8 @@ REGLAS DE SELECCIÓN:
           setTelonStep('movie_ask');
         }
       }
+    } else if (telonStep === 'diary') {
+      setTelonStep('brotes');
     }
   };
 
@@ -2825,6 +2855,239 @@ REGLAS DE SELECCIÓN:
                       // Handled by onConfirm / onDismissTelon
                     }}
                   />
+                );
+              })()}
+
+              {telonStep === 'brotes' && (() => {
+                const query = telonBrotesFilter.trim().toLowerCase();
+                const rankedFriends = [...(data.friends || [])].sort((a, b) => {
+                  const orbitOrder: Record<string, number> = { hogar: 0, intimo: 1, cercano: 2, estacional: 3 };
+                  const oa = orbitOrder[getEffectiveOrbit(a)] ?? 2;
+                  const ob = orbitOrder[getEffectiveOrbit(b)] ?? 2;
+                  if (oa !== ob) return oa - ob;
+                  const totA = (Object.values(a.interactions || {}) as number[]).reduce((s, v) => s + v, 0);
+                  const totB = (Object.values(b.interactions || {}) as number[]).reduce((s, v) => s + v, 0);
+                  return totB - totA;
+                });
+                const visibleFriends = query
+                  ? rankedFriends.filter(f => f.name.toLowerCase().includes(query))
+                  : rankedFriends.slice(0, 14);
+
+                return (
+                  <div className="w-full space-y-4 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
+                    <div className="space-y-1 text-center">
+                      <div className="w-11 h-11 bg-pink-950/40 border border-pink-500/30 text-pink-400 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(236,72,153,0.12)]">
+                        <Heart className="w-5 h-5" />
+                      </div>
+                      <h2 className="text-xl font-black text-stone-100 tracking-tighter uppercase italic">
+                        Brotes
+                      </h2>
+                      <p className="text-stone-400 text-xs font-medium leading-relaxed">
+                        ¿Con quién trataste? Marca en 3 segundos o pasa
+                      </p>
+                    </div>
+
+                    <div className="bg-stone-900/90 backdrop-blur-md rounded-2xl p-4 space-y-3 border border-stone-800/80 shadow-xl">
+                      {/* Día + Canal */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center bg-stone-950 rounded-xl p-0.5 border border-stone-800 text-xs">
+                          <button
+                            type="button"
+                            aria-pressed={telonBrotesTargetDay === 'yesterday'}
+                            onClick={() => setTelonBrotesTargetDay('yesterday')}
+                            className={`px-2.5 py-1 rounded-lg transition-colors font-bold ${
+                              telonBrotesTargetDay === 'yesterday'
+                                ? 'bg-pink-700/40 text-pink-200'
+                                : 'text-stone-500 hover:text-stone-300'
+                            }`}
+                          >
+                            Ayer
+                          </button>
+                          <button
+                            type="button"
+                            aria-pressed={telonBrotesTargetDay === 'today'}
+                            onClick={() => setTelonBrotesTargetDay('today')}
+                            className={`px-2.5 py-1 rounded-lg transition-colors font-bold ${
+                              telonBrotesTargetDay === 'today'
+                                ? 'bg-pink-700/40 text-pink-200'
+                                : 'text-stone-500 hover:text-stone-300'
+                            }`}
+                          >
+                            Hoy
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          {([
+                            { key: 'person', icon: '🫂', label: 'Presencial' },
+                            { key: 'call', icon: '📞', label: 'Llamada' },
+                            { key: 'message', icon: '💬', label: 'Mensaje' },
+                            { key: 'gift', icon: '🎁', label: 'Detalle' },
+                          ] as const).map(ch => {
+                            const active = telonBrotesChannel === ch.key;
+                            return (
+                              <button
+                                key={ch.key}
+                                type="button"
+                                aria-pressed={active}
+                                aria-label={ch.label}
+                                title={ch.label}
+                                onClick={() => setTelonBrotesChannel(ch.key)}
+                                className={`w-8 h-8 rounded-xl border flex items-center justify-center text-sm transition-all ${
+                                  active
+                                    ? 'bg-pink-700/50 border-pink-400 scale-105'
+                                    : 'bg-stone-950 border-stone-800 opacity-65 hover:opacity-100'
+                                }`}
+                              >
+                                {ch.icon}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Filtro opcional */}
+                      <input
+                        type="text"
+                        value={telonBrotesFilter}
+                        onChange={e => setTelonBrotesFilter(e.target.value)}
+                        placeholder="Filtrar otra persona..."
+                        className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-stone-200 placeholder-stone-600 focus:outline-none focus:border-pink-600"
+                      />
+
+                      {/* Chips rápidos */}
+                      <div className="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto pr-0.5">
+                        {visibleFriends.map(friend => {
+                          const isSelected = telonBrotesIds.includes(friend.id);
+                          return (
+                            <button
+                              key={friend.id}
+                              type="button"
+                              aria-pressed={isSelected}
+                              onClick={() => {
+                                setTelonBrotesIds(prev =>
+                                  prev.includes(friend.id)
+                                    ? prev.filter(id => id !== friend.id)
+                                    : [...prev, friend.id]
+                                );
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 ${
+                                isSelected
+                                  ? 'bg-pink-600 border-pink-400 text-white shadow-[0_0_12px_rgba(236,72,153,0.3)]'
+                                  : 'bg-stone-950 border-stone-800 text-stone-300 hover:border-stone-600'
+                              }`}
+                            >
+                              {friend.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const todayStr = new Date().toDateString();
+                          const nextData = {
+                            ...data,
+                            lastBrotesTelonDate: todayStr
+                          };
+                          setTelonBrotesIds([]);
+                          setTelonBrotesFilter('');
+                          setData(nextData);
+                          advanceToNextTelonStep(nextData);
+                        }}
+                        className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider bg-stone-900 border border-stone-800 hover:border-stone-700 text-stone-300 transition-all active:scale-95"
+                      >
+                        Nadie / Pasar
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={telonBrotesIds.length === 0}
+                        onClick={() => {
+                          const todayStr = new Date().toDateString();
+                          const ts = telonBrotesTargetDay === 'yesterday'
+                            ? (() => {
+                                const y = new Date();
+                                y.setDate(y.getDate() - 1);
+                                y.setHours(18, 0, 0, 0);
+                                return y.getTime();
+                              })()
+                            : Date.now();
+
+                          const updatedFriends = (data.friends || []).map(f => {
+                            if (!telonBrotesIds.includes(f.id)) return f;
+                            const entry = {
+                              id: `${ts}-${Math.random().toString(36).slice(2, 8)}`,
+                              type: telonBrotesChannel,
+                              timestamp: ts
+                            };
+                            return {
+                              ...f,
+                              lastInteraction: Math.max(f.lastInteraction || 0, ts),
+                              interactions: {
+                                ...f.interactions,
+                                [telonBrotesChannel]: (f.interactions?.[telonBrotesChannel] || 0) + 1
+                              },
+                              lastInteractions: {
+                                ...(f.lastInteractions || {}),
+                                [telonBrotesChannel]: Math.max(f.lastInteractions?.[telonBrotesChannel] || 0, ts)
+                              },
+                              history: [entry, ...(f.history || [])]
+                            };
+                          });
+
+                          let updatedHunos = data.hunos;
+                          let updatedHunosHistory = data.hunosHistory || {};
+                          let updatedStats = data.stats;
+
+                          if (telonBrotesTargetDay === 'today') {
+                            const loveHuno = findHunoForFrontOrFocus('love');
+                            if (loveHuno && !loveHuno.completed) {
+                              updatedHunos = data.hunos.map(h =>
+                                h.id === loveHuno.id ? { ...h, completed: true } : h
+                              );
+                              const completedIds = updatedHunos.filter(t => t.completed).map(t => t.id);
+                              updatedHunosHistory = { ...updatedHunosHistory, [todayStr]: completedIds };
+                              const { plenos: newPlenos } = calculateHunosPlenosAndPending(
+                                updatedHunos,
+                                data.hunosHistory || {},
+                                completedIds
+                              );
+                              updatedStats = {
+                                ...data.stats,
+                                hunoPlenos: newPlenos,
+                                hunoPlenoCurrent: newPlenos % 50
+                              };
+                            }
+                          }
+
+                          const nextData: AppData = {
+                            ...data,
+                            friends: updatedFriends,
+                            hunos: updatedHunos,
+                            hunosHistory: updatedHunosHistory,
+                            stats: updatedStats,
+                            lastBrotesTelonDate: todayStr
+                          };
+
+                          setTelonBrotesIds([]);
+                          setTelonBrotesFilter('');
+                          setData(nextData);
+                          advanceToNextTelonStep(nextData);
+                        }}
+                        className={`py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider italic transition-all ${
+                          telonBrotesIds.length > 0
+                            ? 'bg-gradient-to-r from-pink-600 to-rose-500 text-white hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(236,72,153,0.25)] cursor-pointer'
+                            : 'bg-stone-950 text-stone-700 cursor-not-allowed border border-stone-900'
+                        }`}
+                      >
+                        Guardar ({telonBrotesIds.length})
+                      </button>
+                    </div>
+                  </div>
                 );
               })()}
 
@@ -3955,8 +4218,7 @@ REGLAS DE SELECCIÓN:
       { id: '1', title: 'Nos casamos', date: '2022-05-22', notifyYearly: true, notifyMonthly: true, notify100Days: true },
       { id: '2', title: 'Empezamos a salir', date: '2017-05-24', notifyYearly: true, notifyMonthly: true, notify100Days: true },
       { id: '3', title: 'Nos fuimos a vivir juntos', date: '2017-09-04', notifyYearly: true, notifyMonthly: true, notify100Days: true },
-      { id: '4', title: 'Empezó a trabajar', date: '2020-10-16', notifyYearly: true, notifyMonthly: true, notify100Days: true },
-      { id: '5', title: 'En Hacienda', date: '2024-06-15', notifyYearly: true, notifyMonthly: true, notify100Days: true },
+      { id: '5', title: 'En Hacienda', date: '2024-07-15', notifyYearly: true, notifyMonthly: true, notify100Days: true },
       { id: '6', title: 'Días Cotizados', date: '2020-07-18', notifyYearly: true, notifyMonthly: true, notify100Days: true },
       { id: '7', title: 'Santa Alicia', date: '2000-06-23', notifyYearly: true, notifyMonthly: false, notify100Days: false, hideAge: true },
       { id: '8', title: 'Cumpleaños Alicia', date: '1993-06-14', notifyYearly: true, notifyMonthly: false, notify100Days: false }
@@ -3964,8 +4226,9 @@ REGLAS DE SELECCIÓN:
 
     const hasReminder = (data.reminders || fallbackReminders).some((reminder: any) => {
       if (!reminder.date) return false;
-      const eventDate = new Date(reminder.date);
-      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+      const dateParts = String(reminder.date).split('-').map(Number);
+      if (dateParts.length !== 3 || dateParts.some(isNaN)) return false;
+      const eventDateOnly = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
       
       if (reminder.notifyYearly) {
         let nextA = new Date(todayDate.getFullYear(), eventDateOnly.getMonth(), eventDateOnly.getDate());
@@ -3999,9 +4262,7 @@ REGLAS DE SELECCIÓN:
 
   const getLoveProgress = () => {
     if (data.friends.length === 0) return 0;
-    const now = Date.now();
-    const oneMonth = 30 * 24 * 60 * 60 * 1000;
-    const greenCount = data.friends.filter(f => now - f.lastInteraction < oneMonth).length;
+    const greenCount = data.friends.filter(f => evaluateFriendHealth(f).level === 'green').length;
     return Math.round((greenCount / data.friends.length) * 100);
   };
 
@@ -4138,6 +4399,34 @@ REGLAS DE SELECCIÓN:
         onUpdateReminders={(r) => setData(prev => ({ ...prev, reminders: r }))}
         sortBy={data.loveTreeSortBy}
         onSortChange={(s) => setData(prev => ({ ...prev, loveTreeSortBy: s }))}
+        onInteractionLogged={() => {
+          setData(prev => {
+            const loveHuno = prev.hunos.find(h => {
+              const sc = h.shortcut || getCanonicalHunoShortcut(h);
+              return sc === 'love' || h.id === 'huno-2' || h.text.includes('❤️') || h.text.toLowerCase().includes('brote');
+            });
+            if (!loveHuno || loveHuno.completed) return prev;
+            const todayKey = new Date().toDateString();
+            const updatedHunos = prev.hunos.map(h => h.id === loveHuno.id ? { ...h, completed: true } : h);
+            const completedIds = updatedHunos.filter(t => t.completed).map(t => t.id);
+            const updatedHistory = { ...(prev.hunosHistory || {}), [todayKey]: completedIds };
+            const { plenos: newHunoPlenos } = calculateHunosPlenosAndPending(
+              updatedHunos,
+              prev.hunosHistory || {},
+              completedIds
+            );
+            return {
+              ...prev,
+              hunos: updatedHunos,
+              hunosHistory: updatedHistory,
+              stats: {
+                ...prev.stats,
+                hunoPlenos: newHunoPlenos,
+                hunoPlenoCurrent: newHunoPlenos % 50
+              }
+            };
+          });
+        }}
       />;
       case 'food': return <FoodBoardView foodState={data.food} onUpdate={(f) => setData(prev => ({ ...prev, food: f }))} onBack={() => setView('home')} />;
       case 'forjas': return <ResourceTrackerView title="Roble" themeColor="orange" tasks={data.forjas} forjaTasks={data.forjaTasks || []} onUpdateForjaTasks={t => setData(prev => ({ ...prev, forjaTasks: t }))} onUpdate={t => setData(prev => ({ ...prev, forjas: t }))} onBack={() => setView('home')} />;
@@ -4972,7 +5261,8 @@ REGLAS DE SELECCIÓN:
                         else if (task.typeName.includes("Leones")) shortcut = "leones";
                         else if (task.typeName.includes("Setas")) shortcut = "sets";
                         else if (task.typeName.includes("Trenes")) shortcut = "trains";
-                        else if (task.typeName.includes("Nubes") || task.typeName.includes("Brotes")) shortcut = "projects";
+                        else if (task.typeName.includes("Brotes")) shortcut = "love";
+                        else if (task.typeName.includes("Nubes")) shortcut = "projects";
 
                         if (shortcut) {
                           const parentHuno = data.hunos.find(h => h.shortcut === shortcut);

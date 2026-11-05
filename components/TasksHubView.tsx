@@ -248,10 +248,10 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
-  // 6. BROTES (Huno: projects / nube / proyecto / P )
+  // 6. BROTES (Huno: huno-2 / love / ❤️ Brotes)
   const hunoBrotesDone = isHunoDone(h => {
     const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'projects' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto') || h.text.startsWith('P ');
+    return sc === 'love' || h.id === 'huno-2' || h.text.includes('❤️') || h.text.toLowerCase().includes('brote');
   });
   const brotesInjected = injectedFronts?.fronts?.brotes;
   const isBrotesDone = brotesInjected !== undefined ? brotesInjected.completed : hunoBrotesDone;
@@ -260,7 +260,7 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     updateInjectedFrontStatus('brotes', nextVal);
     syncHunoState(nextVal, h => {
       const sc = h.shortcut || getCanonicalHunoShortcut(h);
-      return sc === 'projects' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto') || h.text.startsWith('P ');
+      return sc === 'love' || h.id === 'huno-2' || h.text.includes('❤️') || h.text.toLowerCase().includes('brote');
     });
   };
 
@@ -269,7 +269,10 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
   const fallbackSeta = (data.sets || []).find(t => !t.completed)?.text || 'Mantenimiento semanal';
   const fallbackRoble = (data.forjaTasks || []).find(t => !t.completed)?.text || 'Propósito trimestral';
   const fallbackLeon = (data.leones || []).find(t => t.current < t.target)?.name || 'Avance patrimonio';
-  const fallbackBrotes = (data.projects || []).find(t => !t.completed)?.text || 'Vínculos y proyectos';
+  const urgentFriendForFallback = [...(data.friends || [])]
+    .filter(f => !f.isSporadic && f.orbit !== 'hogar' && f.lastInteraction > 0)
+    .sort((a, b) => a.lastInteraction - b.lastInteraction)[0];
+  const fallbackBrotes = urgentFriendForFallback ? `Cuidar vínculo: ${urgentFriendForFallback.name}` : 'Cuidar un vínculo hoy';
 
   // Cuadrícula de frentes
   const dailyFronts: FrontTaskItem[] = [

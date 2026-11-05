@@ -95,6 +95,8 @@ export interface InteractionLogEntry {
   timestamp: number;
 }
 
+export type FriendOrbit = 'hogar' | 'intimo' | 'cercano' | 'estacional';
+
 export interface Friend {
   id: string;
   name: string;
@@ -104,6 +106,8 @@ export interface Friend {
   tasks: FriendTask[];
   birthday?: string; // YYYY-MM-DD
   isSporadic?: boolean;
+  orbit?: FriendOrbit;
+  slug?: string;
   history?: InteractionLogEntry[];
 }
 
@@ -302,7 +306,7 @@ export interface AppData {
   energyHistory?: Record<string, number>; // DateString -> Energy value
   gympieza?: GympiezaState;
   caminos?: Camino[];
-  loveTreeSortBy?: 'interactions' | 'days';
+  loveTreeSortBy?: 'interactions' | 'days' | 'urgency';
   lastAnnualTrainReminderDate?: string; // YYYY-MM-DD — tracks when the user last dismissed the daily annual train reminder
   streakReviewedDays?: Record<string, boolean>; // DateString -> isReviewed
   firewallDay?: number; // 0, 1, 2, 3
@@ -313,5 +317,6 @@ export interface AppData {
   lastBookFormSunday?: string; // Date string of the Sunday for which the book form was last processed
   lastMovieFormDate?: string; // Date string (toDateString) for which the movie form was answered
   lastDiaryFormDate?: string; // Date string (toDateString) for which the diary/bitacora form was processed
+  lastBrotesTelonDate?: string; // Date string (toDateString) for which the 3s Brotes check in Modo Telón was answered/skipped
   lastFocusDate?: string; // Date string (toDateString) for which Focus mode was last displayed automatically in Modo Telón
 }

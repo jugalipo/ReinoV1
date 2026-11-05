@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
-import { ReminderEvent } from '../types';
+import { Friend, ReminderEvent } from '../types';
 import { Bell, Edit3, X, Plus, Trash2, AlertTriangle } from 'lucide-react';
 
 interface RemindersSectionProps {
   reminders: ReminderEvent[];
   onUpdateReminders: (reminders: ReminderEvent[]) => void;
+  friends?: Friend[];
 }
 
-export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, onUpdateReminders }) => {
+const parseCalendarDateLocal = (isoDate: string): Date | null => {
+  const parts = isoDate.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+};
+
+export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, onUpdateReminders, friends = [] }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
@@ -18,8 +25,9 @@ export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, o
     const upcoming: { message: string, isToday: boolean, daysLeft: number }[] = [];
 
     reminders.forEach(reminder => {
-      const eventDate = new Date(reminder.date);
-      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+      if (!reminder.date) return;
+      const eventDateOnly = parseCalendarDateLocal(reminder.date);
+      if (!eventDateOnly) return;
       
       // 1. Yearly
       if (reminder.notifyYearly) {
@@ -29,11 +37,11 @@ export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, o
         }
         
         const diffTime = nextAnniversary.getTime() - todayDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
         
         if (diffDays <= 7) {
           const years = nextAnniversary.getFullYear() - eventDateOnly.getFullYear();
-          if (years > 0) {
+          if (years > 0 || reminder.hideAge) {
             const msg = reminder.hideAge ? reminder.title : `${years} años: ${reminder.title}`;
             upcoming.push({ message: msg, isToday: diffDays === 0, daysLeft: diffDays });
           }
@@ -48,14 +56,14 @@ export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, o
         }
         
         const diffTime = nextMonthAnniversary.getTime() - todayDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
         
         if (diffDays <= 7) {
           let months = (nextMonthAnniversary.getFullYear() - eventDateOnly.getFullYear()) * 12;
           months -= eventDateOnly.getMonth();
           months += nextMonthAnniversary.getMonth();
           
-          if (months > 0) {
+          if (months > 0 && nextMonthAnniversary.getMonth() !== eventDateOnly.getMonth()) {
             upcoming.push({ message: `${months} meses: ${reminder.title}`, isToday: diffDays === 0, daysLeft: diffDays });
           }
         }
@@ -64,7 +72,7 @@ export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, o
       // 3. 100 Days
       if (reminder.notify100Days) {
         const diffTimeFromStart = todayDate.getTime() - eventDateOnly.getTime();
-        const diffDaysFromStart = Math.floor(diffTimeFromStart / (1000 * 60 * 60 * 24));
+        const diffDaysFromStart = Math.round(diffTimeFromStart / (1000 * 60 * 60 * 24));
         
         if (diffDaysFromStart >= 0) {
             let next100Multiple = Math.ceil(diffDaysFromStart / 100) * 100;
@@ -76,6 +84,24 @@ export const RemindersSection: React.FC<RemindersSectionProps> = ({ reminders, o
                 upcoming.push({ message: `${next100Multiple} días: ${reminder.title}`, isToday: daysLeft === 0, daysLeft: daysLeft });
             }
         }
+      }
+    });
+
+    // 4. Cumpleaños de amigos y familia en los próximos 7 días (excluyendo duplicado de Alicia ya en reminders)
+    friends.forEach(friend => {
+      if (!friend.birthday || friend.name.toLowerCase() === 'alicia') return;
+      const bdayLocal = parseCalendarDateLocal(friend.birthday);
+      if (!bdayLocal) return;
+      let nextBday = new Date(todayDate.getFullYear(), bdayLocal.getMonth(), bdayLocal.getDate());
+      if (nextBday.getTime() < todayDate.getTime()) {
+        nextBday = new Date(todayDate.getFullYear() + 1, bdayLocal.getMonth(), bdayLocal.getDate());
+      }
+      const diffDays = Math.round((nextBday.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays <= 7) {
+        const birthYear = bdayLocal.getFullYear();
+        const ageTxt = birthYear > 1900 && friend.name !== 'Mama' ? ` (${nextBday.getFullYear() - birthYear} años)` : '';
+        const label = friend.name === 'Mama' ? `🕯️ Memoria Mamá Herminia` : `🎂 Cumpleaños ${friend.name}${ageTxt}`;
+        upcoming.push({ message: label, isToday: diffDays === 0, daysLeft: diffDays });
       }
     });
 
