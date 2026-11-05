@@ -31,7 +31,7 @@ interface DailyFrontsState {
 
 interface FrontTaskItem {
   id: string;
-  category: 'foco' | 'trains' | 'sets' | 'roble' | 'yunque' | 'leones' | 'projects';
+  category: 'foco' | 'trains' | 'sets' | 'roble' | 'yunque' | 'leones' | 'love' | 'projects';
   name: string;
   emoji: string;
   taskText: string;
@@ -338,11 +338,12 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     },
     {
       id: 'brotes-front',
-      category: 'projects',
+      category: 'love',
       name: 'Brotes',
       emoji: '❤️',
       taskText: brotesInjected?.text || fallbackBrotes,
       completed: isBrotesDone,
+      navigateView: 'love',
       onToggle: toggleBrotes
     }
   ];
