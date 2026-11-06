@@ -1168,7 +1168,7 @@ function App() {
   const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'brotes' | 'diary'>('energy');
   const [telonFoodDate, setTelonFoodDate] = useState<Date | null>(null);
   const [sessionHandledFoodDates, setSessionHandledFoodDates] = useState<string[]>([]);
-  const [telonBrotesIds, setTelonBrotesIds] = useState<string[]>([]);
+  const [telonBrotesMap, setTelonBrotesMap] = useState<Record<string, keyof FriendInteractions>>({});
   const [telonBrotesChannel, setTelonBrotesChannel] = useState<keyof FriendInteractions>('person');
   const [telonBrotesTargetDay, setTelonBrotesTargetDay] = useState<'yesterday' | 'today'>(() => new Date().getHours() < 15 ? 'yesterday' : 'today');
   const [telonBrotesFilter, setTelonBrotesFilter] = useState<string>('');
@@ -2250,7 +2250,7 @@ REGLAS DE SELECCIÓN:
     setFormBookNote('');
 
     setFormFoodChoice('saltar');
-    setTelonBrotesIds([]);
+    setTelonBrotesMap({});
     setTelonBrotesFilter('');
     setTelonBrotesChannel('person');
     setTelonBrotesTargetDay(new Date().getHours() < 15 ? 'yesterday' : 'today');
@@ -2860,6 +2860,28 @@ REGLAS DE SELECCIÓN:
 
               {telonStep === 'brotes' && (() => {
                 const query = telonBrotesFilter.trim().toLowerCase();
+                const channelMeta: { key: keyof FriendInteractions; icon: string; label: string }[] = [
+                  { key: 'person', icon: '🫂', label: 'Presencial' },
+                  { key: 'call', icon: '📞', label: 'Llamada' },
+                  { key: 'message', icon: '💬', label: 'Mensaje' },
+                  { key: 'photo', icon: '📸', label: 'Foto o vídeo' },
+                  { key: 'gift', icon: '🎁', label: 'Detalle o carta' },
+                ];
+                const channelIconByKey: Record<keyof FriendInteractions, string> = {
+                  person: '🫂',
+                  call: '📞',
+                  message: '💬',
+                  photo: '📸',
+                  gift: '🎁',
+                };
+                const channelLabelByKey: Record<keyof FriendInteractions, string> = {
+                  person: 'Presencial',
+                  call: 'Llamada',
+                  message: 'Mensaje',
+                  photo: 'Foto o vídeo',
+                  gift: 'Detalle o carta',
+                };
+                const selectedCount = Object.keys(telonBrotesMap).length;
                 const rankedFriends = [...(data.friends || [])].sort((a, b) => {
                   const orbitOrder: Record<string, number> = { hogar: 0, intimo: 1, cercano: 2, estacional: 3 };
                   const oa = orbitOrder[getEffectiveOrbit(a)] ?? 2;
@@ -2869,33 +2891,36 @@ REGLAS DE SELECCIÓN:
                   const totB = (Object.values(b.interactions || {}) as number[]).reduce((s, v) => s + v, 0);
                   return totB - totA;
                 });
+                const selectedOutsideTop = !query
+                  ? rankedFriends.slice(14).filter(f => Boolean(telonBrotesMap[f.id]))
+                  : [];
                 const visibleFriends = query
                   ? rankedFriends.filter(f => f.name.toLowerCase().includes(query))
-                  : rankedFriends.slice(0, 14);
+                  : [...rankedFriends.slice(0, 14), ...selectedOutsideTop];
 
                 return (
                   <div className="w-full space-y-4 animate-in fade-in duration-500 max-w-sm mx-auto text-left">
                     <div className="space-y-1 text-center">
                       <div className="w-11 h-11 bg-pink-950/40 border border-pink-500/30 text-pink-400 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(236,72,153,0.12)]">
-                        <Heart className="w-5 h-5" />
+                        <Heart className="w-5 h-5" aria-hidden="true" />
                       </div>
                       <h2 className="text-xl font-black text-stone-100 tracking-tighter uppercase italic">
                         Brotes
                       </h2>
                       <p className="text-stone-400 text-xs font-medium leading-relaxed">
-                        ¿Con quién trataste? Marca en 3 segundos o pasa
+                        Elige pincel (🫂 📞 💬 📸 🎁) y toca a cada persona
                       </p>
                     </div>
 
                     <div className="bg-stone-900/90 backdrop-blur-md rounded-2xl p-4 space-y-3 border border-stone-800/80 shadow-xl">
-                      {/* Día + Canal */}
+                      {/* Día + Pincel de 5 Canales */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center bg-stone-950 rounded-xl p-0.5 border border-stone-800 text-xs">
                           <button
                             type="button"
                             aria-pressed={telonBrotesTargetDay === 'yesterday'}
                             onClick={() => setTelonBrotesTargetDay('yesterday')}
-                            className={`px-2.5 py-1 rounded-lg transition-colors font-bold ${
+                            className={`min-h-7 px-2.5 py-1 rounded-lg transition-colors font-bold ${
                               telonBrotesTargetDay === 'yesterday'
                                 ? 'bg-pink-700/40 text-pink-200'
                                 : 'text-stone-500 hover:text-stone-300'
@@ -2907,7 +2932,7 @@ REGLAS DE SELECCIÓN:
                             type="button"
                             aria-pressed={telonBrotesTargetDay === 'today'}
                             onClick={() => setTelonBrotesTargetDay('today')}
-                            className={`px-2.5 py-1 rounded-lg transition-colors font-bold ${
+                            className={`min-h-7 px-2.5 py-1 rounded-lg transition-colors font-bold ${
                               telonBrotesTargetDay === 'today'
                                 ? 'bg-pink-700/40 text-pink-200'
                                 : 'text-stone-500 hover:text-stone-300'
@@ -2917,13 +2942,8 @@ REGLAS DE SELECCIÓN:
                           </button>
                         </div>
 
-                        <div className="flex items-center gap-1">
-                          {([
-                            { key: 'person', icon: '🫂', label: 'Presencial' },
-                            { key: 'call', icon: '📞', label: 'Llamada' },
-                            { key: 'message', icon: '💬', label: 'Mensaje' },
-                            { key: 'gift', icon: '🎁', label: 'Detalle' },
-                          ] as const).map(ch => {
+                        <div className="flex items-center gap-1" role="group" aria-label="Canal activo">
+                          {channelMeta.map(ch => {
                             const active = telonBrotesChannel === ch.key;
                             return (
                               <button
@@ -2931,53 +2951,67 @@ REGLAS DE SELECCIÓN:
                                 type="button"
                                 aria-pressed={active}
                                 aria-label={ch.label}
-                                title={ch.label}
                                 onClick={() => setTelonBrotesChannel(ch.key)}
-                                className={`w-8 h-8 rounded-xl border flex items-center justify-center text-sm transition-all ${
+                                className={`min-w-8 min-h-8 px-1.5 rounded-xl border flex items-center justify-center text-sm transition-all ${
                                   active
                                     ? 'bg-pink-700/50 border-pink-400 scale-105'
                                     : 'bg-stone-950 border-stone-800 opacity-65 hover:opacity-100'
                                 }`}
                               >
-                                {ch.icon}
+                                <span aria-hidden="true">{ch.icon}</span>
                               </button>
                             );
                           })}
                         </div>
                       </div>
 
-                      {/* Filtro opcional */}
-                      <input
-                        type="text"
-                        value={telonBrotesFilter}
-                        onChange={e => setTelonBrotesFilter(e.target.value)}
-                        placeholder="Filtrar otra persona..."
-                        className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-stone-200 placeholder-stone-600 focus:outline-none focus:border-pink-600"
-                      />
+                      {/* Filtro opcional con label explícito */}
+                      <div>
+                        <label htmlFor="telon-brotes-filter" className="sr-only">
+                          Filtrar otra persona
+                        </label>
+                        <input
+                          id="telon-brotes-filter"
+                          type="text"
+                          value={telonBrotesFilter}
+                          onChange={e => setTelonBrotesFilter(e.target.value)}
+                          placeholder="Filtrar otra persona..."
+                          className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-stone-200 placeholder-stone-600 focus:outline-none focus:border-pink-600"
+                        />
+                      </div>
 
-                      {/* Chips rápidos */}
+                      {/* Chips rápidos con canal individual por persona */}
                       <div className="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto pr-0.5">
                         {visibleFriends.map(friend => {
-                          const isSelected = telonBrotesIds.includes(friend.id);
+                          const assignedChannel = telonBrotesMap[friend.id];
+                          const isSelected = Boolean(assignedChannel);
                           return (
                             <button
                               key={friend.id}
                               type="button"
                               aria-pressed={isSelected}
+                              {...(assignedChannel ? ({ 'aria-description': channelLabelByKey[assignedChannel] } as any) : {})}
                               onClick={() => {
-                                setTelonBrotesIds(prev =>
-                                  prev.includes(friend.id)
-                                    ? prev.filter(id => id !== friend.id)
-                                    : [...prev, friend.id]
-                                );
+                                setTelonBrotesMap(prev => {
+                                  const current = prev[friend.id];
+                                  if (!current || current !== telonBrotesChannel) {
+                                    return { ...prev, [friend.id]: telonBrotesChannel };
+                                  }
+                                  const next = { ...prev };
+                                  delete next[friend.id];
+                                  return next;
+                                });
                               }}
-                              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 ${
+                              className={`min-h-7 px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 inline-flex items-center gap-1 ${
                                 isSelected
                                   ? 'bg-pink-600 border-pink-400 text-white shadow-[0_0_12px_rgba(236,72,153,0.3)]'
                                   : 'bg-stone-950 border-stone-800 text-stone-300 hover:border-stone-600'
                               }`}
                             >
-                              {friend.name}
+                              {assignedChannel && (
+                                <span aria-hidden="true">{channelIconByKey[assignedChannel]}</span>
+                              )}
+                              <span>{friend.name}</span>
                             </button>
                           );
                         })}
@@ -2993,7 +3027,7 @@ REGLAS DE SELECCIÓN:
                             ...data,
                             lastBrotesTelonDate: todayStr
                           };
-                          setTelonBrotesIds([]);
+                          setTelonBrotesMap({});
                           setTelonBrotesFilter('');
                           setData(nextData);
                           advanceToNextTelonStep(nextData);
@@ -3005,7 +3039,7 @@ REGLAS DE SELECCIÓN:
 
                       <button
                         type="button"
-                        disabled={telonBrotesIds.length === 0}
+                        disabled={selectedCount === 0}
                         onClick={() => {
                           const todayStr = new Date().toDateString();
                           const ts = telonBrotesTargetDay === 'yesterday'
@@ -3018,10 +3052,11 @@ REGLAS DE SELECCIÓN:
                             : Date.now();
 
                           const updatedFriends = (data.friends || []).map(f => {
-                            if (!telonBrotesIds.includes(f.id)) return f;
+                            const friendChannel = telonBrotesMap[f.id];
+                            if (!friendChannel) return f;
                             const entry = {
                               id: `${ts}-${Math.random().toString(36).slice(2, 8)}`,
-                              type: telonBrotesChannel,
+                              type: friendChannel,
                               timestamp: ts
                             };
                             return {
@@ -3029,11 +3064,11 @@ REGLAS DE SELECCIÓN:
                               lastInteraction: Math.max(f.lastInteraction || 0, ts),
                               interactions: {
                                 ...f.interactions,
-                                [telonBrotesChannel]: (f.interactions?.[telonBrotesChannel] || 0) + 1
+                                [friendChannel]: (f.interactions?.[friendChannel] || 0) + 1
                               },
                               lastInteractions: {
                                 ...(f.lastInteractions || {}),
-                                [telonBrotesChannel]: Math.max(f.lastInteractions?.[telonBrotesChannel] || 0, ts)
+                                [friendChannel]: Math.max(f.lastInteractions?.[friendChannel] || 0, ts)
                               },
                               history: [entry, ...(f.history || [])]
                             };
@@ -3073,18 +3108,18 @@ REGLAS DE SELECCIÓN:
                             lastBrotesTelonDate: todayStr
                           };
 
-                          setTelonBrotesIds([]);
+                          setTelonBrotesMap({});
                           setTelonBrotesFilter('');
                           setData(nextData);
                           advanceToNextTelonStep(nextData);
                         }}
                         className={`py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider italic transition-all ${
-                          telonBrotesIds.length > 0
+                          selectedCount > 0
                             ? 'bg-gradient-to-r from-pink-600 to-rose-500 text-white hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(236,72,153,0.25)] cursor-pointer'
                             : 'bg-stone-950 text-stone-700 cursor-not-allowed border border-stone-900'
                         }`}
                       >
-                        Guardar ({telonBrotesIds.length})
+                        Guardar ({selectedCount})
                       </button>
                     </div>
                   </div>
