@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppData, ViewState } from '../types';
-import { ArrowLeft, CheckCircle2, Target } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getCanonicalHunoShortcut } from '../App';
@@ -26,12 +26,15 @@ interface DailyFrontsState {
     yunque?: DailyFrontData;
     leones?: DailyFrontData;
     brotes?: DailyFrontData;
+    gimnasia?: DailyFrontData;
+    lectura?: DailyFrontData;
+    nubes?: DailyFrontData;
   };
 }
 
 interface FrontTaskItem {
   id: string;
-  category: 'foco' | 'trains' | 'sets' | 'roble' | 'yunque' | 'leones' | 'love' | 'projects';
+  category: 'foco' | 'trains' | 'sets' | 'roble' | 'yunque' | 'leones' | 'love' | 'workout' | 'read' | 'projects';
   name: string;
   emoji: string;
   taskText: string;
@@ -129,7 +132,10 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
   };
 
   // Guardar cambio de estado en Firestore para el frente inyectado
-  const updateInjectedFrontStatus = async (frontKey: 'tren' | 'seta' | 'roble' | 'yunque' | 'leones' | 'brotes', newCompleted: boolean) => {
+  const updateInjectedFrontStatus = async (
+    frontKey: 'tren' | 'seta' | 'roble' | 'yunque' | 'leones' | 'brotes' | 'gimnasia' | 'lectura' | 'nubes',
+    newCompleted: boolean
+  ) => {
     try {
       const frontsRef = doc(db, 'users', 'rrhzO4FVdwNTQW4DiVsJYBsuLbK2', 'habits', 'daily_fronts');
       const prevData = injectedFronts || { date: todayStr, fronts: {} };
@@ -252,6 +258,54 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
+  // 7. GIMNASIA (Huno: huno-1 / workout / Gim 🏋️ 60')
+  const hunoGimnasiaDone = isHunoDone(h => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return sc === 'workout' || h.id === 'huno-1' || h.text.toLowerCase().includes('gim') || h.text.toLowerCase().includes('entreno');
+  });
+  const gimnasiaInjected = injectedFronts?.fronts?.gimnasia;
+  const isGimnasiaDone = gimnasiaInjected !== undefined ? gimnasiaInjected.completed : hunoGimnasiaDone;
+  const toggleGimnasia = () => {
+    const nextVal = !isGimnasiaDone;
+    updateInjectedFrontStatus('gimnasia', nextVal);
+    syncHunoState(nextVal, h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'workout' || h.id === 'huno-1' || h.text.toLowerCase().includes('gim') || h.text.toLowerCase().includes('entreno');
+    });
+  };
+
+  // 8. LECTURA (Huno: huno-3 / read / Leer 📖 30')
+  const hunoLecturaDone = isHunoDone(h => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return sc === 'read' || h.id === 'huno-3' || h.text.toLowerCase().includes('leer') || h.text.toLowerCase().includes('lectura');
+  });
+  const lecturaInjected = injectedFronts?.fronts?.lectura;
+  const isLecturaDone = lecturaInjected !== undefined ? lecturaInjected.completed : hunoLecturaDone;
+  const toggleLectura = () => {
+    const nextVal = !isLecturaDone;
+    updateInjectedFrontStatus('lectura', nextVal);
+    syncHunoState(nextVal, h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'read' || h.id === 'huno-3' || h.text.toLowerCase().includes('leer') || h.text.toLowerCase().includes('lectura');
+    });
+  };
+
+  // 9. NUBES (Huno: huno-13 / projects / Nubes 🌦️ 44')
+  const hunoNubesDone = isHunoDone(h => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return sc === 'projects' || h.id === 'huno-13' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto');
+  });
+  const nubesInjected = injectedFronts?.fronts?.nubes;
+  const isNubesDone = nubesInjected !== undefined ? nubesInjected.completed : hunoNubesDone;
+  const toggleNubes = () => {
+    const nextVal = !isNubesDone;
+    updateInjectedFrontStatus('nubes', nextVal);
+    syncHunoState(nextVal, h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'projects' || h.id === 'huno-13' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto');
+    });
+  };
+
   // Fallbacks elegantes solo si aún no se ha ejecutado el rito matinal de inyección
   const fallbackTrain = (data.trains || []).find(t => !t.completed)?.text || 'Mantenimiento mensual';
   const fallbackSeta = (data.sets || []).find(t => !t.completed)?.text || 'Mantenimiento semanal';
@@ -261,8 +315,11 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     .filter(f => !f.isSporadic && f.orbit !== 'hogar' && f.lastInteraction > 0)
     .sort((a, b) => a.lastInteraction - b.lastInteraction)[0];
   const fallbackBrotes = urgentFriendForFallback ? `Cuidar vínculo: ${urgentFriendForFallback.name}` : 'Cuidar un vínculo hoy';
+  const fallbackGimnasia = 'Sesión de fuerza y Foot Core';
+  const fallbackLectura = 'Lectura del Cuarteto 30\'';
+  const fallbackNubes = 'Avanzar Nube activa 44\'';
 
-  // Cuadrícula de frentes
+  // Lista de frentes
   const dailyFronts: FrontTaskItem[] = [
     ...(dailyFocus ? [{
       id: 'foco-diario',
@@ -332,6 +389,33 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       completed: isBrotesDone,
       navigateView: 'love',
       onToggle: toggleBrotes
+    },
+    {
+      id: 'gimnasia-front',
+      category: 'workout',
+      name: 'Gimnasia',
+      emoji: '🏋️',
+      taskText: gimnasiaInjected?.text || fallbackGimnasia,
+      completed: isGimnasiaDone,
+      onToggle: toggleGimnasia
+    },
+    {
+      id: 'lectura-front',
+      category: 'read',
+      name: 'Lectura',
+      emoji: '📖',
+      taskText: lecturaInjected?.text || fallbackLectura,
+      completed: isLecturaDone,
+      onToggle: toggleLectura
+    },
+    {
+      id: 'nubes-front',
+      category: 'projects',
+      name: 'Nubes',
+      emoji: '☁️',
+      taskText: nubesInjected?.text || fallbackNubes,
+      completed: isNubesDone,
+      onToggle: toggleNubes
     }
   ];
 
@@ -386,6 +470,12 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
           return 'bg-amber-500/25 border-amber-500/70 text-amber-100 shadow-sm shadow-amber-950/20';
         case 'love':
           return 'bg-rose-500/25 border-rose-500/70 text-rose-100 shadow-sm shadow-rose-950/20';
+        case 'workout':
+          return 'bg-orange-500/25 border-orange-500/70 text-orange-100 shadow-sm shadow-orange-950/20';
+        case 'read':
+          return 'bg-emerald-500/25 border-emerald-500/70 text-emerald-100 shadow-sm shadow-emerald-950/20';
+        case 'projects':
+          return 'bg-cyan-500/25 border-cyan-500/70 text-cyan-100 shadow-sm shadow-cyan-950/20';
         default:
           return 'bg-emerald-500/25 border-emerald-500/70 text-emerald-100 shadow-sm shadow-emerald-950/20';
       }
@@ -418,74 +508,62 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       </header>
 
       <div className="space-y-5">
-        {/* CABECERA SEMANAL: 3 Metas apiladas */}
-        <section className="bg-stone-900/90 border border-stone-800 rounded-2xl p-3.5 shadow-sm space-y-2.5">
-          <div className="flex items-center justify-between mb-1 px-0.5">
-            <span className="text-xs font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
-              <Target className="w-4 h-4" />
-              Metas Semanales
-            </span>
-            <span className="text-xs font-bold text-stone-400 font-mono">
-              {[isWeeklyLeonesDone, isWeeklyRobleDone, isWeeklyYunqueDone].filter(Boolean).length}/3
+        {/* Metas Semanales compactas apiladas directamente sin envoltorio */}
+        <div className="flex flex-col gap-1.5">
+          {/* Meta 1: Leones */}
+          <div
+            onClick={() => toggleWeeklyGoal('leones')}
+            className={`w-full py-1.5 px-3 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all active:scale-[0.99] ${
+              isWeeklyLeonesDone
+                ? 'bg-amber-500/25 border-amber-500/70 text-amber-100 shadow-sm shadow-amber-950/20'
+                : 'bg-stone-950/80 border-stone-800 hover:border-amber-500/50 text-stone-200'
+            }`}
+            title="Alternar estado meta Leones"
+          >
+            <span className="text-lg select-none flex-shrink-0">🦁</span>
+            <span className={`text-[13px] sm:text-sm font-black uppercase tracking-tight leading-tight flex-1 ${
+              isWeeklyLeonesDone ? 'line-through text-amber-200/90' : 'text-stone-100'
+            }`}>
+              {weeklyLeones}
             </span>
           </div>
 
-          <div className="flex flex-col gap-2.5">
-            {/* Meta 1: Leones */}
-            <div
-              onClick={() => toggleWeeklyGoal('leones')}
-              className={`w-full p-3.5 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.99] ${
-                isWeeklyLeonesDone
-                  ? 'bg-amber-500/25 border-amber-500/70 text-amber-100 shadow-sm shadow-amber-950/20'
-                  : 'bg-stone-950/80 border-stone-800 hover:border-amber-500/50 text-stone-200'
-              }`}
-              title="Alternar estado meta Leones"
-            >
-              <span className="text-2xl select-none flex-shrink-0">🦁</span>
-              <span className={`text-[15px] sm:text-base font-semibold leading-snug flex-1 ${
-                isWeeklyLeonesDone ? 'line-through text-amber-200/90' : 'text-stone-100'
-              }`}>
-                {weeklyLeones}
-              </span>
-            </div>
-
-            {/* Meta 2: Roble */}
-            <div
-              onClick={() => toggleWeeklyGoal('forjas')}
-              className={`w-full p-3.5 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.99] ${
-                isWeeklyRobleDone
-                  ? 'bg-emerald-500/25 border-emerald-500/70 text-emerald-100 shadow-sm shadow-emerald-950/20'
-                  : 'bg-stone-950/80 border-stone-800 hover:border-emerald-500/50 text-stone-200'
-              }`}
-              title="Alternar estado meta Roble"
-            >
-              <span className="text-2xl select-none flex-shrink-0">🌳</span>
-              <span className={`text-[15px] sm:text-base font-semibold leading-snug flex-1 ${
-                isWeeklyRobleDone ? 'line-through text-emerald-200/90' : 'text-stone-100'
-              }`}>
-                {weeklyRoble}
-              </span>
-            </div>
-
-            {/* Meta 3: Yunque */}
-            <div
-              onClick={() => toggleWeeklyGoal('puerto')}
-              className={`w-full p-3.5 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.99] ${
-                isWeeklyYunqueDone
-                  ? 'bg-blue-500/25 border-blue-500/70 text-blue-100 shadow-sm shadow-blue-950/20'
-                  : 'bg-stone-950/80 border-stone-800 hover:border-blue-500/50 text-stone-200'
-              }`}
-              title="Alternar estado meta Yunque"
-            >
-              <span className="text-2xl select-none flex-shrink-0">🚢</span>
-              <span className={`text-[15px] sm:text-base font-semibold leading-snug flex-1 ${
-                isWeeklyYunqueDone ? 'line-through text-blue-200/90' : 'text-stone-100'
-              }`}>
-                {weeklyYunque}
-              </span>
-            </div>
+          {/* Meta 2: Roble */}
+          <div
+            onClick={() => toggleWeeklyGoal('forjas')}
+            className={`w-full py-1.5 px-3 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all active:scale-[0.99] ${
+              isWeeklyRobleDone
+                ? 'bg-emerald-500/25 border-emerald-500/70 text-emerald-100 shadow-sm shadow-emerald-950/20'
+                : 'bg-stone-950/80 border-stone-800 hover:border-emerald-500/50 text-stone-200'
+            }`}
+            title="Alternar estado meta Roble"
+          >
+            <span className="text-lg select-none flex-shrink-0">🌳</span>
+            <span className={`text-[13px] sm:text-sm font-black uppercase tracking-tight leading-tight flex-1 ${
+              isWeeklyRobleDone ? 'line-through text-emerald-200/90' : 'text-stone-100'
+            }`}>
+              {weeklyRoble}
+            </span>
           </div>
-        </section>
+
+          {/* Meta 3: Yunque */}
+          <div
+            onClick={() => toggleWeeklyGoal('puerto')}
+            className={`w-full py-1.5 px-3 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all active:scale-[0.99] ${
+              isWeeklyYunqueDone
+                ? 'bg-blue-500/25 border-blue-500/70 text-blue-100 shadow-sm shadow-blue-950/20'
+                : 'bg-stone-950/80 border-stone-800 hover:border-blue-500/50 text-stone-200'
+            }`}
+            title="Alternar estado meta Yunque"
+          >
+            <span className="text-lg select-none flex-shrink-0">🚢</span>
+            <span className={`text-[13px] sm:text-sm font-black uppercase tracking-tight leading-tight flex-1 ${
+              isWeeklyYunqueDone ? 'line-through text-blue-200/90' : 'text-stone-100'
+            }`}>
+              {weeklyYunque}
+            </span>
+          </div>
+        </div>
 
         {/* LISTA DE FRENTES DIARIOS: 1 por fila apilados */}
         <section className="space-y-2.5">
