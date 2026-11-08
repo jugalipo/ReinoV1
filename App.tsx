@@ -2605,11 +2605,19 @@ REGLAS DE SELECCIÓN:
           </div>
           <button
             onClick={() => {
+              const todayStr = new Date().toDateString();
+              const nextData = {
+                ...data,
+                ...(telonStep === 'delayed_hunos' ? { lastDelayedHunosDate: todayStr } : {})
+              };
+              if (telonStep === 'delayed_hunos') {
+                setData(nextData);
+              }
               setModoTelonActive(false);
               setTelonDismissed(true);
               setSessionHandledFoodDates([]);
             }}
-            className="text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors py-1.5 px-3 rounded-full hover:bg-stone-900/50"
+            className="text-[10px] font-black uppercase tracking-wider text-stone-500 hover:text-stone-300 transition-colors py-1.5 px-3 rounded-full hover:bg-stone-900/50 cursor-pointer"
           >
             Saltar a la App
           </button>
@@ -3286,28 +3294,21 @@ REGLAS DE SELECCIÓN:
 
               {telonStep === 'delayed_hunos' && (() => {
                 const delayedHunos = getDelayedHunos(data);
-                return (
-                  <div className="w-full space-y-8 animate-in fade-in duration-500 max-w-sm mx-auto text-center">
-                    <div className="space-y-3">
-                      <div className="w-12 h-12 bg-rose-950/40 border border-rose-500/30 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
-                        <Flame className="w-6 h-6" />
-                      </div>
-                      <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
-                        Hábitos Retrasados
-                      </h2>
-                      <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
-                        {delayedHunos.length === 0
-                          ? 'Todos los hábitos se cumplieron ayer. ¡Todo al día!'
-                          : 'Hábitos que llevan más días sin cumplirse'}
-                      </p>
-                    </div>
+                const count = delayedHunos.length;
 
-                    {delayedHunos.length > 0 ? (
-                      <div className="flex justify-center items-center gap-3 max-w-xs mx-auto flex-wrap">
+                return (
+                  <div className="w-full flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 max-w-sm mx-auto my-auto py-6">
+                    {count > 0 ? (
+                      <div className={`grid gap-6 sm:gap-8 justify-items-center items-center my-auto ${
+                        count === 1 ? 'grid-cols-1' :
+                        count === 2 ? 'grid-cols-2' :
+                        count === 3 ? 'grid-cols-2 [&>*:last-child]:col-span-2' :
+                        'grid-cols-2'
+                      }`}>
                         {delayedHunos.map(({ task, daysMissed }) => {
                           const isDoneToday = task.completed;
                           return (
-                            <div key={task.id} className="flex flex-col items-center gap-1.5 min-w-[64px]">
+                            <div key={task.id} className="relative flex items-center justify-center">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -3322,10 +3323,12 @@ REGLAS DE SELECCIÓN:
                                     data.hunosHistory || {},
                                     completedIds
                                   );
+                                  const todayStr = new Date().toDateString();
                                   setData(prev => ({
                                     ...prev,
                                     hunos: updatedHunos,
                                     hunosHistory: updatedHistory,
+                                    lastDelayedHunosDate: todayStr,
                                     stats: {
                                       ...prev.stats,
                                       hunoPlenos: newPlenos,
@@ -3333,57 +3336,33 @@ REGLAS DE SELECCIÓN:
                                     }
                                   }));
                                 }}
-                                className={`w-16 h-16 rounded-full flex items-center justify-center relative transition-all active:scale-95 shadow-lg cursor-pointer ${
+                                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full flex items-center justify-center relative transition-all duration-300 active:scale-95 cursor-pointer shadow-2xl ${
                                   isDoneToday
-                                    ? 'bg-emerald-600 border-2 border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                                    : 'bg-rose-950/40 border-2 border-rose-500/80 hover:border-rose-400 text-stone-100 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                                    ? 'bg-emerald-600/90 border-4 border-emerald-400 text-white shadow-[0_0_35px_rgba(16,185,129,0.5)] scale-95'
+                                    : 'bg-stone-900/90 border-4 border-rose-500/80 hover:border-rose-400 text-stone-100 shadow-[0_0_35px_rgba(244,63,94,0.35)] hover:scale-105'
                                 }`}
                                 title={task.text}
                               >
-                                <span className="text-2xl drop-shadow-sm filter">
+                                <span className="text-5xl sm:text-6xl drop-shadow-lg filter select-none">
                                   {isDoneToday ? '✓' : getEmoji(task.text)}
                                 </span>
                                 {!isDoneToday && (
-                                  <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-stone-100 text-[10px] font-black px-1.5 py-0.5 rounded-full border border-stone-900 shadow">
+                                  <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white text-xs sm:text-sm font-black px-2.5 py-1 rounded-full border-2 border-stone-950 shadow-lg">
                                     +{daysMissed}d
                                   </span>
                                 )}
                               </button>
-                              <span className="text-[10px] font-bold text-stone-400 max-w-[70px] truncate leading-tight">
-                                {task.text.replace(/^[\p{Emoji}\s]+/u, '').trim() || task.text}
-                              </span>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <div className="py-4 flex flex-col items-center justify-center gap-2">
-                        <div className="w-16 h-16 rounded-full bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-2xl shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                          <Check className="w-8 h-8 stroke-[3]" />
+                      <div className="flex flex-col items-center justify-center my-auto space-y-3">
+                        <div className="w-24 h-24 rounded-full bg-emerald-950/40 border-4 border-emerald-500/40 flex items-center justify-center text-emerald-400 text-4xl shadow-[0_0_30px_rgba(16,185,129,0.25)]">
+                          <Check className="w-12 h-12 stroke-[3]" />
                         </div>
-                        <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                          Sin retrasos pendientes
-                        </p>
                       </div>
                     )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const todayStr = new Date().toDateString();
-                        const nextData = {
-                          ...data,
-                          lastDelayedHunosDate: todayStr
-                        };
-                        setData(nextData);
-                        setModoTelonActive(false);
-                        setTelonDismissed(true);
-                        setSessionHandledFoodDates([]);
-                      }}
-                      className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer text-center"
-                    >
-                      Entrar al Reino
-                    </button>
                   </div>
                 );
               })()}
@@ -4731,7 +4710,7 @@ REGLAS DE SELECCIÓN:
               <button
                 type="button"
                 onClick={() => setView('love')}
-                className="col-span-1 h-full aspect-square mx-auto bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex flex-col items-center justify-between p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative cursor-pointer shadow-sm"
+                className="col-span-1 h-full aspect-square mx-auto bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex flex-col items-center justify-between p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors group relative cursor-pointer shadow-sm"
                 title="Brotes"
               >
                 <div className="flex-1 flex items-center justify-center">
@@ -4778,7 +4757,7 @@ REGLAS DE SELECCIÓN:
                 }}
                 className={`col-span-1 h-full aspect-square mx-auto bg-lime-50 dark:bg-lime-950/30 rounded-2xl flex flex-col items-center justify-between p-2 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative cursor-pointer shadow-sm ${
                   currentFoodScore < 0 
-                    ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' 
+                    ? 'animate-blink' 
                     : isFoodPleno
                       ? 'scale-[1.05] animate-pulse'
                       : ''
@@ -4791,7 +4770,7 @@ REGLAS DE SELECCIÓN:
                       shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {})
                         ? 'animate-cutlery-bounce text-lime-400'
                         : currentFoodScore < 0
-                        ? 'text-red-500 animate-pulse'
+                        ? 'text-red-500'
                         : isFoodPleno
                         ? 'text-lime-200'
                         : 'text-lime-500 group-hover:text-lime-400'
