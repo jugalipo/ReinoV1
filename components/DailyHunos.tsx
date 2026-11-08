@@ -267,13 +267,12 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                     return elements;
                 })}
 
-                {/* 3. Hueco tras la manzana (Sano 🍏): Burbuja de Monedas Perdidas */}
+                {/* 3. Hueco tras la manzana (Sano 🍏): Número de monedas perdidas */}
                 <div 
                     title={`Monedas perdidas por Hunos fallados ayer y aún pendientes: -${lostCoinsCount}`}
-                    className="aspect-square flex flex-col items-center justify-center rounded-2xl border border-red-900/40 bg-red-950/20 shadow-sm transition-all select-none group"
+                    className="aspect-square flex items-center justify-center rounded-2xl select-none"
                 >
-                    <span className="text-2xl filter drop-shadow group-hover:scale-110 transition-transform">🪙</span>
-                    <span className="text-xs sm:text-sm font-black text-red-500 font-mono mt-0.5">
+                    <span className="text-3xl sm:text-4xl font-black text-red-500 font-mono tracking-tighter">
                         -{lostCoinsCount}
                     </span>
                 </div>

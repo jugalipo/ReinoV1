@@ -994,36 +994,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
               <div className="flex items-center gap-2">
                 <Cloud className="w-5 h-5 text-stone-400" />
                 <h2 className="text-lg font-bold text-stone-200">Nubes</h2>
-
-                <div
-                  className="flex items-center gap-2 px-2 py-0.5 bg-stone-950/50 rounded-full border border-stone-800 ml-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="relative">
-                    <Trophy className="w-4 h-4 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]" />
-                    <div className="absolute -top-2 -right-2 bg-yellow-600 text-stone-950 text-[9px] font-black px-1 rounded-full border border-stone-900 min-w-[1rem] h-4 flex items-center justify-center">
-                      {data.stats.projectPlenos || 0}
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-black text-stone-500 uppercase tracking-tighter">
-                    {data.stats.projectPlenoCurrent || 0} <span className="text-stone-700">/ 20</span>
-                  </span>
-                </div>
               </div>
-
-              {!isNubesCollapsed && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsEditingProjects(!isEditingProjects);
-                  }}
-                  className={`p-1.5 rounded-full transition-colors ${
-                    isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'
-                  }`}
-                >
-                  {isEditingProjects ? <Save className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-                </button>
-              )}
             </div>
 
             {isNubesCollapsed && (data.projects || []).length > 0 && (
@@ -1051,83 +1022,26 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
 
             {!isNubesCollapsed && (
               <div className="mt-4 animate-in fade-in duration-300">
-                {isEditingProjects ? (
-                  <div className="space-y-2.5">
-                    {data.projects.map((proj) => (
-                      <div key={proj.id} className="flex gap-2">
-                        <button
-                          onClick={() => onOpenProjectNotes(proj.id, proj.notes || '')}
-                          className={`p-2 rounded-lg border transition-all active:scale-95 flex items-center justify-center shrink-0 ${
-                            proj.notes
-                              ? 'bg-amber-950/25 border-amber-900/40 text-amber-400'
-                              : 'bg-stone-950 border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-600'
-                          }`}
-                          title="Editar Notas de Sebastian"
-                        >
-                          <Info className="w-4 h-4" />
-                        </button>
-                        <DebouncedInput
-                          type="text"
-                          value={proj.text}
-                          onChange={(val: string) => onProjectTextChange(proj.id, val)}
-                          className="flex-1 min-w-0 bg-stone-950 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-stone-500 transition-all"
-                        />
-                        <button
-                          onClick={() => onInitiateDeleteProject(proj.id)}
-                          className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                <div className="grid grid-cols-4 gap-2.5">
+                  {data.projects.length === 0 && (
+                    <p className="col-span-4 text-center text-stone-600 italic py-2 text-sm">Sin nubes activas.</p>
+                  )}
+                  {data.projects.map((proj, idx) => (
                     <button
-                      onClick={onInitiateAddProject}
-                      className="w-full mt-3 py-2.5 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-sm text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"
+                      key={proj.id}
+                      onClick={() => onToggleProject(idx)}
+                      title={proj.text}
+                      className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
+                        proj.completed
+                          ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105'
+                          : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'
+                      }`}
                     >
-                      <Plus className="w-4 h-4" />
-                      <span>Añadir Proyecto</span>
+                      <span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span>
                     </button>
-
-                    <div className="pt-3 mt-2 border-t border-stone-800">
-                      <label className="block text-[10px] font-black text-stone-600 uppercase tracking-widest mb-1.5">
-                        Premio Objetivo 20 Plenos
-                      </label>
-                      <input
-                        type="text"
-                        value={data.stats.projectReward || ''}
-                        onChange={(e) =>
-                          onUpdateData((prev) => ({
-                            ...prev,
-                            stats: { ...prev.stats, projectReward: e.target.value }
-                          }))
-                        }
-                        className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-yellow-500 font-bold"
-                        placeholder="Escribe tu premio aquí..."
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-4 gap-2.5">
-                      {data.projects.length === 0 && (
-                        <p className="col-span-4 text-center text-stone-600 italic py-2 text-sm">Sin nubes activas.</p>
-                      )}
-                      {data.projects.map((proj, idx) => (
-                        <button
-                          key={proj.id}
-                          onClick={() => onToggleProject(idx)}
-                          title={proj.text}
-                          className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
-                            proj.completed
-                              ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105'
-                              : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'
-                          }`}
-                        >
-                          <span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2.5 mt-3">
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 mt-3">
                       <button
                         onClick={() => onNavigate('piano')}
                         className="py-2.5 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-sm text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all cursor-pointer"
@@ -1146,10 +1060,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                         <span className="font-bold">Gympieza</span>
                       </button>
                     </div>
-                  </>
-                )}
-              </div>
-            )}
+                </div>
+              )}
           </div>
 
           {/* Botones Inferiores de Columna 1: Caminos | Bitácora | Salir */}

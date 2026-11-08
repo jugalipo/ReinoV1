@@ -4893,33 +4893,7 @@ REGLAS DE SELECCIÓN:
                 <div className="flex items-center gap-2">
                   <Cloud className="w-6 h-6 text-stone-400" />
                   <h2 className="text-xl font-bold text-stone-200">Nubes</h2>
-
-                  <div className="flex items-center gap-2 px-2 py-1 bg-stone-950/50 rounded-full border border-stone-800 ml-1" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-1.5">
-                      <div className="relative">
-                        <Trophy className="w-5 h-5 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]" />
-                        <div className="absolute -top-2 -right-2 bg-yellow-600 text-stone-950 text-[10px] font-black px-1.5 rounded-full border border-stone-900 min-w-[1.2rem] h-5 flex items-center justify-center">
-                          {data.stats.projectPlenos || 0}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black text-stone-500 uppercase tracking-tighter">
-                      {data.stats.projectPlenoCurrent || 0} <span className="text-stone-700">/ 20</span>
-                    </span>
-                  </div>
                 </div>
-
-                {!isNubesCollapsed && (
-                  <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setIsEditingProjects(!isEditingProjects); 
-                    }} 
-                    className={`p-2 rounded-full transition-colors ${isEditingProjects ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}
-                  >
-                    {isEditingProjects ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
-                  </button>
-                )}
               </div>
 
               {isNubesCollapsed && (data.projects || []).length > 0 && (
@@ -4947,61 +4921,22 @@ REGLAS DE SELECCIÓN:
 
               {!isNubesCollapsed && (
                 <div className="mt-4 animate-in fade-in duration-300">
-                  {isEditingProjects ? (
-                    <div className="space-y-3">
-                      {data.projects.map(proj => (
-                        <div key={proj.id} className="flex gap-2">
-                          <button
-                            onClick={() => {
-                              setNoteEditingProjectId(proj.id);
-                              setTempProjectNoteText(proj.notes || '');
-                            }}
-                            className={`p-2.5 rounded-lg border transition-all active:scale-95 flex items-center justify-center shrink-0 ${
-                              proj.notes 
-                                ? 'bg-amber-950/25 border-amber-900/40 text-amber-400' 
-                                : 'bg-stone-950 border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-600'
-                            }`}
-                            title="Editar Notas de Sebastian"
-                          >
-                            <Info className="w-5 h-5" />
-                          </button>
-                          <DebouncedInput type="text" value={proj.text} onChange={(val: string) => handleProjectTextChange(proj.id, val)} className="flex-1 min-w-0 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-stone-500 transition-all" />
-                          <button onClick={() => initiateDeleteProject(proj.id)} className="p-2 bg-stone-950 border border-stone-700 rounded-lg text-red-500 hover:bg-red-900/20 transition-colors"><Trash2 className="w-5 h-5" /></button>
-                        </div>
-                      ))}
-                      <button onClick={initiateAddProject} className="w-full mt-4 py-3 border-2 border-dashed border-stone-700 rounded-xl flex items-center justify-center gap-2 text-stone-500 hover:text-stone-300 hover:border-stone-600 hover:bg-stone-800/50 transition-all"><Plus className="w-5 h-5" /><span>Añadir Proyecto</span></button>
-
-                      <div className="pt-4 mt-2 border-t border-stone-800">
-                        <label className="block text-xs font-black text-stone-600 uppercase tracking-widest mb-2">Premio Objetivo 20 Plenos</label>
-                        <input
-                          type="text"
-                          value={data.stats.projectReward || ''}
-                          onChange={(e) => setData(prev => ({ ...prev, stats: { ...prev.stats, projectReward: e.target.value } }))}
-                          className="w-full bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-yellow-500 font-bold"
-                          placeholder="Escribe tu premio aquí..."
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-4 gap-3">
-                        {data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin nubes activas.</p>}
-                        {data.projects.map((proj, idx) => (
-                          <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'}`}>
-                            <span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all">
-                        <Music className="w-5 h-5" />
-                        <span className="font-bold">Profundizar en Piano</span>
+                  <div className="grid grid-cols-4 gap-3">
+                    {data.projects.length === 0 && <p className="col-span-4 text-center text-stone-600 italic py-2">Sin nubes activas.</p>}
+                    {data.projects.map((proj, idx) => (
+                      <button key={proj.id} onClick={() => toggleProject(idx)} className={`aspect-square rounded-xl border-2 text-2xl flex items-center justify-center transition-all duration-300 ${proj.completed ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)] scale-105' : 'bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-500 grayscale opacity-70 hover:opacity-100'}`}>
+                        <span className={proj.completed ? 'grayscale-0' : 'grayscale'}>{getEmoji(proj.text)}</span>
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); setShowGympiezaModal(true); }} className="w-full mt-3 py-3 bg-emerald-950/30 border border-emerald-900/50 rounded-xl flex items-center justify-center gap-2 text-emerald-400 hover:bg-emerald-900/50 hover:text-emerald-300 transition-all">
-                        <Sparkles className="w-5 h-5" />
-                        <span className="font-bold">Gympieza</span>
-                      </button>
-                    </>
-                  )}
+                    ))}
+                  </div>
+                  <button onClick={() => setView('piano')} className="w-full mt-4 py-3 bg-indigo-950/30 border border-indigo-900/50 rounded-xl flex items-center justify-center gap-2 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300 transition-all">
+                    <Music className="w-5 h-5" />
+                    <span className="font-bold">Profundizar en Piano</span>
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setShowGympiezaModal(true); }} className="w-full mt-3 py-3 bg-emerald-950/30 border border-emerald-900/50 rounded-xl flex items-center justify-center gap-2 text-emerald-400 hover:bg-emerald-900/50 hover:text-emerald-300 transition-all">
+                    <Sparkles className="w-5 h-5" />
+                    <span className="font-bold">Gympieza</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -5192,124 +5127,6 @@ REGLAS DE SELECCIÓN:
                         className="py-4 rounded-2xl bg-yellow-600 text-stone-950 font-black hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-900/20 text-sm uppercase"
                       >
                         ¡Sí, Pleno!
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isAddingProject && (
-              <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
-                  <div className="p-4 border-b border-stone-800 flex justify-between items-center bg-stone-800/50">
-                    <h3 className="font-bold text-stone-200 text-lg">Nuevo Proyecto</h3>
-                    <button onClick={() => setIsAddingProject(false)} className="p-1 hover:bg-stone-700 rounded-full">
-                      <X className="w-6 h-6 text-stone-400" />
-                    </button>
-                  </div>
-
-                  <div className="p-6">
-                    <div className="mb-6">
-                      <input
-                        autoFocus
-                        type="text"
-                        value={newProjectText}
-                        onChange={(e) => setNewProjectText(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && confirmAddProject()}
-                        placeholder="Nombre del proyecto..."
-                        className="w-full bg-stone-950 border border-stone-700 rounded-xl p-4 text-stone-200 focus:outline-none focus:ring-2 focus:ring-stone-500 text-lg"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 w-full">
-                      <button
-                        onClick={() => setIsAddingProject(false)}
-                        className="py-3 rounded-xl border border-stone-700 text-stone-400 hover:bg-stone-800 font-bold transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={confirmAddProject}
-                        className="py-3 rounded-xl bg-stone-200 text-stone-900 font-bold hover:bg-white transition-colors shadow-lg"
-                      >
-                        Añadir
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {projectToDelete && (
-              <div className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                <div className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden">
-                  <div className="p-6 text-center">
-                    <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-900/50">
-                      <Trash2 className="w-8 h-8 text-red-500" />
-                    </div>
-                    <h3 className="font-bold text-stone-200 text-xl mb-2">¿Eliminar Proyecto?</h3>
-                    <p className="text-stone-400 mb-6 text-sm">Esta acción no se puede deshacer.</p>
-
-                    <div className="grid grid-cols-2 gap-3 w-full">
-                      <button
-                        onClick={() => setProjectToDelete(null)}
-                        className="py-3 rounded-xl border border-stone-700 text-stone-400 hover:bg-stone-800 font-bold transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={confirmDeleteProject}
-                        className="py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {noteEditingProjectId && (
-              <div 
-                className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
-                onClick={() => setNoteEditingProjectId(null)}
-              >
-                <div 
-                  className="bg-stone-900 w-full max-w-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="p-6 flex flex-col space-y-4">
-                    <div className="flex items-center gap-2 pb-2 border-b border-stone-850">
-                      <Info className="w-5 h-5 text-amber-500" />
-                      <h3 className="text-base font-bold text-stone-200">
-                        Notas para: "{data.projects.find(p => p.id === noteEditingProjectId)?.text || 'Nube'}"
-                      </h3>
-                    </div>
-                    <p className="text-xs text-stone-400 leading-relaxed">
-                      Estas notas le servirán a Sebastian para sugerirte esta nube/proyecto según tu nivel de energía y directrices del día.
-                    </p>
-                    <textarea
-                      value={tempProjectNoteText}
-                      onChange={(e) => setTempProjectNoteText(e.target.value)}
-                      placeholder="Ej: Si mi energía es alta, enfocarme en programar. O: Tareas rápidas para días cansados..."
-                      className="w-full h-32 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 text-sm focus:outline-none focus:border-amber-500 font-sans resize-none placeholder:text-stone-600 leading-relaxed"
-                    />
-                    <div className="grid grid-cols-2 gap-3 w-full pt-2">
-                      <button 
-                        onClick={() => setNoteEditingProjectId(null)}
-                        className="py-3 rounded-xl border border-stone-750 text-stone-400 hover:bg-stone-800 font-bold transition-colors text-sm"
-                      >
-                        Cancelar
-                      </button>
-                      <button 
-                        onClick={() => {
-                          handleProjectNotesChange(noteEditingProjectId, tempProjectNoteText);
-                          setNoteEditingProjectId(null);
-                        }}
-                        className="py-3 rounded-xl bg-amber-600 text-stone-950 font-bold hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20 text-sm"
-                      >
-                        Guardar Notas
                       </button>
                     </div>
                   </div>
