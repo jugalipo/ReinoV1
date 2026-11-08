@@ -1186,10 +1186,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                 annualTasks={data.annualTrains}
                 onUpdate={onTrainsUpdate}
                 onUpdateAnnual={(t) => onUpdateData((prev) => ({ ...prev, annualTrains: t }))}
-                reminderDismissedToday={data.lastAnnualTrainReminderDate === todayStr}
-                onDismissReminder={() =>
-                  onUpdateData((prev) => ({ ...prev, lastAnnualTrainReminderDate: todayStr }))
-                }
                 embedded={true}
               />
             </div>
