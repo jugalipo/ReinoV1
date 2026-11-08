@@ -12,7 +12,7 @@ import { StatsView } from './components/StatsView';
 import { CaminosView } from './components/CaminosView';
 import { TasksHubView } from './components/TasksHubView';
 import { DesktopDashboard } from './components/DesktopDashboard';
-import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Sparkles, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
+import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Sparkles, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike, Leaf, Sun, Snowflake } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -501,7 +501,8 @@ const INITIAL_DATA: AppData = {
     }))
   },
   caminos: [],
-  lastBrotesTelonDate: ""
+  lastBrotesTelonDate: "",
+  robleProgress: 0
 };
 
 const MushroomIcon = ({ className }: { className?: string }) => (
@@ -533,6 +534,39 @@ const getWeekLabel = () => {
 
   const monthNames = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
   return `Semana ${weekNum} · ${sunday.getDate()} ${monthNames[sunday.getMonth()]}`;
+};
+
+const getSeasonalConfig = () => {
+  const month = new Date().getMonth(); // 0-11
+  if (month >= 3 && month <= 5) {
+    return {
+      season: 'Primavera',
+      icon: Leaf,
+      activeClass: 'text-lime-400 drop-shadow-[0_0_8px_rgba(163,230,53,0.6)] fill-lime-400/20',
+      inactiveClass: 'text-stone-700/60 dark:text-stone-800'
+    };
+  } else if (month >= 6 && month <= 8) {
+    return {
+      season: 'Verano',
+      icon: Sun,
+      activeClass: 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)] fill-amber-400/20',
+      inactiveClass: 'text-stone-700/60 dark:text-stone-800'
+    };
+  } else if (month >= 9 && month <= 11) {
+    return {
+      season: 'Otoño',
+      icon: Leaf,
+      activeClass: 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)] fill-orange-400/20',
+      inactiveClass: 'text-stone-700/60 dark:text-stone-800'
+    };
+  } else {
+    return {
+      season: 'Invierno',
+      icon: Snowflake,
+      activeClass: 'text-sky-300 drop-shadow-[0_0_8px_rgba(125,211,252,0.6)]',
+      inactiveClass: 'text-stone-700/60 dark:text-stone-800'
+    };
+  }
 };
 
 const shouldJumangiareBounce = (
@@ -609,7 +643,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastBrotesTelonDate: data.lastBrotesTelonDate || "", lastFocusDate: data.lastFocusDate || "" } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastBrotesTelonDate: data.lastBrotesTelonDate || "", lastFocusDate: data.lastFocusDate || "", robleProgress: data.robleProgress ?? 0 } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -642,6 +676,7 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.lastDiaryFormDate = doc.data.lastDiaryFormDate || "";
       result.lastBrotesTelonDate = doc.data.lastBrotesTelonDate || "";
       result.lastFocusDate = doc.data.lastFocusDate || "";
+      result.robleProgress = doc.data.robleProgress ?? 0;
     } else if (doc.id === 'hunos') {
       result.hunos = doc.data.items || INITIAL_DATA.hunos;
     } else if (doc.id === 'trains') {
@@ -4526,59 +4561,67 @@ REGLAS DE SELECCIÓN:
                 </div>
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-3 px-6 sm:px-12 mb-2">
-              <button onClick={() => setView('love')} className="aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative">
-                <div className="flex-1 flex items-center justify-center">
-                  <Heart className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
-                </div>
-                <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
-                  <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
-                </div>
-              </button>
-              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-50 dark:bg-orange-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative">
-                <div className="flex-1 flex items-center justify-center">
-                  <TreeDeciduous className="w-7 h-7 sm:w-8 sm:h-8 text-orange-500 group-hover:text-orange-400 transition-colors" />
-                </div>
-                <div className="w-full h-1 bg-orange-200 dark:bg-orange-900/40 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.forjas, true)}%` }}></div>
-                </div>
-              </button>
+            {/* 20 Hojas / Iconos Estacionales - Progreso Trimestral Roble (Click abre Medallero) */}
+            {(() => {
+              const seasonalConfig = getSeasonalConfig();
+              const robleProg = data.robleProgress ?? 0;
+              const filledRobleLeaves = robleProg <= 20 && robleProg > 0 && Number.isInteger(robleProg)
+                ? robleProg
+                : Math.min(20, Math.max(0, Math.round((robleProg / 100) * 20)));
+              const SeasonalIcon = seasonalConfig.icon;
 
-              {/* Jumangiare (Food) Button */}
-              <button
-                onClick={() => {
-                  setView('food');
-                  setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
-                }}
-                className={`aspect-square bg-lime-50 dark:bg-lime-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative ${
-                    currentFoodScore < 0 
-                      ? 'animate-blink' 
-                      : isFoodPleno
-                        ? 'scale-[1.05] animate-pulse'
-                        : ''
-                  }`}
-              >
-                <div className="flex-1 flex items-center justify-center">
-                  <Utensils className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${
-                      shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {}) ? 'animate-cutlery-bounce text-lime-400' :
-                      currentFoodScore < 0 ? 'text-red-500' :
-                      isFoodPleno ? 'text-lime-200' : 'text-lime-500 group-hover:text-lime-400'
-                    }`} />
-                </div>
-                <div className={`w-full h-1 bg-lime-200 dark:bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
-                  <div
-                    className="h-full bg-lime-500 transition-all duration-500"
-                    style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
-                  ></div>
-                </div>
-              </button>
-            </div>
+              return (
+                <button
+                  onClick={() => setView('forjas')}
+                  className="w-full py-2 px-3 rounded-xl bg-stone-900/60 hover:bg-stone-900 border border-stone-800/80 hover:border-amber-800/50 transition-all active:scale-[0.99] group cursor-pointer mb-2 flex items-center justify-between shadow-sm"
+                  title="Roble · Medallero del Reino"
+                >
+                  <div className="w-full flex items-center justify-between gap-1">
+                    {Array.from({ length: 20 }).map((_, idx) => {
+                      const isLit = idx < filledRobleLeaves;
+                      return (
+                        <SeasonalIcon
+                          key={idx}
+                          className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-all duration-300 ${
+                            isLit
+                              ? seasonalConfig.activeClass
+                              : seasonalConfig.inactiveClass
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                </button>
+              );
+            })()}
 
-            <div className="grid grid-cols-4 gap-2 mb-2">
-              <div />
-              {/* Bosque Progress - 2/4 width */}
-              <div className="col-span-2 flex flex-col justify-center items-center h-full w-full p-2">
-                <div className="flex flex-col gap-1 w-full px-2">
+            {/* Fila compacta central: Brotes (izq) | Cuadrícula Bosque 2x6 (centro) | Jumangiare (dcha) */}
+            <div className="grid grid-cols-4 gap-2 mb-2 items-center">
+              {/* Brotes Button (Left) */}
+              <div className="flex justify-center items-center">
+                <button
+                  onClick={() => setView('love')}
+                  className="w-12 h-12 aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative cursor-pointer"
+                  title="Brotes"
+                >
+                  <div className="flex-1 flex items-center justify-center">
+                    <Heart
+                      className={`w-5 h-5 transition-colors ${
+                        hasImportantLoveEventToday()
+                          ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110'
+                          : 'text-pink-500 group-hover:text-pink-400'
+                      }`}
+                    />
+                  </div>
+                  <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
+                    <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Bosque Progress - 2/4 width (Center) */}
+              <div className="col-span-2 flex flex-col justify-center items-center h-full w-full p-1">
+                <div className="flex flex-col gap-1 w-full px-1">
                   <div className="flex gap-1 w-full">
                     {Array.from({ length: 6 }).map((_, i) => {
                       const isFilled = i < Math.floor(bosqueWeeklyMinutes / 20);
@@ -4596,7 +4639,44 @@ REGLAS DE SELECCIÓN:
                   </div>
                 </div>
               </div>
-              <div />
+
+              {/* Jumangiare (Food) Button (Right) */}
+              <div className="flex justify-center items-center">
+                <button
+                  onClick={() => {
+                    setView('food');
+                    setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
+                  }}
+                  className={`w-12 h-12 aspect-square bg-lime-50 dark:bg-lime-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative cursor-pointer ${
+                    currentFoodScore < 0 
+                      ? 'animate-blink' 
+                      : isFoodPleno
+                        ? 'scale-[1.05] animate-pulse'
+                        : ''
+                  }`}
+                  title="Jumangiare"
+                >
+                  <div className="flex-1 flex items-center justify-center">
+                    <Utensils
+                      className={`w-5 h-5 transition-colors ${
+                        shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {})
+                          ? 'animate-cutlery-bounce text-lime-400'
+                          : currentFoodScore < 0
+                          ? 'text-red-500'
+                          : isFoodPleno
+                          ? 'text-lime-200'
+                          : 'text-lime-500 group-hover:text-lime-400'
+                      }`}
+                    />
+                  </div>
+                  <div className={`w-full h-1 bg-lime-200 dark:bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
+                    <div
+                      className="h-full bg-lime-500 transition-all duration-500"
+                      style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
+                    ></div>
+                  </div>
+                </button>
+              </div>
             </div>
 
             <DailyHunos

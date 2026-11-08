@@ -289,6 +289,7 @@ export interface AppData {
   forjas: ResourceTask[];
   leones: ResourceTask[];
   forjaTasks?: Task[];
+  robleProgress?: number; // 0 to 100 (or 0 to 20 leaves)
   projects: Task[]; // Independent project list
   projectsHistoryMap?: Record<string, string[]>;
   trainsHistoryMap?: Record<string, string[]>;
