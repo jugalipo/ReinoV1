@@ -3431,49 +3431,6 @@ REGLAS DE SELECCIÓN:
     }
   }, [view, showGympiezaModal]);
 
-  // --- NOTIFICATION REMINDER LOOP ---
-  useEffect(() => {
-    if (!loaded || isInitializing) return;
-
-    const checkNotification = () => {
-      const now = new Date();
-      const currentHHiMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      const todayDate = now.toDateString();
-
-      // Check if it's time and we haven't sent it today
-      if (currentHHiMM === (data.reminderTime || '07:00') && data.lastReminderDate !== todayDate) {
-        if (Notification.permission === 'granted') {
-          new Notification("¿El Reino?", {
-            body: "¿Apuntaste todo lo de ayer?",
-            icon: '/pwa-192x192.png',
-            tag: 'daily-reminder' // Avoid duplicates
-          });
-
-          // Update lastReminderDate to avoid repeat in the same minute or day
-          const updatedData = { ...data, lastReminderDate: todayDate };
-          setData(updatedData);
-
-          // Persist to Firebase if user is logged in
-          if (user) {
-            const habitsRef = collection(db, 'users', user.uid, 'habits');
-            const serialized = serializeAppData(updatedData);
-            const batch = writeBatch(db);
-            serialized.forEach(d => {
-              batch.set(doc(habitsRef, d.id), d.data);
-            });
-            batch.commit().catch(console.error);
-          }
-        }
-      }
-    };
-
-    const timer = setInterval(checkNotification, 60000); // Check every minute
-    checkNotification(); // Initial check
-
-    return () => clearInterval(timer);
-  }, [data.reminderTime, data.lastReminderDate, loaded, isInitializing, user, data]);
-  // ----------------------------------
-  // ----------------------------------
   const [authReady, setAuthReady] = useState(false);
   const lastSnapshotData = useRef<string>('');
   const lastDocsData = useRef<Record<string, string>>({});
@@ -4677,42 +4634,27 @@ REGLAS DE SELECCIÓN:
               <div />
             </div>
 
-            {(() => {
-              const { pendingHunoIds } = calculateHunosPlenosAndPending(
-                data.hunos,
-                data.hunosHistory || {},
-                data.hunos.filter(t => t.completed).map(t => t.id)
-              );
-              const combinedPendingHunoIds = pendingHunoIds;
-              return (
-                <DailyHunos
-                  tasks={data.hunos}
-                  hunosHistory={data.hunosHistory || {}}
-                  pendingHunoIds={combinedPendingHunoIds}
-                  lockedTaskIds={(() => {
-                    const gimHuno = data.hunos.find(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
-                    return gimHuno ? [gimHuno.id] : [];
-                  })()}
-                  hunoPlenoCurrent={data.stats.hunoPlenoCurrent || 0}
-                  hunoPlenos={data.stats.hunoPlenos || 0}
-                  hunoReward={data.stats.hunoReward || "Premio por definir"}
-                  onUpdate={handleHunosUpdate}
-                  onUpdateReward={(reward) => setData(prev => ({ ...prev, stats: { ...prev.stats, hunoReward: reward } }))}
-                  energy={data.energy || 1}
-                  onUpdateEnergy={(val) => {
-                    const todayStr = new Date().toDateString();
-                    setData(prev => ({
-                      ...prev,
-                      energy: val,
-                      energyHistory: {
-                        ...(prev.energyHistory || {}),
-                        [todayStr]: val
-                      }
-                    }));
-                  }}
-                />
-              );
-            })()}
+            <DailyHunos
+              tasks={data.hunos}
+              hunosHistory={data.hunosHistory || {}}
+              lockedTaskIds={(() => {
+                const gimHuno = data.hunos.find(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
+                return gimHuno ? [gimHuno.id] : [];
+              })()}
+              onUpdate={handleHunosUpdate}
+              energy={data.energy || 1}
+              onUpdateEnergy={(val) => {
+                const todayStr = new Date().toDateString();
+                setData(prev => ({
+                  ...prev,
+                  energy: val,
+                  energyHistory: {
+                    ...(prev.energyHistory || {}),
+                    [todayStr]: val
+                  }
+                }));
+              }}
+            />
 
             <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300">
               <div 
@@ -5414,12 +5356,6 @@ REGLAS DE SELECCIÓN:
   const desktopFootProgress = desktopFootTasks.length > 0
     ? desktopFootTasks.filter(s => s.completed).length / desktopFootTasks.length
     : 0;
-  const { pendingHunoIds: desktopPendingHunoIds } = calculateHunosPlenosAndPending(
-    data.hunos,
-    data.hunosHistory || {},
-    data.hunos.filter(t => t.completed).map(t => t.id)
-  );
-  const desktopGimHuno = data.hunos.find(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
   const desktopLockedHunoIds = desktopGimHuno ? [desktopGimHuno.id] : [];
 
   return (
@@ -5460,7 +5396,6 @@ REGLAS DE SELECCIÓN:
             setView('food');
             setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
           }}
-          pendingHunoIds={desktopPendingHunoIds}
           lockedHunoIds={desktopLockedHunoIds}
           onHunosUpdate={handleHunosUpdate}
           onSetsUpdate={handleSetsUpdate}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppData } from '../types';
 import { sanitizeForFirestore } from '../App';
-import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft, Activity, Bell, Sparkles } from 'lucide-react';
+import { X, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Calendar, Download, Upload, ArrowLeft, Activity, Sparkles } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 import { RetroactiveCalendarModal } from './RetroactiveCalendarModal';
 
@@ -25,10 +25,7 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
   });
   const [importData, setImportData] = useState<AppData | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [showSebastianModal, setShowSebastianModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [tempInstructions, setTempInstructions] = useState(data.sebastianInstructions || '');
-  const [showSavedNotification, setShowSavedNotification] = useState(false);
 
   // Helper to get formatted key for storage (YYYY-MM-DD) which matches toDateString format used in App.tsx
   const getFormattedDateKey = (date: Date) => {
@@ -634,76 +631,6 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
               </div>
             )}
 
-            <div className="pt-6 border-t border-stone-800">
-                <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider mb-3 px-2">Recordatorio</h3>
-                <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Bell className="w-5 h-5 text-purple-400" />
-                            <span className="font-bold text-stone-200 text-sm">Hora diaria</span>
-                        </div>
-                        <input 
-                            type="time" 
-                            value={data.reminderTime || '07:00'}
-                            onChange={(e) => onUpdateData({ ...data, reminderTime: e.target.value })}
-                            className="bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-stone-200 focus:outline-none focus:border-purple-500 font-mono"
-                        />
-                    </div>
-                    
-                    <button 
-                        onClick={() => {
-                            if (!('Notification' in window)) {
-                                alert("Tu navegador no soporta notificaciones.");
-                                return;
-                            }
-                            Notification.requestPermission().then(permission => {
-                                if (permission === "granted") {
-                                    new Notification("¡El Reino!", { body: "Notificaciones activadas correctamente." });
-                                }
-                            });
-                        }}
-                        className="w-full py-3 rounded-xl border border-purple-900/30 text-purple-400 hover:bg-purple-950/20 font-bold transition-all text-sm uppercase tracking-wider"
-                    >
-                        Solicitar Permiso de Notificaciones
-                    </button>
-                    <p className="text-[10px] text-stone-500 text-center italic">
-                        Recibirás un aviso cada día a esta hora para no olvidar tus hábitos.
-                    </p>
-                </div>
-            </div>
-
-            {/* Directrices para Sebastian (IA) */}
-            <div className="pt-6 border-t border-stone-800">
-                <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider mb-3 px-2 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    Directrices de Sebastian (IA)
-                </h3>
-                <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-4">
-                    <p className="text-xs text-stone-400 leading-relaxed">
-                        Indica reglas generales o preferencias para que tu mayordomo las tenga en cuenta al elegir tu tarea según tu energía.
-                    </p>
-                    
-                    {data.sebastianInstructions ? (
-                        <div className="text-xs text-stone-300 bg-stone-950 p-3.5 rounded-xl border border-stone-850 italic max-h-20 overflow-y-auto leading-relaxed">
-                            "{data.sebastianInstructions}"
-                        </div>
-                    ) : (
-                        <p className="text-xs text-stone-500 italic px-1">No hay directrices configuradas aún.</p>
-                    )}
-
-                    <button 
-                        onClick={() => {
-                            setTempInstructions(data.sebastianInstructions || '');
-                            setShowSebastianModal(true);
-                        }}
-                        className="w-full py-3 bg-amber-950/20 border border-amber-900/40 text-amber-400 rounded-xl hover:bg-amber-900/30 font-bold transition-all text-sm uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98"
-                    >
-                        <Sparkles className="w-4 h-4 text-amber-400" />
-                        Editar Directrices
-                    </button>
-                </div>
-            </div>
-
            {/* Export Data Section (Moved from Settings) */}
            <div className="pt-6 border-t border-stone-800">
                <h3 className="font-bold text-stone-300 uppercase text-xs tracking-wider mb-3 px-2">Gestión de Datos</h3>
@@ -758,65 +685,6 @@ export const HistoryEditorModal: React.FC<HistoryEditorModalProps> = ({ data, on
            </div>
 
         </div>
-
-        {/* Modal a pantalla completa para editar directrices de Sebastian */}
-        {showSebastianModal && (
-            <div className="fixed inset-0 z-[60] bg-stone-950 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200">
-                {/* Cabecera */}
-                <div className="p-4 bg-stone-900 shadow-sm flex items-center justify-between border-b border-stone-800">
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={() => setShowSebastianModal(false)} 
-                            className="p-2 hover:bg-stone-800 rounded-full transition-colors"
-                        >
-                            <ArrowLeft className="w-6 h-6 text-amber-400" />
-                        </button>
-                        <h2 className="text-lg font-bold text-stone-200 flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-amber-400" />
-                            Directrices de Sebastian
-                        </h2>
-                    </div>
-                    
-                    {/* Confirmación visual */}
-                    {showSavedNotification && (
-                        <span className="text-[10px] font-black uppercase tracking-widest text-green-400 bg-green-950/50 border border-green-500/30 px-3 py-1.5 rounded-full animate-pulse">
-                            ¡Guardado!
-                        </span>
-                    )}
-                </div>
-
-                {/* Contenido / Textarea */}
-                <div className="flex-1 flex flex-col p-5 space-y-4 overflow-hidden">
-                    <p className="text-xs text-stone-400 leading-relaxed shrink-0">
-                        Indica reglas generales o preferencias para tu mayordomo Sebastian. Las tendrá en cuenta al elegir tu tarea diaria según tu energía.
-                    </p>
-                    
-                    <textarea
-                        value={tempInstructions}
-                        onChange={(e) => setTempInstructions(e.target.value)}
-                        placeholder="Ejemplo: Si mi energía es < 5, prioriza tareas ligeras. Los viernes prefiere tareas creativas..."
-                        className="flex-1 w-full bg-stone-900/60 border border-stone-800 rounded-2xl p-4 text-stone-100 text-base focus:outline-none focus:border-amber-500 font-sans resize-none transition-all placeholder:text-stone-600 shadow-inner leading-relaxed"
-                    />
-                    
-                    <button
-                        onClick={() => {
-                            onUpdateData({
-                                ...data,
-                                sebastianInstructions: tempInstructions
-                            });
-                            setShowSavedNotification(true);
-                            setTimeout(() => {
-                                setShowSavedNotification(false);
-                                setShowSebastianModal(false);
-                            }, 1200);
-                        }}
-                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 font-black text-sm uppercase tracking-widest italic hover:scale-[1.01] active:scale-95 transition-all shadow-lg shadow-amber-950/20 shrink-0"
-                    >
-                        Guardar Directrices
-                    </button>
-                </div>
-            </div>
-        )}
 
         {/* Modal de calendario integrado para edición retroactiva */}
         <RetroactiveCalendarModal

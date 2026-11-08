@@ -116,7 +116,6 @@ export interface DesktopDashboardProps {
   isFoodPleno: boolean;
   shouldJumangiareBounce: boolean;
   onFoodClick: () => void;
-  pendingHunoIds: string[];
   lockedHunoIds: string[];
   onHunosUpdate: (tasks: Task[], isPleno?: boolean) => void;
   onSetsUpdate: (tasks: WeeklyTask[]) => void;
@@ -155,7 +154,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
   isFoodPleno,
   shouldJumangiareBounce,
   onFoodClick,
-  pendingHunoIds,
   lockedHunoIds,
   onHunosUpdate,
   onSetsUpdate,
@@ -874,15 +872,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
           <DailyHunos
             tasks={data.hunos}
             hunosHistory={data.hunosHistory || {}}
-            pendingHunoIds={pendingHunoIds}
             lockedTaskIds={lockedHunoIds}
-            hunoPlenoCurrent={data.stats.hunoPlenoCurrent || 0}
-            hunoPlenos={data.stats.hunoPlenos || 0}
-            hunoReward={data.stats.hunoReward || 'Premio por definir'}
             onUpdate={onHunosUpdate}
-            onUpdateReward={(reward) =>
-              onUpdateData((prev) => ({ ...prev, stats: { ...prev.stats, hunoReward: reward } }))
-            }
             energy={data.energy || 1}
             onUpdateEnergy={(val) => {
               const todayKey = new Date().toDateString();
