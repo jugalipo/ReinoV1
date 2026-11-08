@@ -66,12 +66,15 @@ interface DailyFrontsState {
     yunque?: DailyFrontData;
     leones?: DailyFrontData;
     brotes?: DailyFrontData;
+    gimnasia?: DailyFrontData;
+    lectura?: DailyFrontData;
+    nubes?: DailyFrontData;
   };
 }
 
 interface FrontTaskItem {
   id: string;
-  category: 'trains' | 'sets' | 'roble' | 'yunque' | 'leones' | 'projects';
+  category: 'trains' | 'sets' | 'roble' | 'yunque' | 'leones' | 'projects' | 'workout' | 'read';
   name: string;
   emoji: string;
   taskText: string;
@@ -251,7 +254,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
   };
 
   const updateInjectedFrontStatus = async (
-    frontKey: 'tren' | 'seta' | 'roble' | 'yunque' | 'leones' | 'brotes',
+    frontKey: 'tren' | 'seta' | 'roble' | 'yunque' | 'leones' | 'brotes' | 'gimnasia' | 'lectura' | 'nubes',
     newCompleted: boolean
   ) => {
     try {
@@ -285,13 +288,15 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
     return found ? found.completed : false;
   };
 
+  const isFrontFromToday = injectedFronts?.date === todayStr;
+
   // 1. TRENES
   const hunoTrenDone = isHunoDone((h) => {
     const sc = h.shortcut || getCanonicalHunoShortcut(h);
     return sc === 'trains' || h.text.toLowerCase().includes('tren');
   });
-  const trenInjected = injectedFronts?.fronts?.tren;
-  const isTrenDone = trenInjected !== undefined ? trenInjected.completed : hunoTrenDone;
+  const trenInjected = isFrontFromToday ? injectedFronts?.fronts?.tren : undefined;
+  const isTrenDone = (trenInjected?.completed === true) || hunoTrenDone;
   const toggleTrain = () => {
     const nextVal = !isTrenDone;
     updateInjectedFrontStatus('tren', nextVal);
@@ -306,8 +311,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
     const sc = h.shortcut || getCanonicalHunoShortcut(h);
     return sc === 'sets' || h.text.toLowerCase().includes('seta');
   });
-  const setaInjected = injectedFronts?.fronts?.seta;
-  const isSetaDone = setaInjected !== undefined ? setaInjected.completed : hunoSetaDone;
+  const setaInjected = isFrontFromToday ? injectedFronts?.fronts?.seta : undefined;
+  const isSetaDone = (setaInjected?.completed === true) || hunoSetaDone;
   const toggleSeta = () => {
     const nextVal = !isSetaDone;
     updateInjectedFrontStatus('seta', nextVal);
@@ -322,8 +327,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
     const sc = h.shortcut || getCanonicalHunoShortcut(h);
     return sc === 'forjas' || h.text.toLowerCase().includes('roble') || h.text.includes('T2');
   });
-  const robleInjected = injectedFronts?.fronts?.roble;
-  const isRobleDone = robleInjected !== undefined ? robleInjected.completed : hunoRobleDone;
+  const robleInjected = isFrontFromToday ? injectedFronts?.fronts?.roble : undefined;
+  const isRobleDone = (robleInjected?.completed === true) || hunoRobleDone;
   const toggleRoble = () => {
     const nextVal = !isRobleDone;
     updateInjectedFrontStatus('roble', nextVal);
@@ -337,8 +342,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
   const hunoYunqueDone = isHunoDone(
     (h) => h.text.toLowerCase().includes('yunque') || h.text.includes('T3') || h.id === 'huno-8'
   );
-  const yunqueInjected = injectedFronts?.fronts?.yunque;
-  const isYunqueDone = yunqueInjected !== undefined ? yunqueInjected.completed : hunoYunqueDone;
+  const yunqueInjected = isFrontFromToday ? injectedFronts?.fronts?.yunque : undefined;
+  const isYunqueDone = (yunqueInjected?.completed === true) || hunoYunqueDone;
   const toggleYunque = () => {
     const nextVal = !isYunqueDone;
     updateInjectedFrontStatus('yunque', nextVal);
@@ -358,8 +363,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
       h.text.includes('T1')
     );
   });
-  const leonesInjected = injectedFronts?.fronts?.leones;
-  const isLeonDone = leonesInjected !== undefined ? leonesInjected.completed : hunoLeonesDone;
+  const leonesInjected = isFrontFromToday ? injectedFronts?.fronts?.leones : undefined;
+  const isLeonDone = (leonesInjected?.completed === true) || hunoLeonesDone;
   const toggleLeon = () => {
     const nextVal = !isLeonDone;
     updateInjectedFrontStatus('leones', nextVal);
@@ -384,8 +389,8 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
       h.text.toLowerCase().includes('brote')
     );
   });
-  const brotesInjected = injectedFronts?.fronts?.brotes;
-  const isBrotesDone = brotesInjected !== undefined ? brotesInjected.completed : hunoBrotesDone;
+  const brotesInjected = isFrontFromToday ? injectedFronts?.fronts?.brotes : undefined;
+  const isBrotesDone = (brotesInjected?.completed === true) || hunoBrotesDone;
   const toggleBrotes = () => {
     const nextVal = !isBrotesDone;
     updateInjectedFrontStatus('brotes', nextVal);
@@ -400,6 +405,88 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
     });
   };
 
+  // 7. GIMNASIA (Huno: huno-1 / exercise / 🏋️)
+  const hunoGimnasiaDone = isHunoDone((h) => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return (
+      sc === 'exercise' ||
+      h.id === 'huno-1' ||
+      h.text.includes('🏋️') ||
+      h.text.toLowerCase().includes('fuerza') ||
+      h.text.toLowerCase().includes('desencadenado')
+    );
+  });
+  const gimnasiaInjected = isFrontFromToday ? injectedFronts?.fronts?.gimnasia : undefined;
+  const isGimnasiaDone = (gimnasiaInjected?.completed === true) || hunoGimnasiaDone;
+  const toggleGimnasia = () => {
+    const nextVal = !isGimnasiaDone;
+    updateInjectedFrontStatus('gimnasia', nextVal);
+    syncHunoState(nextVal, (h) => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return (
+        sc === 'exercise' ||
+        h.id === 'huno-1' ||
+        h.text.includes('🏋️') ||
+        h.text.toLowerCase().includes('fuerza') ||
+        h.text.toLowerCase().includes('desencadenado')
+      );
+    });
+  };
+
+  // 8. LECTURA (Huno: huno-3 / read / 📖)
+  const hunoLecturaDone = isHunoDone((h) => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return (
+      sc === 'read' ||
+      h.id === 'huno-3' ||
+      h.text.includes('📖') ||
+      h.text.toLowerCase().includes('leer') ||
+      h.text.toLowerCase().includes('lectura')
+    );
+  });
+  const lecturaInjected = isFrontFromToday ? injectedFronts?.fronts?.lectura : undefined;
+  const isLecturaDone = (lecturaInjected?.completed === true) || hunoLecturaDone;
+  const toggleLectura = () => {
+    const nextVal = !isLecturaDone;
+    updateInjectedFrontStatus('lectura', nextVal);
+    syncHunoState(nextVal, (h) => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return (
+        sc === 'read' ||
+        h.id === 'huno-3' ||
+        h.text.includes('📖') ||
+        h.text.toLowerCase().includes('leer') ||
+        h.text.toLowerCase().includes('lectura')
+      );
+    });
+  };
+
+  // 9. NUBES (Huno: huno-13 / cloud / ☁️)
+  const hunoNubesDone = isHunoDone((h) => {
+    const sc = h.shortcut || getCanonicalHunoShortcut(h);
+    return (
+      sc === 'cloud' ||
+      h.id === 'huno-13' ||
+      h.text.includes('☁️') ||
+      h.text.toLowerCase().includes('nube')
+    );
+  });
+  const nubesInjected = isFrontFromToday ? injectedFronts?.fronts?.nubes : undefined;
+  const isNubesDone = (nubesInjected?.completed === true) || hunoNubesDone;
+  const toggleNubes = () => {
+    const nextVal = !isNubesDone;
+    updateInjectedFrontStatus('nubes', nextVal);
+    syncHunoState(nextVal, (h) => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return (
+        sc === 'cloud' ||
+        h.id === 'huno-13' ||
+        h.text.includes('☁️') ||
+        h.text.toLowerCase().includes('nube')
+      );
+    });
+  };
+
   const fallbackTrain = (data.trains || []).find((t) => !t.completed)?.text || 'Mantenimiento mensual';
   const fallbackSeta = (data.sets || []).find((t) => !t.completed)?.text || 'Mantenimiento semanal';
   const fallbackRoble = (data.forjaTasks || []).find((t) => !t.completed)?.text || 'Propósito trimestral';
@@ -408,6 +495,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
     .filter((f) => !f.isSporadic && f.orbit !== 'hogar' && f.lastInteraction > 0)
     .sort((a, b) => a.lastInteraction - b.lastInteraction)[0];
   const fallbackBrotes = urgentFriendDesktop ? `Cuidar vínculo: ${urgentFriendDesktop.name}` : 'Cuidar un vínculo hoy';
+  const fallbackGimnasia = 'Desencadenado / Fuerza o Pausas activas';
+  const fallbackLectura = 'Lectura canónica del día (30 min)';
+  const fallbackNubes = (data.nubes || []).find((n) => !n.completed)?.text || 'Poda o avance en Nubes';
 
   const dailyFronts: FrontTaskItem[] = [
     {
@@ -465,6 +555,33 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
       taskText: brotesInjected?.text || fallbackBrotes,
       completed: isBrotesDone,
       onToggle: toggleBrotes
+    },
+    {
+      id: 'gimnasia-front',
+      category: 'workout',
+      name: 'Gimnasia',
+      emoji: '🏋️',
+      taskText: gimnasiaInjected?.text || fallbackGimnasia,
+      completed: isGimnasiaDone,
+      onToggle: toggleGimnasia
+    },
+    {
+      id: 'lectura-front',
+      category: 'read',
+      name: 'Lectura',
+      emoji: '📖',
+      taskText: lecturaInjected?.text || fallbackLectura,
+      completed: isLecturaDone,
+      onToggle: toggleLectura
+    },
+    {
+      id: 'nubes-front',
+      category: 'projects',
+      name: 'Nubes',
+      emoji: '☁️',
+      taskText: nubesInjected?.text || fallbackNubes,
+      completed: isNubesDone,
+      onToggle: toggleNubes
     }
   ];
 
@@ -1083,9 +1200,9 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                 <div
                   key={item.id}
                   onClick={() => item.onToggle()}
-                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+                  className={`relative flex items-center gap-3 px-3 py-2 rounded-xl border transition-all duration-200 cursor-pointer ${
                     item.completed
-                      ? 'bg-stone-950/40 border-stone-800/50 opacity-55'
+                      ? 'bg-emerald-950/30 border-emerald-500/60 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
                       : 'bg-stone-950/80 border-stone-800 hover:border-stone-700 shadow-sm'
                   }`}
                 >

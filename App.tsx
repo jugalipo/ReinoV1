@@ -1775,7 +1775,7 @@ Ejemplo de respuesta en "text":
     const candidates: Array<{
       id: string; // ID único para el prompt y selección
       hunoId?: string; // ID del Huno real a completar si se pulsa
-      frontKey?: 'tren' | 'seta' | 'roble' | 'yunque' | 'leones' | 'brotes';
+      frontKey?: 'tren' | 'seta' | 'roble' | 'yunque' | 'leones' | 'brotes' | 'gimnasia' | 'lectura' | 'nubes';
       text: string; // Frase concreta real de la tarea
       typeName: string; // Categoría ("Foco Ineludible", "Leones", "Setas", etc.)
       emoji: string;
@@ -1900,14 +1900,74 @@ Ejemplo de respuesta en "text":
       completed: brotesDone
     });
 
-    // 8. Resto de Hunos diarios que no están cubiertos por los frentes anteriores
+    // 8. Gimnasia
+    const gimnasiaHuno = (data.hunos || []).find(h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'exercise' || h.id === 'huno-1' || h.text.toLowerCase().includes('gim');
+    });
+    const gimnasiaFront = fronts.gimnasia;
+    const gimnasiaText = gimnasiaFront?.text?.trim() || gimnasiaHuno?.text || "Gim 🏋️ 60'";
+    const gimnasiaDone = gimnasiaFront ? !!gimnasiaFront.completed : (gimnasiaHuno ? gimnasiaHuno.completed : false);
+    candidates.push({
+      id: gimnasiaHuno ? gimnasiaHuno.id : 'front-gimnasia',
+      hunoId: gimnasiaHuno?.id,
+      frontKey: 'gimnasia',
+      text: gimnasiaText,
+      typeName: 'Gimnasia / Fuerza',
+      emoji: '🏋️',
+      isPriorityDaily: !!gimnasiaFront?.text?.trim(),
+      completed: gimnasiaDone
+    });
+
+    // 9. Lectura
+    const lecturaHuno = (data.hunos || []).find(h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'read' || h.id === 'huno-3' || h.text.toLowerCase().includes('leer');
+    });
+    const lecturaFront = fronts.lectura;
+    const lecturaText = lecturaFront?.text?.trim() || lecturaHuno?.text || "Leer 📖 30'";
+    const lecturaDone = lecturaFront ? !!lecturaFront.completed : (lecturaHuno ? lecturaHuno.completed : false);
+    candidates.push({
+      id: lecturaHuno ? lecturaHuno.id : 'front-lectura',
+      hunoId: lecturaHuno?.id,
+      frontKey: 'lectura',
+      text: lecturaText,
+      typeName: 'Lectura',
+      emoji: '📖',
+      isPriorityDaily: !!lecturaFront?.text?.trim(),
+      completed: lecturaDone
+    });
+
+    // 10. Nubes
+    const nubesHuno = (data.hunos || []).find(h => {
+      const sc = h.shortcut || getCanonicalHunoShortcut(h);
+      return sc === 'projects' || h.id === 'huno-13' || h.text.toLowerCase().includes('nube');
+    });
+    const nubesFront = fronts.nubes;
+    const nubesText = nubesFront?.text?.trim() || nubesHuno?.text || "Nubes 🌦️ 44'";
+    const nubesDone = nubesFront ? !!nubesFront.completed : (nubesHuno ? nubesHuno.completed : false);
+    candidates.push({
+      id: nubesHuno ? nubesHuno.id : 'front-nubes',
+      hunoId: nubesHuno?.id,
+      frontKey: 'nubes',
+      text: nubesText,
+      typeName: 'Nubes (Proyectos)',
+      emoji: '☁️',
+      isPriorityDaily: !!nubesFront?.text?.trim(),
+      completed: nubesDone
+    });
+
+    // 11. Resto de Hunos diarios que no están cubiertos por los frentes anteriores
     const coveredHunoIds = new Set([
       leonesHuno?.id,
       setsHuno?.id,
       trainsHuno?.id,
       robleHuno?.id,
       yunqueHuno?.id,
-      brotesHuno?.id
+      brotesHuno?.id,
+      gimnasiaHuno?.id,
+      lecturaHuno?.id,
+      nubesHuno?.id
     ].filter(Boolean));
 
     (data.hunos || []).forEach(h => {
