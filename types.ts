@@ -1,4 +1,4 @@
-export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'leones' | 'caminos' | 'tasks';
+export type ViewState = 'home' | 'trains' | 'sets' | 'love' | 'food' | 'stats' | 'forjas' | 'caminos' | 'tasks';
 
 export interface Task {
   id: string;

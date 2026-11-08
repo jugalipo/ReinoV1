@@ -1,36 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { ResourceTask, Task, ResourceMilestone } from '../types';
-import { ArrowLeft, Plus, Minus, X, Banknote, Trophy, PiggyBank, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple, TreePine, TreeDeciduous, Leaf, Sun, Snowflake, Coins, Calendar, Check, Sparkles, Award, Compass, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, X, Trophy, Star, CheckCircle2, Circle, Heart, Settings, Cat, Apple, TreePine, TreeDeciduous, Leaf, Sun, Snowflake, Coins, Calendar, Check, Sparkles, Award, Compass, ChevronRight } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 interface ResourceTrackerViewProps {
   title: string;
-  themeColor: 'orange' | 'amber'; // Orange for Roble, Amber for Leones
+  themeColor?: 'orange' | 'amber'; // Orange for Roble, Amber for Leones
   tasks: ResourceTask[];
   onUpdate: (tasks: ResourceTask[]) => void;
   onBack: () => void;
-  billetesState?: boolean[];
-  huchaCount?: number;
-  onUpdateBilletes?: (billetes: boolean[], hucha: number) => void;
-  leonesState?: boolean[];
-  leonesCount?: number;
-  onUpdateLeones?: (leones: boolean[], count: number) => void;
   forjaTasks?: Task[];
   onUpdateForjaTasks?: (tasks: Task[]) => void;
 }
 
 export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({ 
     title, 
-    themeColor, 
+    themeColor = 'orange', 
     tasks, 
     onUpdate, 
     onBack,
-    billetesState = Array(20).fill(false),
-    huchaCount = 0,
-    onUpdateBilletes,
-    leonesState = Array(20).fill(false),
-    leonesCount = 0,
-    onUpdateLeones,
     forjaTasks = [],
     onUpdateForjaTasks
 }) => {
@@ -46,12 +34,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   // Quarterly Tasks are indices 1-4 (if they exist)
   const quarterlyTasks = tasks.length > 1 ? tasks.slice(1, 5) : [];
 
-  // Billetes Logic State
-  const [showBilletesConfirm, setShowBilletesConfirm] = useState(false);
-
-  const [showLeonesConfirm, setShowLeonesConfirm] = useState(false);
-  const [lastLeonIndex, setLastLeonIndex] = useState<number | null>(null);
-
   // --- COINS / MEDALLERO POPUP STATE (ROBLE) ---
   const [showCoinsModal, setShowCoinsModal] = useState(false);
 
@@ -64,8 +46,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
   const selectedObjective = tasks.find(t => t.id === selectedObjectiveId);
 
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useModalHistory(showBilletesConfirm, () => setShowBilletesConfirm(false), 'confirmBilletes');
-  useModalHistory(showLeonesConfirm, () => setShowLeonesConfirm(false), 'confirmLeones');
   useModalHistory(!!selectedObjectiveId, () => setSelectedObjectiveId(null), 'objectivePopup');
   useModalHistory(showCoinsModal, () => setShowCoinsModal(false), 'coinsModal');
   // ---------------------------------------------
@@ -189,85 +169,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
       onUpdate([mainTask, ...sortedQuarterlies]);
   };
 
-  // --- Billetes Actions ---
-  const handleBilleteClick = (index: number) => {
-      if (!onUpdateBilletes) return;
-      
-      const count = index + 1;
-      const newState = Array(20).fill(false).map((_, i) => i < count);
-      
-      if (count === 20) {
-          setShowBilletesConfirm(true);
-      } else {
-          onUpdateBilletes(newState, huchaCount);
-      }
-  };
-
-  const incrementBilletes = () => {
-      if (!onUpdateBilletes) return;
-      const currentCount = billetesState.filter(v => v).length;
-      const newCount = currentCount + 1;
-      
-      if (newCount > 20) return;
-
-      const newState = Array(20).fill(false).map((_, i) => i < newCount);
-
-      if (newCount === 20) {
-          setShowBilletesConfirm(true);
-      } else {
-          onUpdateBilletes(newState, huchaCount);
-      }
-  };
-
-  const confirmBilletesPleno = () => {
-      if (!onUpdateBilletes) return;
-      onUpdateBilletes(Array(20).fill(false), huchaCount + 1);
-      setShowBilletesConfirm(false);
-  };
-
-  const cancelBilletesPleno = () => {
-      if (onUpdateBilletes) {
-          const revertedState = Array(20).fill(false).map((_, i) => i < 19);
-          onUpdateBilletes(revertedState, huchaCount);
-      }
-      setShowBilletesConfirm(false);
-  };
-
-  // --- Leones Actions ---
-  const toggleLeon = (index: number) => {
-      if (!onUpdateLeones) return;
-      
-      const newState = [...leonesState];
-      const isActivating = !newState[index];
-      newState[index] = isActivating;
-
-      // Check if this is the 20th leon being activated
-      const activatedCount = newState.filter(v => v).length;
-      if (isActivating && activatedCount === 20) {
-          setLastLeonIndex(index);
-          setShowLeonesConfirm(true);
-      } else {
-          onUpdateLeones(newState, leonesCount);
-      }
-  };
-
-  const confirmLeonesPleno = () => {
-      if (!onUpdateLeones) return;
-      onUpdateLeones(Array(20).fill(false), leonesCount + 1);
-      setShowLeonesConfirm(false);
-      setLastLeonIndex(null);
-  };
-
-  const cancelLeonesPleno = () => {
-      if (lastLeonIndex !== null && onUpdateLeones) {
-          const revertedState = [...leonesState];
-          revertedState[lastLeonIndex] = false;
-          onUpdateLeones(revertedState, leonesCount);
-      }
-      setShowLeonesConfirm(false);
-      setLastLeonIndex(null);
-  };
-
   const getThemeClasses = () => {
       if (themeColor === 'orange') {
           return {
@@ -367,121 +268,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
                 </div>
             </div>
         )}
-
-        {/* MAIN TASK SECTION (Leones ONLY) */}
-        {title === 'Leones' && (
-            <div className="flex flex-col items-center justify-center w-full space-y-4 py-2">
-                <div className="text-center w-full relative px-8">
-                    <h2 className="text-2xl font-black text-stone-100 mb-1 leading-tight">{mainTask.name}</h2>
-                    <p className={`text-base font-mono ${theme.accent} opacity-80`}>
-                        {mainTask.current} <span className="text-stone-500">/</span> {mainTask.target} <span className="text-xs text-stone-600">{mainTask.unit}</span>
-                    </p>
-                </div>
-
-                <div className="w-full">
-                    <div className="h-6 bg-stone-900 rounded-full overflow-hidden relative border border-stone-800 shadow-inner">
-                        <div 
-                            className={`h-full transition-all duration-500 ease-out ${theme.bar}`} 
-                            style={{ width: `${Math.min(100, (mainTask.current / mainTask.target) * 100)}%` }}
-                        ></div>
-                        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white drop-shadow-md">
-                            {Math.round(Math.min(100, (mainTask.current / mainTask.target) * 100))}%
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-center gap-6 w-full">
-                    <button 
-                        onClick={() => updateMainProgress(-1)}
-                        className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${theme.buttonSecondary} border border-stone-700`}
-                    >
-                        <Minus className="w-6 h-6 text-stone-400" />
-                    </button>
-
-                    <button 
-                        onClick={() => updateMainProgress(1)}
-                        className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-md shadow-black/40 ${theme.button} border border-white/10`}
-                    >
-                        <Plus className="w-6 h-6 text-white" />
-                    </button>
-                </div>
-            </div>
-        )}
-
-        {/* BILLETES SECTION (Leones ONLY) */}
-        {title === 'Leones' && (
-            <div className="w-full space-y-3">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Banknote className="w-3 h-3" /> Billetes
-                    </h3>
-                    <div className="flex items-center gap-1.5 bg-stone-950 px-2.5 py-1 rounded-full border border-stone-800">
-                        <PiggyBank className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-base font-black text-stone-100">{huchaCount}</span>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <div className="flex-1 flex gap-1 h-12 bg-stone-950 p-1.5 rounded-xl border border-stone-800">
-                        {Array.from({ length: 20 }).map((_, idx) => {
-                            const active = billetesState[idx];
-                            return (
-                                <button
-                                    key={idx}
-                                    onClick={() => handleBilleteClick(idx)}
-                                    className={`flex-1 rounded-sm transition-all duration-300 ${
-                                        active 
-                                            ? 'bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]' 
-                                            : 'bg-stone-800 hover:bg-stone-700'
-                                    }`}
-                                />
-                            );
-                        })}
-                    </div>
-                    
-                    <button
-                        onClick={incrementBilletes}
-                        className="w-12 h-12 shrink-0 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-900 flex items-center justify-center font-black active:scale-95 transition-all shadow-lg shadow-amber-900/30"
-                    >
-                        <Plus className="w-6 h-6" />
-                    </button>
-                </div>
-            </div>
-        )}
-
-        {/* LEONES SECTION (Leones ONLY) */}
-        {title === 'Leones' && (
-            <div className="w-full space-y-3">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Cat className="w-3 h-3" /> Leones (24h)
-                    </h3>
-                    <div className="flex items-center gap-1.5 bg-stone-950 px-2.5 py-1 rounded-full border border-stone-800">
-                        <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-base font-black text-stone-100">{leonesCount}</span>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-5 gap-2">
-                    {leonesState.map((active, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => toggleLeon(idx)}
-                            className={`
-                                aspect-[3/2] rounded-lg flex items-center justify-center transition-all duration-300 border-2
-                                ${active 
-                                    ? 'bg-amber-600 border-amber-400 text-stone-900 shadow-[0_0_8px_rgba(217,119,6,0.3)] scale-105' 
-                                    : 'bg-stone-950 border-stone-800 text-orange-500 opacity-40 hover:opacity-100'}
-                            `}
-                        >
-                            <Cat className="w-5 h-5" />
-                        </button>
-                    ))}
-                </div>
-            </div>
-        )}
-
-
 
         {/* SEASONAL TREE (ROBLE ONLY) */}
         {title === 'Roble' && (
@@ -699,82 +485,6 @@ export const ResourceTrackerView: React.FC<ResourceTrackerViewProps> = ({
         )}
 
       </div>
-
-      {/* Billetes Completion Modal */}
-      {showBilletesConfirm && (
-        <div 
-          className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
-          onClick={cancelBilletesPleno}
-        >
-            <div 
-              className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-8 flex flex-col items-center text-center">
-                    <div className="w-20 h-20 bg-amber-600/20 rounded-full flex items-center justify-center mb-6 border border-amber-500/50 shadow-[0_0_20px_rgba(217,119,6,0.2)]">
-                        <PiggyBank className="w-10 h-10 text-amber-500" />
-                    </div>
-                    <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Objetivo de Ahorro!</h2>
-                    <p className="text-stone-400 mb-8 text-sm leading-relaxed">
-                        Has llenado tu última cuadrícula de billetes. <br/>¿Quieres sumarlo a la hucha y reiniciar el contador?
-                    </p>
-                    
-                    <div className="grid grid-cols-2 gap-4 w-full">
-                        <button 
-                            onClick={cancelBilletesPleno}
-                            className="py-4 rounded-2xl border border-stone-800 text-stone-500 hover:bg-stone-800 font-bold transition-all text-sm uppercase"
-                        >
-                            Error
-                        </button>
-                        <button 
-                            onClick={confirmBilletesPleno}
-                            className="py-4 rounded-2xl bg-amber-600 text-stone-950 font-black hover:bg-amber-500 transition-all shadow-lg shadow-amber-900/20 text-sm uppercase"
-                        >
-                            ¡A la Hucha!
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* Leones Completion Modal */}
-      {showLeonesConfirm && (
-        <div 
-          className="fixed inset-0 max-w-md mx-auto z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
-          onClick={cancelLeonesPleno}
-        >
-            <div 
-              className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-8 flex flex-col items-center text-center">
-                    <div className="w-20 h-20 bg-amber-600/20 rounded-full flex items-center justify-center mb-6 border border-amber-500/50 shadow-[0_0_20px_rgba(217,119,6,0.2)]">
-                        <Trophy className="w-10 h-10 text-amber-500" />
-                    </div>
-                    <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Objetivo de Leones!</h2>
-                    <p className="text-stone-400 mb-8 text-sm leading-relaxed">
-                        Has llenado tu última cuadrícula de leones. <br/>¿Quieres sumar un trofeo y reiniciar el contador?
-                    </p>
-                    
-                    <div className="grid grid-cols-2 gap-4 w-full">
-                        <button 
-                            onClick={cancelLeonesPleno}
-                            className="py-4 rounded-2xl border border-stone-800 text-stone-500 hover:bg-stone-800 font-bold transition-all text-sm uppercase"
-                        >
-                            Error
-                        </button>
-                        <button 
-                            onClick={confirmLeonesPleno}
-                            className="py-4 rounded-2xl bg-amber-600 text-stone-950 font-black hover:bg-amber-500 transition-all shadow-lg shadow-amber-900/20 text-sm uppercase"
-                        >
-                            ¡Al Trofeo!
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      )}
 
       {/* OBJECTIVE POPUP MODAL */}
       {selectedObjective && (

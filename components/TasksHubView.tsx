@@ -333,7 +333,6 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
       emoji: '🦁',
       taskText: leonesInjected?.text || fallbackLeon,
       completed: isLeonDone,
-      navigateView: 'leones',
       onToggle: toggleLeon
     },
     {

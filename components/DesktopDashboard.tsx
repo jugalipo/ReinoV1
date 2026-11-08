@@ -3,7 +3,6 @@ import { AppData, Task, ViewState, WeeklyTask } from '../types';
 import {
   BarChart3,
   CalendarClock,
-  Cat,
   Check,
   ChevronRight,
   Cloud,
@@ -107,7 +106,6 @@ export interface DesktopDashboardProps {
   bosqueWeeklyMinutes: number;
   hasImportantLoveEventToday: boolean;
   loveProgress: number;
-  leonesProgress: number;
   forjasProgress: number;
   currentFoodScore: number;
   isFoodPleno: boolean;
@@ -143,7 +141,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
   bosqueWeeklyMinutes,
   hasImportantLoveEventToday,
   loveProgress,
-  leonesProgress,
   forjasProgress,
   currentFoodScore,
   isFoodPleno,
@@ -458,7 +455,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
       emoji: '🦁',
       taskText: leonesInjected?.text || fallbackLeon,
       completed: isLeonDone,
-      navigateView: 'leones',
       onToggle: toggleLeon
     },
     {
@@ -592,7 +588,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
             </div>
           </div>
 
-          {/* DERECHA: Modo Enfoque ⚡ fijo + 5 Accesos con barra + 📊 Estadísticas */}
+          {/* DERECHA: Modo Enfoque ⚡ fijo + 3 Accesos con barra + 📊 Estadísticas */}
           <div className="flex items-center gap-2 shrink-0 ml-auto">
             <button
               type="button"
@@ -624,23 +620,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                 </div>
                 <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
                   <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${loveProgress}%` }} />
-                </div>
-              </button>
-
-              {/* Leones */}
-              <button
-                onClick={() => onNavigate('leones')}
-                title="Leones"
-                className="w-10 h-10 bg-amber-50 dark:bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors border border-amber-200 dark:border-amber-900/50 group relative cursor-pointer"
-              >
-                <div className="flex-1 flex items-center justify-center">
-                  <Cat className="w-4 h-4 text-amber-500 group-hover:text-amber-400 transition-colors" />
-                </div>
-                <div className="w-full h-1 bg-amber-200 dark:bg-amber-900/40 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 transition-all duration-300"
-                    style={{ width: `${leonesProgress}%` }}
-                  />
                 </div>
               </button>
 

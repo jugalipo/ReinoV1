@@ -12,7 +12,7 @@ import { StatsView } from './components/StatsView';
 import { CaminosView } from './components/CaminosView';
 import { TasksHubView } from './components/TasksHubView';
 import { DesktopDashboard } from './components/DesktopDashboard';
-import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Sparkles, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
+import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Sparkles, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -3978,7 +3978,6 @@ REGLAS DE SELECCIÓN:
 
     triggerShortcut('love', 'love');
     triggerShortcut('forjas', 'forjas');
-    triggerShortcut('leones', 'leones');
     triggerShortcut('food', 'food');
     triggerShortcut('sets', 'sets');
     triggerShortcut('trains', 'trains');
@@ -4420,7 +4419,6 @@ REGLAS DE SELECCIÓN:
       />;
       case 'food': return <FoodBoardView foodState={data.food} onUpdate={(f) => setData(prev => ({ ...prev, food: f }))} onBack={() => setView('home')} />;
       case 'forjas': return <ResourceTrackerView title="Roble" themeColor="orange" tasks={data.forjas} forjaTasks={data.forjaTasks || []} onUpdateForjaTasks={t => setData(prev => ({ ...prev, forjaTasks: t }))} onUpdate={t => setData(prev => ({ ...prev, forjas: t }))} onBack={() => setView('home')} />;
-      case 'leones': return <ResourceTrackerView title="Leones" themeColor="amber" tasks={data.leones} billetesState={data.billetesState || Array(20).fill(false)} huchaCount={data.huchaCount || 0} onUpdateBilletes={(bs, hc) => setData(prev => ({ ...prev, billetesState: bs, huchaCount: hc }))} leonesState={data.leonesState || Array(20).fill(false)} leonesCount={data.leonesCount || 0} onUpdateLeones={(ls, lc) => setData(prev => ({ ...prev, leonesState: ls, leonesCount: lc }))} onUpdate={t => setData(prev => ({ ...prev, leones: t }))} onBack={() => setView('home')} />;
       case 'piano': return <PianoView pianoState={data.piano} onUpdate={p => setData(prev => ({ ...prev, piano: p }))} onBack={() => setView('home')} />;
       case 'stats': return <StatsView data={data} bosqueExercises={bosqueExercises} onUpdate={setData} onBack={() => setView('home')} onNavigate={setView} />;
       case 'caminos': return <CaminosView caminos={data.caminos || []} onUpdate={c => setData(prev => ({ ...prev, caminos: c }))} onBack={() => setView('home')} />;
@@ -4528,21 +4526,13 @@ REGLAS DE SELECCIÓN:
                 </div>
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-2.5 px-3 sm:px-6 mb-2">
+            <div className="grid grid-cols-3 gap-3 px-6 sm:px-12 mb-2">
               <button onClick={() => setView('love')} className="aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
                   <Heart className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
                 </div>
                 <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
                   <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
-                </div>
-              </button>
-              <button onClick={() => setView('leones')} className="aspect-square bg-amber-50 dark:bg-amber-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors border border-amber-200 dark:border-amber-900/50 group relative">
-                <div className="flex-1 flex items-center justify-center">
-                  <Cat className="w-7 h-7 sm:w-8 sm:h-8 text-amber-500 group-hover:text-amber-400 transition-colors" />
-                </div>
-                <div className="w-full h-1 bg-amber-200 dark:bg-amber-900/40 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div>
                 </div>
               </button>
               <button onClick={() => setView('forjas')} className="aspect-square bg-orange-50 dark:bg-orange-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative">
@@ -5344,7 +5334,6 @@ REGLAS DE SELECCIÓN:
           bosqueWeeklyMinutes={bosqueWeeklyMinutes}
           hasImportantLoveEventToday={hasImportantLoveEventToday()}
           loveProgress={getLoveProgress()}
-          leonesProgress={getResourceProgress(data.leones)}
           forjasProgress={getResourceProgress(data.forjas, true)}
           currentFoodScore={desktopCurrentFoodScore}
           isFoodPleno={desktopCurrentFoodScore >= 200}
