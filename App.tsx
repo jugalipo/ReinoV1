@@ -5356,6 +5356,7 @@ REGLAS DE SELECCIÓN:
   const desktopFootProgress = desktopFootTasks.length > 0
     ? desktopFootTasks.filter(s => s.completed).length / desktopFootTasks.length
     : 0;
+  const desktopGimHuno = data.hunos.find(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
   const desktopLockedHunoIds = desktopGimHuno ? [desktopGimHuno.id] : [];
 
   return (
