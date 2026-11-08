@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppData, ViewState } from '../types';
-import { ArrowLeft, CheckCircle2, ChevronRight, Check, Target } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Target } from 'lucide-react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getCanonicalHunoShortcut } from '../App';
@@ -40,18 +40,6 @@ interface FrontTaskItem {
   navigateView?: ViewState;
   onToggle: () => void;
 }
-
-// Resumir texto a máximo 3 palabras clave
-const summarizeToThreeWords = (text: string, fallback: string): string => {
-  if (!text || !text.trim()) return fallback;
-  const words = text
-    .trim()
-    .replace(/[«»"'\(\)\[\]]/g, '')
-    .split(/\s+/)
-    .filter(Boolean);
-  if (words.length <= 3) return words.join(' ');
-  return words.slice(0, 3).join(' ');
-};
 
 export const TasksHubView: React.FC<TasksHubViewProps> = ({
   data,
@@ -353,10 +341,10 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     return a.completed ? 1 : -1;
   });
 
-  // Metas semanales para la cabecera (3 palabras por meta)
-  const weeklyLeones = summarizeToThreeWords(data.weeklyGoals?.leones?.text || '', 'Subir voluminoso Wallapop');
-  const weeklyRoble = summarizeToThreeWords(data.weeklyGoals?.forjas?.text || '', 'Estatutos CBT PDF');
-  const weeklyYunque = summarizeToThreeWords(data.weeklyGoals?.puerto?.text || '', 'Plan Códice Dagda');
+  // Metas semanales para la cabecera
+  const weeklyLeones = data.weeklyGoals?.leones?.text?.trim() || 'Subir voluminoso Wallapop';
+  const weeklyRoble = data.weeklyGoals?.forjas?.text?.trim() || 'Estatutos CBT PDF';
+  const weeklyYunque = data.weeklyGoals?.puerto?.text?.trim() || 'Plan Códice Dagda';
 
   const isWeeklyLeonesDone = !!data.weeklyGoals?.leones?.completed;
   const isWeeklyRobleDone = !!data.weeklyGoals?.forjas?.completed;
@@ -381,6 +369,33 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
+  const getFrontItemClass = (item: FrontTaskItem) => {
+    if (item.completed) {
+      switch (item.category) {
+        case 'foco':
+          return 'bg-amber-500/25 border-amber-500/70 text-amber-100 shadow-sm shadow-amber-950/20';
+        case 'trains':
+          return 'bg-sky-500/25 border-sky-500/70 text-sky-100 shadow-sm shadow-sky-950/20';
+        case 'sets':
+          return 'bg-purple-500/25 border-purple-500/70 text-purple-100 shadow-sm shadow-purple-950/20';
+        case 'roble':
+          return 'bg-emerald-500/25 border-emerald-500/70 text-emerald-100 shadow-sm shadow-emerald-950/20';
+        case 'yunque':
+          return 'bg-blue-500/25 border-blue-500/70 text-blue-100 shadow-sm shadow-blue-950/20';
+        case 'leones':
+          return 'bg-amber-500/25 border-amber-500/70 text-amber-100 shadow-sm shadow-amber-950/20';
+        case 'love':
+          return 'bg-rose-500/25 border-rose-500/70 text-rose-100 shadow-sm shadow-rose-950/20';
+        default:
+          return 'bg-emerald-500/25 border-emerald-500/70 text-emerald-100 shadow-sm shadow-emerald-950/20';
+      }
+    }
+    if (item.category === 'foco') {
+      return 'bg-gradient-to-r from-amber-950/30 via-stone-900 to-stone-900 border-amber-500/50 hover:border-amber-400/70 text-stone-100 shadow-sm';
+    }
+    return 'bg-stone-900/90 border-stone-800 hover:border-stone-700 text-stone-200 shadow-sm';
+  };
+
   return (
     <div className="flex flex-col min-h-screen max-w-md mx-auto bg-stone-950 p-4 pb-28 text-stone-200">
       {/* Cabecera Principal */}
@@ -394,50 +409,42 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg font-black text-stone-100 flex items-center gap-2 tracking-tight">
+            <h1 className="text-xl font-black text-stone-100 flex items-center gap-2 tracking-tight">
               <CheckCircle2 className="w-5 h-5 text-purple-400" />
-              Cuadro de Mando Diario
+              Cuadro de Mando
             </h1>
-            <p className="text-[11px] text-stone-400 font-medium">
-              Frentes inyectados y sincronización con Hunos
-            </p>
           </div>
         </div>
       </header>
 
       <div className="space-y-5">
-        {/* CABECERA SEMANAL: 3 Metas resumidas en 3 palabras */}
-        <section className="bg-stone-900/90 border border-stone-800 rounded-2xl p-3.5 shadow-sm">
-          <div className="flex items-center justify-between mb-2 px-0.5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
-              <Target className="w-3.5 h-3.5" />
+        {/* CABECERA SEMANAL: 3 Metas apiladas */}
+        <section className="bg-stone-900/90 border border-stone-800 rounded-2xl p-3.5 shadow-sm space-y-2.5">
+          <div className="flex items-center justify-between mb-1 px-0.5">
+            <span className="text-xs font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
+              <Target className="w-4 h-4" />
               Metas Semanales
             </span>
-            <span className="text-[10px] font-bold text-stone-500 font-mono">
+            <span className="text-xs font-bold text-stone-400 font-mono">
               {[isWeeklyLeonesDone, isWeeklyRobleDone, isWeeklyYunqueDone].filter(Boolean).length}/3
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-2.5">
             {/* Meta 1: Leones */}
             <div
               onClick={() => toggleWeeklyGoal('leones')}
-              className={`p-2 rounded-xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${
+              className={`w-full p-3.5 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.99] ${
                 isWeeklyLeonesDone
-                  ? 'bg-amber-950/20 border-amber-800/40 text-stone-400 line-through'
+                  ? 'bg-amber-500/25 border-amber-500/70 text-amber-100 shadow-sm shadow-amber-950/20'
                   : 'bg-stone-950/80 border-stone-800 hover:border-amber-500/50 text-stone-200'
               }`}
               title="Alternar estado meta Leones"
             >
-              <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-base">🦁</span>
-                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
-                  isWeeklyLeonesDone ? 'bg-amber-600 border-amber-600' : 'border-stone-700'
-                }`}>
-                  {isWeeklyLeonesDone && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
-                </div>
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-tight leading-tight line-clamp-2">
+              <span className="text-2xl select-none flex-shrink-0">🦁</span>
+              <span className={`text-[15px] sm:text-base font-semibold leading-snug flex-1 ${
+                isWeeklyLeonesDone ? 'line-through text-amber-200/90' : 'text-stone-100'
+              }`}>
                 {weeklyLeones}
               </span>
             </div>
@@ -445,22 +452,17 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
             {/* Meta 2: Roble */}
             <div
               onClick={() => toggleWeeklyGoal('forjas')}
-              className={`p-2 rounded-xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${
+              className={`w-full p-3.5 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.99] ${
                 isWeeklyRobleDone
-                  ? 'bg-emerald-950/20 border-emerald-800/40 text-stone-400 line-through'
+                  ? 'bg-emerald-500/25 border-emerald-500/70 text-emerald-100 shadow-sm shadow-emerald-950/20'
                   : 'bg-stone-950/80 border-stone-800 hover:border-emerald-500/50 text-stone-200'
               }`}
               title="Alternar estado meta Roble"
             >
-              <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-base">🌳</span>
-                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
-                  isWeeklyRobleDone ? 'bg-emerald-600 border-emerald-600' : 'border-stone-700'
-                }`}>
-                  {isWeeklyRobleDone && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
-                </div>
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-tight leading-tight line-clamp-2">
+              <span className="text-2xl select-none flex-shrink-0">🌳</span>
+              <span className={`text-[15px] sm:text-base font-semibold leading-snug flex-1 ${
+                isWeeklyRobleDone ? 'line-through text-emerald-200/90' : 'text-stone-100'
+              }`}>
                 {weeklyRoble}
               </span>
             </div>
@@ -468,117 +470,50 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
             {/* Meta 3: Yunque */}
             <div
               onClick={() => toggleWeeklyGoal('puerto')}
-              className={`p-2 rounded-xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${
+              className={`w-full p-3.5 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.99] ${
                 isWeeklyYunqueDone
-                  ? 'bg-blue-950/20 border-blue-800/40 text-stone-400 line-through'
+                  ? 'bg-blue-500/25 border-blue-500/70 text-blue-100 shadow-sm shadow-blue-950/20'
                   : 'bg-stone-950/80 border-stone-800 hover:border-blue-500/50 text-stone-200'
               }`}
               title="Alternar estado meta Yunque"
             >
-              <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-base">🚢</span>
-                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
-                  isWeeklyYunqueDone ? 'bg-blue-600 border-blue-600' : 'border-stone-700'
-                }`}>
-                  {isWeeklyYunqueDone && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
-                </div>
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-tight leading-tight line-clamp-2">
+              <span className="text-2xl select-none flex-shrink-0">🚢</span>
+              <span className={`text-[15px] sm:text-base font-semibold leading-snug flex-1 ${
+                isWeeklyYunqueDone ? 'line-through text-blue-200/90' : 'text-stone-100'
+              }`}>
                 {weeklyYunque}
               </span>
             </div>
           </div>
         </section>
 
-        {/* CUADRÍCULA DE FRENTES DIARIOS: 2 por fila en móvil */}
+        {/* LISTA DE FRENTES DIARIOS: 1 por fila apilados */}
         <section className="space-y-2.5">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-[11px] font-black uppercase tracking-widest text-stone-400 flex items-center gap-1.5">
+            <h2 className="text-xs font-black uppercase tracking-widest text-stone-400 flex items-center gap-1.5">
               <span>Frentes Activos de Hoy</span>
             </h2>
-            <span className="text-[10px] font-bold text-stone-500">
+            <span className="text-xs font-bold text-stone-400 font-mono">
               {sortedFronts.filter(f => !f.completed).length} pendientes
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="flex flex-col gap-2.5">
             {sortedFronts.map((item) => (
               <div
                 key={item.id}
-                className={`relative flex flex-col justify-between p-3.5 rounded-2xl border transition-all duration-300 ${
-                  item.completed
-                    ? 'bg-stone-900/40 border-stone-800/50 opacity-60'
-                    : item.category === 'foco'
-                    ? 'bg-gradient-to-b from-amber-950/40 via-stone-900 to-stone-900/90 border-amber-500/40 shadow-md shadow-amber-950/20'
-                    : 'bg-stone-900/90 border-stone-800 hover:border-stone-700 shadow-sm'
-                }`}
+                onClick={item.onToggle}
+                className={`w-full p-3.5 rounded-2xl border flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.99] ${getFrontItemClass(item)}`}
+                title={item.completed ? 'Marcar pendiente' : 'Marcar completado'}
               >
-                {/* Cabecera del cuadro: Emoji grande y Check */}
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-3xl select-none filter drop-shadow">
-                    {item.emoji}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      item.onToggle();
-                    }}
-                    className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${
-                      item.completed
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'border-stone-700 hover:border-emerald-500 bg-stone-950'
-                    }`}
-                    title={item.completed ? 'Marcar pendiente' : 'Marcar completado'}
-                  >
-                    {item.completed && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                  </button>
-                </div>
-
-                {/* Frente y tarea acordada */}
-                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <span className={`text-[11px] font-black uppercase tracking-wider ${
-                        item.completed
-                          ? 'text-stone-500 line-through'
-                          : item.category === 'foco'
-                          ? 'text-amber-400'
-                          : 'text-stone-300'
-                      }`}>
-                        {item.name}
-                      </span>
-                    </div>
-
-                    <p className={`text-xs font-semibold mt-1 leading-snug line-clamp-3 ${
-                      item.completed ? 'line-through text-stone-500' : 'text-stone-100'
-                    }`}>
-                      {item.taskText}
-                    </p>
-                  </div>
-
-                  {/* Pie de tarjeta / Enlace rápido si aplica */}
-                  <div className="mt-2.5 pt-1.5 border-t border-stone-800/40 flex items-center justify-between text-[10px]">
-                    {item.notes ? (
-                      <span className="text-stone-500 italic truncate max-w-[100px]">
-                        {item.notes}
-                      </span>
-                    ) : (
-                      <span className="text-stone-600">
-                        {item.completed ? 'Completado' : 'Pendiente'}
-                      </span>
-                    )}
-
-                    {item.navigateView && (
-                      <button
-                        onClick={() => onNavigate(item.navigateView!)}
-                        className="text-stone-400 hover:text-stone-200 flex items-center gap-0.5 ml-auto font-medium transition-colors cursor-pointer"
-                        title={`Ir a ${item.name}`}
-                      >
-                        Ver <ChevronRight className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <span className="text-2xl select-none flex-shrink-0">
+                  {item.emoji}
+                </span>
+                <span className={`text-[15px] sm:text-base font-semibold leading-snug flex-1 ${
+                  item.completed ? 'line-through opacity-90' : 'text-stone-100'
+                }`}>
+                  {item.taskText}
+                </span>
               </div>
             ))}
           </div>
