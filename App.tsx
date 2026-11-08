@@ -3368,10 +3368,6 @@ REGLAS DE SELECCIÓN:
               })()}
           </div>
         </div>
-
-        <footer className="mt-12 text-center text-stone-800 text-[10px] font-bold tracking-widest uppercase z-10 shrink-0">
-          Sebastian · Reino de la Voluntad
-        </footer>
       </div>
     );
   };
@@ -4710,21 +4706,44 @@ REGLAS DE SELECCIÓN:
               <button
                 type="button"
                 onClick={() => setView('love')}
-                className="col-span-1 h-full aspect-square mx-auto bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex flex-col items-center justify-between p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors group relative cursor-pointer shadow-sm"
+                className="col-span-1 h-full aspect-square mx-auto bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex items-center justify-center p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors group relative cursor-pointer shadow-sm"
                 title="Brotes"
               >
-                <div className="flex-1 flex items-center justify-center">
-                  <Heart
-                    className={`w-6 h-6 transition-colors ${
-                      hasImportantLoveEventToday()
-                        ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110'
-                        : 'text-pink-500 group-hover:text-pink-400'
-                    }`}
-                  />
-                </div>
-                <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
-                  <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
-                </div>
+                {(() => {
+                  const loveProg = getLoveProgress();
+                  const isGolden = hasImportantLoveEventToday();
+                  const fillGradId = "brotes-heart-fill-mobile";
+                  return (
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`w-7 h-7 sm:w-8 sm:h-8 transition-transform group-hover:scale-110 ${
+                        isGolden ? 'scale-110 drop-shadow-[0_0_10px_rgba(234,179,8,0.6)]' : ''
+                      }`}
+                      fill="none"
+                      strokeWidth="2"
+                    >
+                      <defs>
+                        <linearGradient id={fillGradId} x1="0" y1="1" x2="0" y2="0">
+                          <stop
+                            offset={`${loveProg}%`}
+                            stopColor={isGolden ? "#eab308" : "#ec4899"}
+                          />
+                          <stop
+                            offset={`${loveProg}%`}
+                            stopColor={isGolden ? "rgba(234, 179, 8, 0.15)" : "rgba(236, 72, 153, 0.15)"}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"
+                        fill={`url(#${fillGradId})`}
+                        stroke={isGolden ? "#eab308" : "#ec4899"}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  );
+                })()}
               </button>
 
               {/* Bosque Progress - 2/4 width (Center) */}

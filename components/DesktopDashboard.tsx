@@ -607,20 +607,43 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
               <button
                 onClick={() => onNavigate('love')}
                 title="Brotes"
-                className="w-10 h-10 bg-pink-50 dark:bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative cursor-pointer"
+                className="w-10 h-10 bg-pink-50 dark:bg-pink-950/30 rounded-xl flex items-center justify-center p-1.5 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors group relative cursor-pointer"
               >
-                <div className="flex-1 flex items-center justify-center">
-                  <Heart
-                    className={`w-4 h-4 transition-colors ${
-                      hasImportantLoveEventToday
-                        ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110'
-                        : 'text-pink-500 group-hover:text-pink-400'
-                    }`}
-                  />
-                </div>
-                <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
-                  <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${loveProgress}%` }} />
-                </div>
+                {(() => {
+                  const loveProg = loveProgress;
+                  const isGolden = hasImportantLoveEventToday;
+                  const fillGradId = "brotes-heart-fill-desktop";
+                  return (
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`w-5 h-5 transition-transform group-hover:scale-110 ${
+                        isGolden ? 'scale-110 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]' : ''
+                      }`}
+                      fill="none"
+                      strokeWidth="2"
+                    >
+                      <defs>
+                        <linearGradient id={fillGradId} x1="0" y1="1" x2="0" y2="0">
+                          <stop
+                            offset={`${loveProg}%`}
+                            stopColor={isGolden ? "#eab308" : "#ec4899"}
+                          />
+                          <stop
+                            offset={`${loveProg}%`}
+                            stopColor={isGolden ? "rgba(234, 179, 8, 0.15)" : "rgba(236, 72, 153, 0.15)"}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"
+                        fill={`url(#${fillGradId})`}
+                        stroke={isGolden ? "#eab308" : "#ec4899"}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  );
+                })()}
               </button>
 
               {/* Roble */}
