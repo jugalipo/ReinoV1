@@ -502,6 +502,7 @@ const INITIAL_DATA: AppData = {
   },
   caminos: [],
   lastBrotesTelonDate: "",
+  lastDelayedHunosDate: "",
   robleProgress: 0
 };
 
@@ -643,7 +644,7 @@ export const sanitizeForFirestore = (obj: any): any => {
 
 const serializeAppData = (data: AppData) => {
   const rawDocs = [
-    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastBrotesTelonDate: data.lastBrotesTelonDate || "", lastFocusDate: data.lastFocusDate || "", robleProgress: data.robleProgress ?? 0 } },
+    { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastBrotesTelonDate: data.lastBrotesTelonDate || "", lastDelayedHunosDate: data.lastDelayedHunosDate || "", lastFocusDate: data.lastFocusDate || "", robleProgress: data.robleProgress ?? 0 } },
     { id: 'hunos', data: { items: data.hunos } },
     { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
     { id: 'sets', data: { items: data.sets } },
@@ -675,6 +676,7 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.lastMovieFormDate = doc.data.lastMovieFormDate || "";
       result.lastDiaryFormDate = doc.data.lastDiaryFormDate || "";
       result.lastBrotesTelonDate = doc.data.lastBrotesTelonDate || "";
+      result.lastDelayedHunosDate = doc.data.lastDelayedHunosDate || "";
       result.lastFocusDate = doc.data.lastFocusDate || "";
       result.robleProgress = doc.data.robleProgress ?? 0;
     } else if (doc.id === 'hunos') {
@@ -1199,7 +1201,7 @@ function App() {
   const [selectedEnergy, setSelectedEnergy] = useState<number | null>(null);
 
   // New Modo Telón form states
-  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'brotes' | 'diary'>('energy');
+  const [telonStep, setTelonStep] = useState<'energy' | 'movie_ask' | 'movie_fields' | 'book_ask' | 'book_fields' | 'food' | 'brotes' | 'diary' | 'delayed_hunos'>('energy');
   const [telonFoodDate, setTelonFoodDate] = useState<Date | null>(null);
   const [sessionHandledFoodDates, setSessionHandledFoodDates] = useState<string[]>([]);
   const [telonBrotesMap, setTelonBrotesMap] = useState<Record<string, keyof FriendInteractions>>({});
@@ -1301,11 +1303,49 @@ function App() {
     return pending;
   };
 
+  const getDelayedHunos = (appData: AppData = data): { task: Task; daysMissed: number }[] => {
+    const visibleHunos = (appData.hunos || []).filter(h => h.text !== 'GAP');
+    const history = appData.hunosHistory || {};
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+
+    const results: { task: Task; daysMissed: number }[] = [];
+
+    visibleHunos.forEach(task => {
+      if (task.completed) return;
+
+      let daysMissed = 0;
+      const checkDate = new Date(yesterday);
+
+      for (let i = 1; i <= 60; i++) {
+        const dKey = checkDate.toDateString();
+        const completedIds = history[dKey] || [];
+        if (completedIds.includes(task.id)) {
+          break;
+        }
+        daysMissed++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+
+      if (task.missedDays && task.missedDays > daysMissed) {
+        daysMissed = task.missedDays;
+      }
+
+      if (daysMissed >= 1) {
+        results.push({ task, daysMissed });
+      }
+    });
+
+    results.sort((a, b) => b.daysMissed - a.daysMissed);
+    return results.slice(0, 4);
+  };
+
   const getNextPendingTelonStep = (
     appData: AppData = data,
     excludedFoodDateKeys: string[] = sessionHandledFoodDates
   ): {
-    step: 'energy' | 'movie_ask' | 'book_ask' | 'food' | 'brotes' | 'diary' | null;
+    step: 'energy' | 'movie_ask' | 'book_ask' | 'food' | 'brotes' | 'diary' | 'delayed_hunos' | null;
     pendingFoodDate?: Date;
   } => {
     const todayStr = new Date().toDateString();
@@ -1345,6 +1385,12 @@ function App() {
       return { step: 'diary' };
     }
 
+    // 7. Delayed Hunos (final step of Modo Telón)
+    const hasDelayedHunos = appData.lastDelayedHunosDate === todayStr;
+    if (!hasDelayedHunos) {
+      return { step: 'delayed_hunos' };
+    }
+
     return { step: null };
   };
 
@@ -1363,29 +1409,7 @@ function App() {
       setModoTelonActive(false);
       setTelonDismissed(true);
       setSessionHandledFoodDates([]);
-
-      const todayStr = new Date().toDateString();
-      let localFocusDate = '';
-      try {
-        localFocusDate = localStorage.getItem('last_focus_telon_date') || '';
-      } catch (_) {}
-
-      const alreadyShownToday = currentData.lastFocusDate === todayStr || localFocusDate === todayStr;
-
-      if (!alreadyShownToday || focusCameFromTelon) {
-        try {
-          localStorage.setItem('last_focus_telon_date', todayStr);
-        } catch (_) {}
-        const nextData = {
-          ...currentData,
-          lastFocusDate: todayStr
-        };
-        setData(nextData);
-        setFocusCameFromTelon(true);
-        fetchFocusRecommendation();
-      } else {
-        setFocusCameFromTelon(false);
-      }
+      setFocusCameFromTelon(false);
     }
   };
 
@@ -2555,6 +2579,8 @@ REGLAS DE SELECCIÓN:
       }
     } else if (telonStep === 'diary') {
       setTelonStep('brotes');
+    } else if (telonStep === 'delayed_hunos') {
+      setTelonStep('diary');
     }
   };
 
@@ -3257,6 +3283,110 @@ REGLAS DE SELECCIÓN:
                   </button>
                 </div>
               )}
+
+              {telonStep === 'delayed_hunos' && (() => {
+                const delayedHunos = getDelayedHunos(data);
+                return (
+                  <div className="w-full space-y-8 animate-in fade-in duration-500 max-w-sm mx-auto text-center">
+                    <div className="space-y-3">
+                      <div className="w-12 h-12 bg-rose-950/40 border border-rose-500/30 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+                        <Flame className="w-6 h-6" />
+                      </div>
+                      <h2 className="text-2xl font-black text-stone-100 tracking-tighter uppercase italic">
+                        Hábitos Retrasados
+                      </h2>
+                      <p className="text-stone-400 text-xs font-medium max-w-[280px] mx-auto leading-relaxed">
+                        {delayedHunos.length === 0
+                          ? 'Todos los hábitos se cumplieron ayer. ¡Todo al día!'
+                          : 'Hábitos que llevan más días sin cumplirse'}
+                      </p>
+                    </div>
+
+                    {delayedHunos.length > 0 ? (
+                      <div className="flex justify-center items-center gap-3 max-w-xs mx-auto flex-wrap">
+                        {delayedHunos.map(({ task, daysMissed }) => {
+                          const isDoneToday = task.completed;
+                          return (
+                            <div key={task.id} className="flex flex-col items-center gap-1.5 min-w-[64px]">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedHunos = data.hunos.map(h =>
+                                    h.id === task.id ? { ...h, completed: !h.completed } : h
+                                  );
+                                  const todayKey = new Date().toDateString();
+                                  const completedIds = updatedHunos.filter(t => t.completed).map(t => t.id);
+                                  const updatedHistory = { ...(data.hunosHistory || {}), [todayKey]: completedIds };
+                                  const { plenos: newPlenos } = calculateHunosPlenosAndPending(
+                                    updatedHunos,
+                                    data.hunosHistory || {},
+                                    completedIds
+                                  );
+                                  setData(prev => ({
+                                    ...prev,
+                                    hunos: updatedHunos,
+                                    hunosHistory: updatedHistory,
+                                    stats: {
+                                      ...prev.stats,
+                                      hunoPlenos: newPlenos,
+                                      hunoPlenoCurrent: newPlenos % 50
+                                    }
+                                  }));
+                                }}
+                                className={`w-16 h-16 rounded-full flex items-center justify-center relative transition-all active:scale-95 shadow-lg cursor-pointer ${
+                                  isDoneToday
+                                    ? 'bg-emerald-600 border-2 border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                                    : 'bg-rose-950/40 border-2 border-rose-500/80 hover:border-rose-400 text-stone-100 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                                }`}
+                                title={task.text}
+                              >
+                                <span className="text-2xl drop-shadow-sm filter">
+                                  {isDoneToday ? '✓' : getEmoji(task.text)}
+                                </span>
+                                {!isDoneToday && (
+                                  <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-stone-100 text-[10px] font-black px-1.5 py-0.5 rounded-full border border-stone-900 shadow">
+                                    +{daysMissed}d
+                                  </span>
+                                )}
+                              </button>
+                              <span className="text-[10px] font-bold text-stone-400 max-w-[70px] truncate leading-tight">
+                                {task.text.replace(/^[\p{Emoji}\s]+/u, '').trim() || task.text}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-4 flex flex-col items-center justify-center gap-2">
+                        <div className="w-16 h-16 rounded-full bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-2xl shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                          <Check className="w-8 h-8 stroke-[3]" />
+                        </div>
+                        <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                          Sin retrasos pendientes
+                        </p>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const todayStr = new Date().toDateString();
+                        const nextData = {
+                          ...data,
+                          lastDelayedHunosDate: todayStr
+                        };
+                        setData(nextData);
+                        setModoTelonActive(false);
+                        setTelonDismissed(true);
+                        setSessionHandledFoodDates([]);
+                      }}
+                      className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest italic transition-all duration-300 bg-gradient-to-r from-amber-600 to-yellow-600 text-stone-950 hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.2)] cursor-pointer text-center"
+                    >
+                      Entrar al Reino
+                    </button>
+                  </div>
+                );
+              })()}
           </div>
         </div>
 
@@ -4596,31 +4726,30 @@ REGLAS DE SELECCIÓN:
             })()}
 
             {/* Fila compacta central: Brotes (izq) | Cuadrícula Bosque 2x6 (centro) | Jumangiare (dcha) */}
-            <div className="grid grid-cols-4 gap-2 mb-2 items-center">
+            <div className="grid grid-cols-4 gap-2 mb-2 items-stretch">
               {/* Brotes Button (Left) */}
-              <div className="flex justify-center items-center">
-                <button
-                  onClick={() => setView('love')}
-                  className="w-12 h-12 aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative cursor-pointer"
-                  title="Brotes"
-                >
-                  <div className="flex-1 flex items-center justify-center">
-                    <Heart
-                      className={`w-5 h-5 transition-colors ${
-                        hasImportantLoveEventToday()
-                          ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110'
-                          : 'text-pink-500 group-hover:text-pink-400'
-                      }`}
-                    />
-                  </div>
-                  <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
-                    <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
-                  </div>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setView('love')}
+                className="col-span-1 h-full aspect-square mx-auto bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex flex-col items-center justify-between p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative cursor-pointer shadow-sm"
+                title="Brotes"
+              >
+                <div className="flex-1 flex items-center justify-center">
+                  <Heart
+                    className={`w-6 h-6 transition-colors ${
+                      hasImportantLoveEventToday()
+                        ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110'
+                        : 'text-pink-500 group-hover:text-pink-400'
+                    }`}
+                  />
+                </div>
+                <div className="w-full h-1 bg-pink-200 dark:bg-pink-900/40 rounded-full overflow-hidden">
+                  <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
+                </div>
+              </button>
 
               {/* Bosque Progress - 2/4 width (Center) */}
-              <div className="col-span-2 flex flex-col justify-center items-center h-full w-full p-1">
+              <div className="col-span-2 flex flex-col justify-center items-center w-full">
                 <div className="flex flex-col gap-1 w-full px-1">
                   <div className="flex gap-1 w-full">
                     {Array.from({ length: 6 }).map((_, i) => {
@@ -4641,42 +4770,41 @@ REGLAS DE SELECCIÓN:
               </div>
 
               {/* Jumangiare (Food) Button (Right) */}
-              <div className="flex justify-center items-center">
-                <button
-                  onClick={() => {
-                    setView('food');
-                    setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
-                  }}
-                  className={`w-12 h-12 aspect-square bg-lime-50 dark:bg-lime-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative cursor-pointer ${
-                    currentFoodScore < 0 
-                      ? 'animate-blink' 
-                      : isFoodPleno
-                        ? 'scale-[1.05] animate-pulse'
-                        : ''
-                  }`}
-                  title="Jumangiare"
-                >
-                  <div className="flex-1 flex items-center justify-center">
-                    <Utensils
-                      className={`w-5 h-5 transition-colors ${
-                        shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {})
-                          ? 'animate-cutlery-bounce text-lime-400'
-                          : currentFoodScore < 0
-                          ? 'text-red-500'
-                          : isFoodPleno
-                          ? 'text-lime-200'
-                          : 'text-lime-500 group-hover:text-lime-400'
-                      }`}
-                    />
-                  </div>
-                  <div className={`w-full h-1 bg-lime-200 dark:bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
-                    <div
-                      className="h-full bg-lime-500 transition-all duration-500"
-                      style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
-                    ></div>
-                  </div>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setView('food');
+                  setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
+                }}
+                className={`col-span-1 h-full aspect-square mx-auto bg-lime-50 dark:bg-lime-950/30 rounded-2xl flex flex-col items-center justify-between p-2 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative cursor-pointer shadow-sm ${
+                  currentFoodScore < 0 
+                    ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' 
+                    : isFoodPleno
+                      ? 'scale-[1.05] animate-pulse'
+                      : ''
+                }`}
+                title="Jumangiare"
+              >
+                <div className="flex-1 flex items-center justify-center">
+                  <Utensils
+                    className={`w-6 h-6 transition-colors ${
+                      shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {})
+                        ? 'animate-cutlery-bounce text-lime-400'
+                        : currentFoodScore < 0
+                        ? 'text-red-500 animate-pulse'
+                        : isFoodPleno
+                        ? 'text-lime-200'
+                        : 'text-lime-500 group-hover:text-lime-400'
+                    }`}
+                  />
+                </div>
+                <div className={`w-full h-1 bg-lime-200 dark:bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
+                  <div
+                    className="h-full bg-lime-500 transition-all duration-500"
+                    style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
+                  ></div>
+                </div>
+              </button>
             </div>
 
             <DailyHunos

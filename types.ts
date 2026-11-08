@@ -319,5 +319,6 @@ export interface AppData {
   lastMovieFormDate?: string; // Date string (toDateString) for which the movie form was answered
   lastDiaryFormDate?: string; // Date string (toDateString) for which the diary/bitacora form was processed
   lastBrotesTelonDate?: string; // Date string (toDateString) for which the 3s Brotes check in Modo Telón was answered/skipped
+  lastDelayedHunosDate?: string; // Date string (toDateString) for which delayed hunos step in Modo Telón was acknowledged
   lastFocusDate?: string; // Date string (toDateString) for which Focus mode was last displayed automatically in Modo Telón
 }
