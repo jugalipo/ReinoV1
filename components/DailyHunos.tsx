@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
-import { Sword, Edit2, Save, X, Trash2, Plus, Info } from 'lucide-react';
+import { Sword } from 'lucide-react';
 import { useModalHistory } from '../hooks/useModalHistory';
 import { HunosMonthViewModal } from './HunosMonthViewModal';
 
@@ -25,13 +25,6 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
 }) => {
   const [showMonthView, setShowMonthView] = useState(false);
 
-  // Edit Mode States
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTasks, setEditTasks] = useState<Task[]>([]);
-  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [noteEditingTaskId, setNoteEditingTaskId] = useState<string | null>(null);
-  const [tempNoteText, setTempNoteText] = useState('');
-
   // Group tasks for display
   const isOddDay = new Date().getDate() % 2 !== 0;
   const fantasticosTasks = tasks.filter((t, i) => t.hunoType === 'fantastico' || (!t.hunoType && i < 4));
@@ -41,7 +34,7 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   // Filter out the "GAP" tasks for calculations in View Mode
   const visibleTasks = tasks.filter(t => t.text !== 'GAP');
   const completedCount = visibleTasks.filter(t => t.completed).length;
-  const progressPercent = visibleTasks.length > 0 ? (completedCount / visibleTasks.length) * 100 : 0;
+  const lostCoinsCount = visibleTasks.filter(t => t.failedYesterday && !t.completed).length;
 
   const getCoreScore = () => {
     let score = 0;
@@ -59,32 +52,12 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   const coreScore = getCoreScore();
   const coreTotal = 5;
 
-  const getClipPath = (value: number, total: number) => {
-    const percentage = value / total;
-    const degrees = percentage * 360;
-    
-    if (percentage === 0) return '50% 50%, 50% 0, 50% 0';
-    if (percentage <= 0.125) return `50% 50%, 50% 0, ${50 + Math.tan(degrees * Math.PI / 180) * 50}% 0`;
-    if (percentage <= 0.25) return `50% 50%, 50% 0, 100% 0, 100% ${50 - Math.tan((90 - degrees) * Math.PI / 180) * 50}%`;
-    if (percentage <= 0.375) return `50% 50%, 50% 0, 100% 0, 100% 50%, 100% ${50 + Math.tan((degrees - 90) * Math.PI / 180) * 50}%`;
-    if (percentage <= 0.5) return `50% 50%, 50% 0, 100% 0, 100% 100%, ${50 + Math.tan((180 - degrees) * Math.PI / 180) * 50}% 100%`;
-    if (percentage <= 0.625) return `50% 50%, 50% 0, 100% 0, 100% 100%, 50% 100%, ${50 - Math.tan((degrees - 180) * Math.PI / 180) * 50}% 100%`;
-    if (percentage <= 0.75) return `50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 ${50 + Math.tan((270 - degrees) * Math.PI / 180) * 50}%`;
-    if (percentage <= 0.875) return `50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 50%, 0 ${50 - Math.tan((degrees - 270) * Math.PI / 180) * 50}%`;
-    return `50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 0, ${50 - Math.tan((360 - degrees) * Math.PI / 180) * 50}% 0`;
-  };
-
   // --- MOBILE BACK BUTTON SUPPORT FOR MODALS ---
-  useModalHistory(isEditing, () => setIsEditing(false));
   useModalHistory(showMonthView, () => setShowMonthView(false));
-  useModalHistory(!!taskToDelete, () => setTaskToDelete(null));
-  useModalHistory(!!noteEditingTaskId, () => setNoteEditingTaskId(null));
   // ---------------------------------------------
 
   // --- VIEW MODE ACTIONS ---
-
   const toggleTask = (id: string) => {
-    if (isEditing) return;
     if (lockedTaskIds.includes(id)) return;
 
     const task = tasks.find(t => t.id === id);
@@ -96,62 +69,6 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
     );
 
     onUpdate(simulatedTasks, false);
-  };
-
-  // --- EDIT MODE ACTIONS ---
-
-  const handleEditToggle = () => {
-      if (isEditing) {
-          onUpdate(editTasks, false);
-          setIsEditing(false);
-      } else {
-          const initializedTasks = tasks.map((t, i) => {
-              let type = t.hunoType;
-              if (!type) {
-                  if (i < 4) type = 'fantastico';
-                  else if (i < 16) type = 'enanito';
-                  else type = 'fondo';
-              }
-              return { ...t, hunoType: type };
-          });
-          setEditTasks(initializedTasks);
-          setIsEditing(true);
-      }
-  };
-
-  const updateEditTask = (id: string, text: string) => {
-      setEditTasks(prev => prev.map(t => t.id === id ? { ...t, text } : t));
-  };
-
-  const confirmDelete = () => {
-      if (taskToDelete) {
-          setEditTasks(prev => prev.filter(t => t.id !== taskToDelete));
-          setTaskToDelete(null);
-      }
-  };
-
-  const addEditTask = (hunoType: 'enanito' | 'fondo') => {
-      const newTask: Task = {
-          id: Date.now().toString() + Math.random().toString(),
-          text: '',
-          completed: false,
-          plenoCompleted: false,
-          failedYesterday: false,
-          missedDays: 0,
-          hunoType
-      };
-      
-      setEditTasks(prev => {
-          const arr = [...prev];
-          if (hunoType === 'enanito') {
-              const lastEnanitoIndex = arr.map(t => t.hunoType).lastIndexOf('enanito');
-              const insertIndex = lastEnanitoIndex >= 0 ? lastEnanitoIndex + 1 : arr.filter(t => t.hunoType === 'fantastico').length;
-              arr.splice(insertIndex, 0, newTask);
-          } else {
-              arr.push(newTask);
-          }
-          return arr;
-      });
   };
 
   const getEmoji = (text: string) => {
@@ -169,55 +86,42 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
   return (
     <div className={`bg-stone-900 rounded-2xl shadow-sm p-6 w-full ${className} border border-stone-800 relative`}>
       
-      {/* Header Row */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-            <Sword className="w-6 h-6 text-stone-400" />
-            <button 
-              onClick={() => setShowMonthView(true)}
-              className="text-xl font-bold text-stone-200 hover:text-orange-400 transition-colors"
-            >
-              Hunos
-            </button>
+      {/* Header Row: Espada + Hunos + Barra segmentada en rayas verticales */}
+      <div className="flex items-center gap-3.5 mb-5">
+        <div className="flex items-center gap-2 shrink-0">
+          <Sword className="w-5 h-5 sm:w-6 sm:h-6 text-stone-400" />
+          <button 
+            onClick={() => setShowMonthView(true)}
+            className="text-xl font-bold text-stone-200 hover:text-orange-400 transition-colors cursor-pointer"
+            title="Ver calendario mensual de Hunos"
+          >
+            Hunos
+          </button>
         </div>
-        
-        <button 
-            onClick={handleEditToggle} 
-            className={`p-2 rounded-full transition-colors ${isEditing ? 'bg-stone-700 text-white' : 'hover:bg-stone-800 text-stone-500'}`}
+
+        {/* Línea de progreso segmentada en rayas verticales */}
+        <div 
+          className="flex-1 flex items-center gap-[2.5px] sm:gap-1 h-3.5 px-0.5"
+          title={`${completedCount} de ${visibleTasks.length} completados`}
         >
-            {isEditing ? <Save className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
-        </button>
+          {visibleTasks.map((_, idx) => {
+            const isDone = idx < completedCount;
+            return (
+              <div
+                key={idx}
+                className={`flex-1 h-full rounded-[1.5px] transition-all duration-300 ${
+                  isDone
+                    ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.6)]'
+                    : 'bg-stone-800 border border-stone-800/80'
+                }`}
+              />
+            );
+          })}
+        </div>
       </div>
 
-      {/* Money, Counter and Progress Row */}
-      {!isEditing && (
-        <div className="flex items-center gap-3 mb-6">
-            {/* Money Counter (Pending tasks that FAILED yesterday) */}
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-red-950/20 rounded-lg border border-red-900/30">
-                <span className="text-sm font-bold text-red-500">
-                    -{visibleTasks.filter(t => t.failedYesterday && !t.completed).length}
-                </span>
-                <span className="text-xs">🪙</span>
-            </div>
-
-            {/* Progress Bar Container */}
-            <div className="flex-1 h-2 bg-stone-800 rounded-full overflow-hidden">
-                <div 
-                    className="h-full bg-blue-600 transition-all duration-300 shadow-[0_0_10px_rgba(37,99,235,0.4)]" 
-                    style={{ width: `${progressPercent}%` }}
-                />
-            </div>
-
-            {/* Hunos Counter */}
-            <span className="text-xs font-mono text-stone-500 whitespace-nowrap">
-                {completedCount}/{visibleTasks.length}
-            </span>
-        </div>
-      )}
-
       {/* VIEW MODE: SECTIONS */}
-      {!isEditing && (
-        <div className="space-y-4">
+      <div className="space-y-4">
             {/* 1. Los 4 Fantásticos - Capsule Row */}
             {tasks.length > 0 && (
                 <div className="space-y-2">
@@ -362,6 +266,17 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                     );
                     return elements;
                 })}
+
+                {/* 3. Hueco tras la manzana (Sano 🍏): Burbuja de Monedas Perdidas */}
+                <div 
+                    title={`Monedas perdidas por Hunos fallados ayer y aún pendientes: -${lostCoinsCount}`}
+                    className="aspect-square flex flex-col items-center justify-center rounded-2xl border border-red-900/40 bg-red-950/20 shadow-sm transition-all select-none group"
+                >
+                    <span className="text-2xl filter drop-shadow group-hover:scale-110 transition-transform">🪙</span>
+                    <span className="text-xs sm:text-sm font-black text-red-500 font-mono mt-0.5">
+                        -{lostCoinsCount}
+                    </span>
+                </div>
             </div>
 
             {/* Energy Slider */}
@@ -426,212 +341,6 @@ export const DailyHunos: React.FC<DailyHunosProps> = ({
                 </div>
             </div>
         </div>
-      )}
-
-      {/* EDIT MODE: LIST */}
-      {isEditing && (
-          <div className="space-y-6">
-              <div>
-                  <label className="block text-sm font-medium text-stone-400 mb-2">Los 4 Fantásticos</label>
-                  <div className="space-y-2">
-                      {editTasks.filter(t => t.hunoType === 'fantastico').map(task => (
-                          <div key={task.id} className="flex items-center gap-2">
-                              <button
-                                  onClick={() => {
-                                      setNoteEditingTaskId(task.id);
-                                      setTempNoteText(task.notes || '');
-                                  }}
-                                  className={`p-3 rounded-xl border transition-all active:scale-95 ${
-                                      task.notes 
-                                          ? 'bg-amber-950/25 border-amber-900/40 text-amber-400' 
-                                          : 'bg-stone-950 border-stone-800 text-stone-500 hover:text-stone-300 hover:border-stone-700'
-                                  }`}
-                                  title="Editar Notas de Sebastian"
-                              >
-                                  <Info className="w-5 h-5" />
-                              </button>
-                              <input 
-                                  type="text"
-                                  value={task.text}
-                                  onChange={(e) => updateEditTask(task.id, e.target.value)}
-                                  className="flex-1 bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-stone-500"
-                                  placeholder="Ej: 🦁 Leones..."
-                              />
-                          </div>
-                      ))}
-                  </div>
-              </div>
-              
-              <div>
-                  <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-stone-400">Los {editTasks.filter(t => t.hunoType === 'enanito').length} Enanitos</label>
-                      <button onClick={() => addEditTask('enanito')} className="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-2 py-1 rounded flex items-center gap-1 transition-colors">
-                          <Plus className="w-3 h-3" /> Añadir
-                      </button>
-                  </div>
-                  <div className="space-y-2">
-                      {editTasks.filter(t => t.hunoType === 'enanito').map(task => (
-                          <div key={task.id} className="flex items-center gap-2">
-                              <button
-                                  onClick={() => {
-                                      setNoteEditingTaskId(task.id);
-                                      setTempNoteText(task.notes || '');
-                                  }}
-                                  className={`p-3 rounded-xl border transition-all active:scale-95 ${
-                                      task.notes 
-                                          ? 'bg-amber-950/25 border-amber-900/40 text-amber-400' 
-                                          : 'bg-stone-950 border-stone-800 text-stone-500 hover:text-stone-300 hover:border-stone-700'
-                                  }`}
-                                  title="Editar Notas de Sebastian"
-                              >
-                                  <Info className="w-5 h-5" />
-                              </button>
-                              <input 
-                                  type="text"
-                                  value={task.text}
-                                  onChange={(e) => updateEditTask(task.id, e.target.value)}
-                                  className="flex-1 bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-stone-500"
-                                  placeholder="Ej: 💧 Agua..."
-                              />
-                              <button onClick={() => setTaskToDelete(task.id)} className="p-3 text-stone-500 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors">
-                                  <Trash2 className="w-5 h-5" />
-                              </button>
-                          </div>
-                      ))}
-                  </div>
-              </div>
-
-              <div>
-                  <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-stone-400">Fondo</label>
-                      <button onClick={() => addEditTask('fondo')} className="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-2 py-1 rounded flex items-center gap-1 transition-colors">
-                          <Plus className="w-3 h-3" /> Añadir
-                      </button>
-                  </div>
-                  <div className="space-y-2">
-                      {editTasks.filter(t => t.hunoType === 'fondo').map(task => (
-                          <div key={task.id} className="flex items-center gap-2">
-                              <button
-                                  onClick={() => {
-                                      setNoteEditingTaskId(task.id);
-                                      setTempNoteText(task.notes || '');
-                                  }}
-                                  className={`p-3 rounded-xl border transition-all active:scale-95 ${
-                                      task.notes 
-                                          ? 'bg-amber-950/25 border-amber-900/40 text-amber-400' 
-                                          : 'bg-stone-950 border-stone-800 text-stone-500 hover:text-stone-300 hover:border-stone-700'
-                                  }`}
-                                  title="Editar Notas de Sebastian"
-                              >
-                                  <Info className="w-5 h-5" />
-                              </button>
-                              <input 
-                                  type="text"
-                                  value={task.text}
-                                  onChange={(e) => updateEditTask(task.id, e.target.value)}
-                                  className="flex-1 bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-stone-200 focus:outline-none focus:border-stone-500"
-                                  placeholder="Ej: 🎸 Guitarra..."
-                              />
-                              <button onClick={() => setTaskToDelete(task.id)} className="p-3 text-stone-500 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-colors">
-                                  <Trash2 className="w-5 h-5" />
-                              </button>
-                          </div>
-                      ))}
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* --- MODALS --- */}
-
-      {/* Delete Confirmation Modal */}
-      {taskToDelete && (
-        <div 
-          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setTaskToDelete(null)}
-        >
-            <div 
-              className="bg-stone-900 w-full max-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-6 flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-600/50">
-                        <Trash2 className="w-10 h-10 text-red-500" />
-                    </div>
-                    <h2 className="text-xl font-bold text-stone-100 mb-2">¿Eliminar este Huno?</h2>
-                    <p className="text-stone-400 mb-6 text-sm">
-                        Esta acción borrará el Huno de la lista. Si ya estaba guardado en el historial, los días pasados no se verán afectados.
-                    </p>
-                    
-                    <div className="grid grid-cols-2 gap-3 w-full">
-                        <button 
-                            onClick={() => setTaskToDelete(null)}
-                            className="py-3 rounded-xl border border-stone-700 text-stone-400 hover:bg-stone-800 font-bold transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button 
-                            onClick={confirmDelete}
-                            className="py-3 rounded-xl bg-red-600 text-stone-950 font-bold hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20"
-                        >
-                            Sí, eliminar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* Modal para editar notas de Sebastian para un Huno */}
-      {noteEditingTaskId && (
-        <div 
-          className="fixed inset-0 max-w-md mx-auto z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setNoteEditingTaskId(null)}
-        >
-            <div 
-              className="bg-stone-900 w-full max-sm rounded-2xl shadow-2xl border border-stone-700 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-6 flex flex-col space-y-4">
-                    <div className="flex items-center gap-2 pb-2 border-b border-stone-850">
-                        <Info className="w-5 h-5 text-amber-500" />
-                        <h3 className="text-base font-bold text-stone-200">
-                            Notas para: "{editTasks.find(t => t.id === noteEditingTaskId)?.text || 'Huno'}"
-                        </h3>
-                    </div>
-                    
-                    <p className="text-xs text-stone-400 leading-relaxed">
-                        Estas notas le servirán a Sebastian para sugerirte esta tarea diaria según tu nivel de energía.
-                    </p>
-                    
-                    <textarea
-                        value={tempNoteText}
-                        onChange={(e) => setTempNoteText(e.target.value)}
-                        placeholder="Ej: Si mi energía es < 5, priorizar la versión rápida de esta tarea. O: Hacer por la tarde..."
-                        className="w-full h-32 bg-stone-950 border border-stone-800 rounded-xl p-3 text-stone-200 text-sm focus:outline-none focus:border-amber-500 font-sans resize-none placeholder:text-stone-600 leading-relaxed"
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-3 w-full pt-2">
-                        <button 
-                            onClick={() => setNoteEditingTaskId(null)}
-                            className="py-3 rounded-xl border border-stone-750 text-stone-400 hover:bg-stone-800 font-bold transition-colors text-sm"
-                        >
-                            Cancelar
-                        </button>
-                        <button 
-                            onClick={() => {
-                                setEditTasks(prev => prev.map(t => t.id === noteEditingTaskId ? { ...t, notes: tempNoteText } : t));
-                                setNoteEditingTaskId(null);
-                            }}
-                            className="py-3 rounded-xl bg-amber-600 text-stone-950 font-bold hover:bg-amber-500 transition-colors shadow-lg shadow-amber-900/20 text-sm"
-                        >
-                            Guardar Notas
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      )}
 
       {/* Hunos Month View Modal */}
       {showMonthView && (
