@@ -4670,9 +4670,7 @@ REGLAS DE SELECCIÓN:
             {(() => {
               const seasonalConfig = getSeasonalConfig();
               const robleProg = data.robleProgress ?? 0;
-              const filledRobleLeaves = robleProg <= 20 && robleProg > 0 && Number.isInteger(robleProg)
-                ? robleProg
-                : Math.min(20, Math.max(0, Math.round((robleProg / 100) * 20)));
+              const filledRobleLeaves = Math.min(20, Math.max(0, Math.round((robleProg / 100) * 20)));
               const SeasonalIcon = seasonalConfig.icon;
 
               return (
@@ -5540,7 +5538,7 @@ REGLAS DE SELECCIÓN:
           bosqueWeeklyMinutes={bosqueWeeklyMinutes}
           hasImportantLoveEventToday={hasImportantLoveEventToday()}
           loveProgress={getLoveProgress()}
-          forjasProgress={getResourceProgress(data.forjas, true)}
+          forjasProgress={data.robleProgress ?? 0}
           currentFoodScore={desktopCurrentFoodScore}
           isFoodPleno={desktopCurrentFoodScore >= 200}
           shouldJumangiareBounce={shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {})}
