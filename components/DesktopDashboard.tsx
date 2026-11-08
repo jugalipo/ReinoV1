@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Cloud,
   Edit2,
-  Footprints,
   Heart,
   Info,
   LogOut,
@@ -99,7 +98,6 @@ export interface DesktopDashboardProps {
   onUpdateData: React.Dispatch<React.SetStateAction<AppData>>;
   onNavigate: (view: ViewState) => void;
   onTriggerFocus: () => void;
-  onOpenFootModal: () => void;
   onOpenGympiezaModal: () => void;
   onOpenHistory: () => void;
   onLogout: () => void;
@@ -111,7 +109,6 @@ export interface DesktopDashboardProps {
   loveProgress: number;
   leonesProgress: number;
   forjasProgress: number;
-  footProgress: number;
   currentFoodScore: number;
   isFoodPleno: boolean;
   shouldJumangiareBounce: boolean;
@@ -137,7 +134,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
   onUpdateData,
   onNavigate,
   onTriggerFocus,
-  onOpenFootModal,
   onOpenGympiezaModal,
   onOpenHistory,
   onLogout,
@@ -149,7 +145,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
   loveProgress,
   leonesProgress,
   forjasProgress,
-  footProgress,
   currentFoodScore,
   isFoodPleno,
   shouldJumangiareBounce,
@@ -611,7 +606,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
 
             <div className="h-7 w-px bg-stone-800 mx-0.5" />
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {/* Brotes (Love) */}
               <button
                 onClick={() => onNavigate('love')}
@@ -662,23 +657,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                   <div
                     className="h-full bg-orange-500 transition-all duration-300"
                     style={{ width: `${forjasProgress}%` }}
-                  />
-                </div>
-              </button>
-
-              {/* Passeggiata */}
-              <button
-                onClick={onOpenFootModal}
-                title="Passeggiata"
-                className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors border border-emerald-200 dark:border-emerald-900/50 group relative cursor-pointer"
-              >
-                <div className="flex-1 flex items-center justify-center">
-                  <Footprints className="w-4 h-4 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                </div>
-                <div className="w-full h-1 bg-emerald-200 dark:bg-emerald-900/40 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 transition-all duration-300"
-                    style={{ width: `${footProgress * 100}%` }}
                   />
                 </div>
               </button>

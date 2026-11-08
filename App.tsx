@@ -9,11 +9,10 @@ import { ResourceTrackerView } from './components/ResourceTrackerView';
 import { PianoView } from './components/PianoView';
 import { HistoryEditorModal } from './components/HistoryEditorModal';
 import { StatsView } from './components/StatsView';
-import { FootTasksModal } from './components/FootTasksModal';
 import { CaminosView } from './components/CaminosView';
 import { TasksHubView } from './components/TasksHubView';
 import { DesktopDashboard } from './components/DesktopDashboard';
-import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Footprints, Sparkles, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
+import { Home, Zap, Heart, Utensils, BarChart3, X, Settings, Cat, Settings as GearIcon, CalendarClock, CheckCircle2, Dumbbell, Edit2, Save, Plus, Trash2, Trophy, Train, Music, Download, Upload, LogOut, Check, Sparkles, TreeDeciduous, Map as MapIcon, Cloud, Flame, ShieldAlert, Info, RotateCw, Film, Tv, Star, ArrowLeft, BookOpen, Timer, Bike } from 'lucide-react';
 import { auth, db, loginWithGoogle, logout, carteleraDb, bibliotecaDb, bosqueDb, aspavientosDb, desencadenadoDb, puertoDb } from './firebase';
 import { collection, doc, writeBatch, onSnapshot, getDocs, getDocsFromServer, getDoc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -3388,7 +3387,6 @@ REGLAS DE SELECCIÓN:
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [showFootModal, setShowFootModal] = useState(false);
   const [showGympiezaModal, setShowGympiezaModal] = useState(false);
 
   // Magic Task Interception States
@@ -4530,8 +4528,8 @@ REGLAS DE SELECCIÓN:
                 </div>
               </button>
             </div>
-            <div className="grid grid-cols-5 gap-2 mb-2">
-              <button onClick={() => setView('love')} className="aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative">
+            <div className="grid grid-cols-4 gap-2.5 px-3 sm:px-6 mb-2">
+              <button onClick={() => setView('love')} className="aspect-square bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200 dark:border-pink-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
                   <Heart className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${hasImportantLoveEventToday() ? 'text-yellow-500 fill-current drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] scale-110' : 'text-pink-500 group-hover:text-pink-400'}`} />
                 </div>
@@ -4539,7 +4537,7 @@ REGLAS DE SELECCIÓN:
                   <div className="h-full bg-pink-500 transition-all duration-300" style={{ width: `${getLoveProgress()}%` }}></div>
                 </div>
               </button>
-              <button onClick={() => setView('leones')} className="aspect-square bg-amber-50 dark:bg-amber-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors border border-amber-200 dark:border-amber-900/50 group relative">
+              <button onClick={() => setView('leones')} className="aspect-square bg-amber-50 dark:bg-amber-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors border border-amber-200 dark:border-amber-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
                   <Cat className="w-7 h-7 sm:w-8 sm:h-8 text-amber-500 group-hover:text-amber-400 transition-colors" />
                 </div>
@@ -4547,7 +4545,7 @@ REGLAS DE SELECCIÓN:
                   <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${getResourceProgress(data.leones)}%` }}></div>
                 </div>
               </button>
-              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-50 dark:bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative">
+              <button onClick={() => setView('forjas')} className="aspect-square bg-orange-50 dark:bg-orange-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative">
                 <div className="flex-1 flex items-center justify-center">
                   <TreeDeciduous className="w-7 h-7 sm:w-8 sm:h-8 text-orange-500 group-hover:text-orange-400 transition-colors" />
                 </div>
@@ -4556,36 +4554,13 @@ REGLAS DE SELECCIÓN:
                 </div>
               </button>
 
-              {/* Passeggiata (Footprints) */}
-              {(() => {
-                const footTasks = [
-                  ...data.trains.flatMap(t => t.subtasks || []),
-                  ...data.sets.flatMap(s => s.subtasks || [])
-                ].filter(s => s && s.text && s.text.includes('🦶'));
-                const footProgress = footTasks.length > 0 ? (footTasks.filter(s => s.completed).length / footTasks.length) : 0;
-                
-                return (
-                  <button 
-                    onClick={() => setShowFootModal(true)}
-                    className="aspect-square bg-emerald-50 dark:bg-emerald-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors border border-emerald-200 dark:border-emerald-900/50 group relative"
-                  >
-                    <div className="flex-1 flex items-center justify-center">
-                      <Footprints className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-500 group-hover:text-emerald-400 transition-colors drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                    </div>
-                    <div className="w-full h-1 bg-emerald-200 dark:bg-emerald-900/40 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${footProgress * 100}%` }}></div>
-                    </div>
-                  </button>
-                );
-              })()}
-
               {/* Jumangiare (Food) Button */}
               <button
                 onClick={() => {
                   setView('food');
                   setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
                 }}
-                className={`aspect-square bg-lime-50 dark:bg-lime-950/30 rounded-xl flex flex-col items-center justify-between p-2 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative ${
+                className={`aspect-square bg-lime-50 dark:bg-lime-950/30 rounded-2xl flex flex-col items-center justify-between p-2.5 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative ${
                     currentFoodScore < 0 
                       ? 'animate-blink' 
                       : isFoodPleno
@@ -5123,16 +5098,6 @@ REGLAS DE SELECCIÓN:
               </div>
             )}
 
-            {showFootModal && (
-              <FootTasksModal 
-                trains={data.trains}
-                sets={data.sets}
-                onUpdateTrains={handleTrainsUpdate}
-                onUpdateSets={handleSetsUpdate}
-                onClose={() => setShowFootModal(false)}
-              />
-            )}
-
             {showGympiezaModal && (
               <GympiezaModal 
                 gympieza={data.gympieza || { lastReset: Date.now(), tasks: [] }}
@@ -5346,16 +5311,9 @@ REGLAS DE SELECCIÓN:
     }
   };
 
-  const hideFloatingButtons = modoTelonActive || showHistory || showFirewallModal || showProjectPromptModal || showProjectConfirm || showFootModal || showGympiezaModal || showCongratulations.show || showFocusModal;
+  const hideFloatingButtons = modoTelonActive || showHistory || showFirewallModal || showProjectPromptModal || showProjectConfirm || showGympiezaModal || showCongratulations.show || showFocusModal;
 
   const desktopCurrentFoodScore = getCurrentMonthlyFoodScore();
-  const desktopFootTasks = [
-    ...data.trains.flatMap(t => t.subtasks || []),
-    ...data.sets.flatMap(s => s.subtasks || [])
-  ].filter(s => s && s.text && s.text.includes('🦶'));
-  const desktopFootProgress = desktopFootTasks.length > 0
-    ? desktopFootTasks.filter(s => s.completed).length / desktopFootTasks.length
-    : 0;
   const desktopGimHuno = data.hunos.find(h => h.shortcut === 'exercise' || h.text.includes('Gim'));
   const desktopLockedHunoIds = desktopGimHuno ? [desktopGimHuno.id] : [];
 
@@ -5377,7 +5335,6 @@ REGLAS DE SELECCIÓN:
             }
             fetchFocusRecommendation();
           }}
-          onOpenFootModal={() => setShowFootModal(true)}
           onOpenGympiezaModal={() => setShowGympiezaModal(true)}
           onOpenHistory={() => setShowHistory(true)}
           onLogout={() => { if (isGuest) setIsGuest(false); else logout(); }}
@@ -5389,7 +5346,6 @@ REGLAS DE SELECCIÓN:
           loveProgress={getLoveProgress()}
           leonesProgress={getResourceProgress(data.leones)}
           forjasProgress={getResourceProgress(data.forjas, true)}
-          footProgress={desktopFootProgress}
           currentFoodScore={desktopCurrentFoodScore}
           isFoodPleno={desktopCurrentFoodScore >= 200}
           shouldJumangiareBounce={shouldJumangiareBounce(data.lastFoodEntryClick || 0, data.food.dailyScores || {})}
