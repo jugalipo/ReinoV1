@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppData, Friend, ExerciseDayStats } from '../types';
-import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X, ChevronDown, Grid, Activity, Cloud, Edit2, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, MessageCircle, Star, Sword, Timer, Settings, X, ChevronDown, Grid, Activity, Cloud } from 'lucide-react';
 import { HunosYearInPixelsModal } from './HunosYearInPixelsModal';
 import { HunosMonthLineChartModal } from './HunosMonthLineChartModal';
 import { CategoryHistoryModal } from './CategoryHistoryModal';
@@ -46,70 +46,6 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
   const [viewingHistoryForTask, setViewingHistoryForTask] = useState<string | null>(null);
   const [taskHistoryTimeframe, setTaskHistoryTimeframe] = useState<'mes' | '60dias' | '90dias' | 'año' | 'siempre'>('mes');
   const [taskHistoryPeriod, setTaskHistoryPeriod] = useState<string>('');
-
-  const [isEditingPlenos, setIsEditingPlenos] = useState(false);
-
-  const adjustStat = (key: keyof typeof data.stats, delta: number) => {
-      if (!onUpdate) return;
-      // @ts-ignore
-      const currentVal = data.stats[key];
-      const safeVal = typeof currentVal === 'number' ? currentVal : 0;
-      const newVal = safeVal + delta;
-      
-      onUpdate(prev => ({
-          ...prev,
-          stats: {
-              ...prev.stats,
-              [key]: Math.max(0, newVal)
-          }
-      }));
-  };
-
-  const adjustHunoTrophies = (delta: number) => {
-      if (!onUpdate) return;
-      const currentPlenos = data.stats.hunoPlenos || 0;
-      const currentTrophies = Math.floor(currentPlenos / 50);
-      const remainder = data.stats.hunoPlenoCurrent || 0;
-      
-      const newTrophies = Math.max(0, currentTrophies + delta);
-      const newPlenos = newTrophies * 50 + remainder;
-      
-      onUpdate(prev => ({
-          ...prev,
-          stats: {
-              ...prev.stats,
-              hunoPlenos: newPlenos,
-              hunoPlenoCurrent: remainder
-          }
-      }));
-  };
-
-  const adjustHunoCurrent = (delta: number) => {
-      if (!onUpdate) return;
-      const currentPlenos = data.stats.hunoPlenos || 0;
-      const currentTrophies = Math.floor(currentPlenos / 50);
-      const remainder = data.stats.hunoPlenoCurrent || 0;
-      
-      const newRemainder = Math.max(0, Math.min(49, remainder + delta));
-      const newPlenos = currentTrophies * 50 + newRemainder;
-      
-      onUpdate(prev => ({
-          ...prev,
-          stats: {
-              ...prev.stats,
-              hunoPlenos: newPlenos,
-              hunoPlenoCurrent: newRemainder
-          }
-      }));
-  };
-
-  const adjustRootCount = (key: 'leonesCount' | 'huchaCount', delta: number) => {
-      if (!onUpdate) return;
-      onUpdate(prev => ({
-          ...prev,
-          [key]: Math.max(0, (prev[key] || 0) + delta)
-      }));
-  };
 
   const { availableMonths, availableYears, monthsList, yearsList } = useMemo(() => {
     const months = new Set<string>();
@@ -1130,115 +1066,20 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
           </button>
           <h1 className="text-xl font-bold text-stone-100">Estadísticas</h1>
         </div>
-        <button onClick={() => setIsEditingPlenos(!isEditingPlenos)} className={`p-2 rounded-full transition-colors ${isEditingPlenos ? 'bg-purple-900/50 text-purple-400' : 'hover:bg-stone-800 text-stone-400'}`}>
-          <Edit2 className="w-5 h-5" />
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-28">
-        {isEditingPlenos && (
-           <div className="space-y-4 mb-8 bg-stone-900/50 p-4 rounded-2xl border border-purple-900/30">
-               <h3 className="font-bold text-purple-400 uppercase text-xs tracking-wider">Edición de Plenos</h3>
-               
-               <div className="grid grid-cols-1 gap-3">
-                   <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                       <span className="font-bold text-stone-200 text-sm">Trenes</span>
-                       <div className="flex items-center gap-3">
-                           <button onClick={() => adjustStat('perfectTrainMonths', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                           <span className="font-mono w-8 text-center">{data.stats.perfectTrainMonths}</span>
-                           <button onClick={() => adjustStat('perfectTrainMonths', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                       </div>
-                   </div>
-                   
-                   <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                       <span className="font-bold text-stone-200 text-sm">Setas</span>
-                       <div className="flex items-center gap-3">
-                           <button onClick={() => adjustStat('perfectSetsWeeks', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                           <span className="font-mono w-8 text-center">{data.stats.perfectSetsWeeks}</span>
-                           <button onClick={() => adjustStat('perfectSetsWeeks', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                       </div>
-                   </div>
-
-                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-stone-200 text-sm">Hunos</span>
-                            <span className="text-[10px] text-stone-500 uppercase font-black">Trofeos</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustHunoTrophies(-1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4 text-stone-400" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{Math.floor((data.stats.hunoPlenos || 0) / 50)}</span>
-                            <button onClick={() => adjustHunoTrophies(1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4 text-stone-400" /></button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-stone-900/40 p-3 rounded-xl border border-stone-800/50 ml-4">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-stone-400 text-xs">Progreso Hunos</span>
-                            <span className="text-[9px] text-stone-600 uppercase font-black">Actual / 50</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustHunoCurrent(-1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Minus className="w-3.5 h-3.5 text-stone-500" /></button>
-                            <span className="font-mono w-8 text-center text-stone-300 text-sm">{data.stats.hunoPlenoCurrent || 0}</span>
-                            <button onClick={() => adjustHunoCurrent(1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Plus className="w-3.5 h-3.5 text-stone-500" /></button>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800 mt-1">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-stone-200 text-sm">Nubes</span>
-                            <span className="text-[10px] text-stone-500 uppercase font-black">Trofeos</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustStat('projectPlenos', -1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Minus className="w-4 h-4 text-stone-400" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{data.stats.projectPlenos || 0}</span>
-                            <button onClick={() => adjustStat('projectPlenos', 1)} className="p-1 bg-stone-800 rounded hover:bg-stone-700"><Plus className="w-4 h-4 text-stone-400" /></button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-stone-900/40 p-3 rounded-xl border border-stone-800/50 ml-4">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-stone-400 text-xs">Progreso Nubes</span>
-                            <span className="text-[9px] text-stone-600 uppercase font-black">Actual / 20</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustStat('projectPlenoCurrent', -1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Minus className="w-3.5 h-3.5 text-stone-500" /></button>
-                            <span className="font-mono w-8 text-center text-stone-300 text-sm">{data.stats.projectPlenoCurrent || 0}</span>
-                            <button onClick={() => adjustStat('projectPlenoCurrent', 1)} className="p-1 bg-stone-800/50 rounded hover:bg-stone-700/50"><Plus className="w-3.5 h-3.5 text-stone-500" /></button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                        <span className="font-bold text-stone-200 text-sm">Leones (20s)</span>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustRootCount('leonesCount', -1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{data.leonesCount || 0}</span>
-                            <button onClick={() => adjustRootCount('leonesCount', 1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-stone-900 p-3 rounded-xl border border-stone-800">
-                        <span className="font-bold text-stone-200 text-sm">Billetes (20s)</span>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => adjustRootCount('huchaCount', -1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Minus className="w-4 h-4" /></button>
-                            <span className="font-mono w-8 text-center text-stone-100">{data.huchaCount || 0}</span>
-                            <button onClick={() => adjustRootCount('huchaCount', 1)} className="p-1 bg-stone-800 border border-stone-700 text-stone-400 rounded hover:bg-stone-700"><Plus className="w-4 h-4" /></button>
-                        </div>
-                    </div>
-               </div>
-           </div>
-        )}
-        
         {/* HISTORICOS (CHARTS) */}
         <section className="space-y-10">
           <div>
-            <button onClick={() => setShowTrainsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
-              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+            <button onClick={() => setShowTrainsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
                 <Train className="w-4 h-4 text-blue-500 shrink-0" />
                 <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">TRENES (12 MESES)</span>
               </div>
-              <span className="text-lg font-black text-white shrink-0">{stats.perfectTrainMonths}</span>
             </button>
-            <div className="h-24 flex gap-1 px-1">
+            <div className="relative h-24 flex gap-1 px-1">
+              <div className="absolute top-0 left-1 right-1 border-t border-dashed border-stone-700/60 pointer-events-none z-10" />
               {paddedTrainsHistory.map((v, i) => (
                 <React.Fragment key={i}>
                   {renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 11)}
@@ -1248,14 +1089,14 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
           </div>
 
           <div>
-            <button onClick={() => setShowSetsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
-              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+            <button onClick={() => setShowSetsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
                 <MushroomIcon className="w-4 h-4 text-red-500 shrink-0" />
                 <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">SETAS (20 SEM)</span>
               </div>
-              <span className="text-lg font-black text-white shrink-0">{stats.perfectSetsWeeks}</span>
             </button>
-            <div className="h-24 flex gap-1 px-1">
+            <div className="relative h-24 flex gap-1 px-1">
+              <div className="absolute top-0 left-1 right-1 border-t border-dashed border-stone-700/60 pointer-events-none z-10" />
               {paddedSetsHistory.map((v, i) => (
                 <React.Fragment key={i}>
                   {renderHistoryBar(v, setsMax, 'bg-red-600', i === 19)}
@@ -1265,14 +1106,14 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
           </div>
 
           <div>
-            <button onClick={() => setShowHunosModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
-              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+            <button onClick={() => setShowHunosModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
                 <Sword className="w-4 h-4 text-orange-500 shrink-0" />
                 <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">HUNOS (30 DÍAS)</span>
               </div>
-              <span className="text-lg font-black text-white shrink-0">{stats.hunoPlenos || 0}</span>
             </button>
-            <div className="h-24 flex gap-[2px] px-1">
+            <div className="relative h-24 flex gap-[2px] px-1">
+              <div className="absolute top-0 left-1 right-1 border-t border-dashed border-stone-700/60 pointer-events-none z-10" />
               {hunosHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
                   {renderHistoryBar(v, hunosMax, 'bg-orange-600', i === 29, true)}
@@ -1282,13 +1123,14 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
           </div>
 
           <div>
-            <div className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 cursor-default text-left">
+            <div className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 cursor-default text-left">
               <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner">
                 <Activity className="w-4 h-4 text-orange-500 shrink-0" />
                 <span className="text-xs font-black text-stone-400 tracking-widest uppercase truncate">ENERGÍA (30 DÍAS)</span>
               </div>
             </div>
-            <div className="h-24 flex gap-[2px] px-1">
+            <div className="relative h-24 flex gap-[2px] px-1">
+              <div className="absolute top-0 left-1 right-1 border-t border-dashed border-stone-700/60 pointer-events-none z-10" />
               {energyHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
                   {renderHistoryBar(v, energyMax, 'bg-orange-500', i === 29, true)}
@@ -1315,7 +1157,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
           </div>
 
           <div>
-            <button onClick={() => onNavigate?.('food')} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+            <button onClick={() => onNavigate?.('food')} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 hover:bg-stone-800 transition-colors group text-left">
               <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
                 <Utensils className="w-4 h-4 text-lime-500 shrink-0" />
                 <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">JUMANGIARE (12 MESES)</span>
@@ -1331,7 +1173,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
           </div>
 
           <div>
-            <button onClick={() => setShowInteractionsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
+            <button onClick={() => setShowInteractionsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 hover:bg-stone-800 transition-colors group text-left">
               <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
                 <Heart className="w-4 h-4 text-pink-500 shrink-0" />
                 <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">BROTES (12 MESES)</span>
@@ -1347,12 +1189,11 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
           </div>
 
           <div>
-            <button onClick={() => setShowProjectsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 pr-4 mb-4 hover:bg-stone-800 transition-colors group text-left">
-              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 mr-3 shadow-inner group-hover:bg-stone-800 transition-colors">
+            <button onClick={() => setShowProjectsModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
                 <Cloud className="w-4 h-4 text-stone-400 shrink-0" />
                 <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">NUBES (20 SEM)</span>
               </div>
-              <span className="text-lg font-black text-white shrink-0">{(stats.projectPlenoCurrent || 0) + ((stats.projectPlenos || 0) * 20)}</span>
             </button>
             <div className="h-24 flex gap-1 px-1">
               {projectsHistoryToDisplay.map((v, i) => (
