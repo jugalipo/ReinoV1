@@ -333,7 +333,10 @@ export const DailyFoodScoreModal = ({
   onSkipToApp,
   onSave, 
   onConfirm,
-  onClose 
+  onClose,
+  showHabitWheels,
+  foodState,
+  onUpdateFoodState
 }: { 
   date: Date, 
   initialScore: DailyFoodScore, 
@@ -346,10 +349,111 @@ export const DailyFoodScoreModal = ({
   onSkipToApp?: () => void,
   onSave: (score: DailyFoodScore) => void, 
   onConfirm?: (score: DailyFoodScore) => void,
-  onClose: () => void 
+  onClose: () => void,
+  showHabitWheels?: boolean,
+  foodState?: FoodState,
+  onUpdateFoodState?: (food: FoodState) => void
 }) => {
   const [score, setScore] = useState<DailyFoodScore>(initialScore);
   const [selectingMealFor, setSelectingMealFor] = useState<'lunch' | 'dinner' | null>(null);
+
+  const [showWheelConfirm, setShowWheelConfirm] = useState(false);
+  const [showBroccoliConfirm, setShowBroccoliConfirm] = useState(false);
+  const [lastToggledWheelItem, setLastToggledWheelItem] = useState<string | null>(null);
+  const [lastToggledBroccoliItem, setLastToggledBroccoliItem] = useState<string | null>(null);
+
+  const activeWheelConfig = foodState?.config?.wheel || DEFAULT_WHEEL;
+  const activeBroccoliConfig = foodState?.config?.broccoli || DEFAULT_BROCCOLI;
+  const currentWheel = foodState?.wheel || { '1': false, '2': false, '3': false, '4': false, '5': false };
+  const currentBroccoliWheel = foodState?.broccoliWheel || { '1': false, '2': false, '3': false, '4': false, '5': false };
+
+  const cancelWheelPleno = () => {
+    if (!foodState || !onUpdateFoodState) return;
+    if (lastToggledWheelItem) {
+      const resetWheel = { ...currentWheel, [lastToggledWheelItem]: false };
+      onUpdateFoodState({ ...foodState, wheel: resetWheel });
+    }
+    setShowWheelConfirm(false);
+    setLastToggledWheelItem(null);
+  };
+
+  const confirmWheelPleno = () => {
+    if (!foodState || !onUpdateFoodState) return;
+    const emptyWheel = { '1': false, '2': false, '3': false, '4': false, '5': false };
+    onUpdateFoodState({
+      ...foodState,
+      score: (foodState.score || 0) + 3,
+      wheelPlenoCount: (foodState.wheelPlenoCount || 0) + 1,
+      wheel: emptyWheel,
+      history: [
+        { action: 'Rueda Completa', timestamp: Date.now(), delta: 3 },
+        ...(foodState.history || [])
+      ].slice(0, 50)
+    });
+    setShowWheelConfirm(false);
+    setLastToggledWheelItem(null);
+  };
+
+  const cancelBroccoliPleno = () => {
+    if (!foodState || !onUpdateFoodState) return;
+    if (lastToggledBroccoliItem) {
+      const resetBroccoli = { ...currentBroccoliWheel, [lastToggledBroccoliItem]: false };
+      onUpdateFoodState({ ...foodState, broccoliWheel: resetBroccoli });
+    }
+    setShowBroccoliConfirm(false);
+    setLastToggledBroccoliItem(null);
+  };
+
+  const confirmBroccoliPleno = () => {
+    if (!foodState || !onUpdateFoodState) return;
+    const emptyBroccoli = { '1': false, '2': false, '3': false, '4': false, '5': false };
+    onUpdateFoodState({
+      ...foodState,
+      score: (foodState.score || 0) + 1,
+      broccoliPlenoCount: (foodState.broccoliPlenoCount || 0) + 1,
+      broccoliWheel: emptyBroccoli,
+      history: [
+        { action: 'Rutina Brócoli', timestamp: Date.now(), delta: 1 },
+        ...(foodState.history || [])
+      ].slice(0, 50)
+    });
+    setShowBroccoliConfirm(false);
+    setLastToggledBroccoliItem(null);
+  };
+
+  const handleWheelClick = (id: string) => {
+    if (!foodState || !onUpdateFoodState) return;
+    const isChecking = !currentWheel[id];
+    const newWheel = { ...currentWheel, [id]: isChecking };
+    
+    const allChecked = activeWheelConfig.every(item => newWheel[item.id]);
+
+    if (allChecked && isChecking) {
+      setLastToggledWheelItem(id);
+      onUpdateFoodState({ ...foodState, wheel: newWheel });
+      setShowWheelConfirm(true);
+    } else {
+      setLastToggledWheelItem(null);
+      onUpdateFoodState({ ...foodState, wheel: newWheel });
+    }
+  };
+
+  const handleBroccoliClick = (id: string) => {
+    if (!foodState || !onUpdateFoodState) return;
+    const isChecking = !currentBroccoliWheel[id];
+    const newWheel = { ...currentBroccoliWheel, [id]: isChecking };
+    
+    const allChecked = activeBroccoliConfig.every(item => newWheel[item.id]);
+
+    if (allChecked && isChecking) {
+      setLastToggledBroccoliItem(id);
+      onUpdateFoodState({ ...foodState, broccoliWheel: newWheel });
+      setShowBroccoliConfirm(true);
+    } else {
+      setLastToggledBroccoliItem(null);
+      onUpdateFoodState({ ...foodState, broccoliWheel: newWheel });
+    }
+  };
 
   useEffect(() => {
     setScore(initialScore);
@@ -404,6 +508,8 @@ export const DailyFoodScoreModal = ({
   };
   useModalHistory(true, onClose, 'dailyFoodScore');
   useModalHistory(!!selectingMealFor, () => setSelectingMealFor(null), `selecting-${selectingMealFor}`);
+  useModalHistory(showWheelConfirm, cancelWheelPleno, 'wheelConfirmTelon');
+  useModalHistory(showBroccoliConfirm, cancelBroccoliPleno, 'broccoliConfirmTelon');
   // ----------------------------------
 
   const toggle = (field: keyof DailyFoodScore) => {
@@ -585,7 +691,7 @@ export const DailyFoodScoreModal = ({
       )}
 
       <div 
-        className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[72vh]"
+        className="bg-stone-900 border border-stone-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-stone-800 flex items-center justify-between bg-stone-900/50 shrink-0">
@@ -625,7 +731,7 @@ export const DailyFoodScoreModal = ({
           )}
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto">
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto">
           {selectingMealFor ? (
             <div className="grid grid-cols-2 gap-3">
               {[...selectableMeals].sort((a, b) => {
@@ -808,6 +914,55 @@ export const DailyFoodScoreModal = ({
                 </div>
               </div>
 
+              {/* Habits Grouped in Telon: Rueda & Broccoli */}
+              {showHabitWheels && foodState && onUpdateFoodState && (
+                <div className="space-y-2">
+                  {/* Row 1: La Rueda */}
+                  <div className="grid grid-cols-5 gap-2">
+                    {activeWheelConfig.map((item) => {
+                      const isChecked = !!currentWheel[item.id];
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleWheelClick(item.id)}
+                          title={item.label}
+                          className={`w-full aspect-square rounded-xl flex items-center justify-center text-2xl transition-all duration-200 border ${
+                            isChecked
+                              ? 'bg-lime-600/20 border-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.15)] grayscale-0 scale-105'
+                              : 'bg-stone-950 border-stone-800 text-stone-500 grayscale opacity-40 hover:opacity-70'
+                          }`}
+                        >
+                          <span className="leading-none">{item.icon}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Row 2: Brócoli */}
+                  <div className="grid grid-cols-5 gap-2">
+                    {activeBroccoliConfig.map((item) => {
+                      const isChecked = !!currentBroccoliWheel[item.id];
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleBroccoliClick(item.id)}
+                          title={item.label}
+                          className={`w-full aspect-square rounded-xl flex items-center justify-center text-2xl transition-all duration-200 border ${
+                            isChecked
+                              ? 'bg-emerald-600/20 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.15)] grayscale-0 scale-105'
+                              : 'bg-stone-950 border-stone-800 text-stone-500 grayscale opacity-40 hover:opacity-70'
+                          }`}
+                        >
+                          <span className="leading-none">{item.icon}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Third Line: Survival Buttons (formerly bonuses in footer) */}
               <div className="grid grid-cols-3 gap-2">
                 {[
@@ -863,6 +1018,80 @@ export const DailyFoodScoreModal = ({
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal - Rueda Pleno */}
+      {showWheelConfirm && (
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-lime-600/20 rounded-full flex items-center justify-center mb-6 border border-lime-500/50 shadow-[0_0_20px_rgba(132,204,22,0.2)]">
+                <Trophy className="w-10 h-10 text-lime-500" />
+              </div>
+              <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Frenesí Gastronómico!</h2>
+              <p className="text-stone-400 mb-8 text-sm leading-relaxed">
+                Has dominado los esenciales del día. <br/>¿Reclamas los <strong className="font-bold text-lime-400">+3 puntos</strong> de supervivencia?
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <button 
+                  type="button"
+                  onClick={cancelWheelPleno}
+                  className="py-4 rounded-2xl border border-stone-800 text-stone-500 hover:bg-stone-800 font-bold transition-all text-sm uppercase"
+                >
+                  Error
+                </button>
+                <button 
+                  type="button"
+                  onClick={confirmWheelPleno}
+                  className="py-4 rounded-2xl bg-lime-600 text-stone-950 font-black hover:bg-lime-500 transition-all shadow-lg shadow-lime-900/20 text-sm uppercase"
+                >
+                  ¡Cosechar!
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal - Broccoli Pleno */}
+      {showBroccoliConfirm && (
+        <div 
+          className="fixed inset-0 max-w-md mx-auto z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-800 overflow-hidden">
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-emerald-600/20 rounded-full flex items-center justify-center mb-6 border border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                <Check className="w-10 h-10 text-emerald-500" />
+              </div>
+              <h2 className="text-2xl font-black text-stone-100 mb-2 uppercase tracking-tighter italic">¡Rutina Completada!</h2>
+              <p className="text-stone-400 mb-8 text-sm leading-relaxed">
+                Has completado todos los pasos. <br/>¿Reclamas tu <strong className="font-bold text-emerald-400">+1 punto</strong>?
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <button 
+                  type="button"
+                  onClick={cancelBroccoliPleno}
+                  className="py-4 rounded-2xl border border-stone-800 text-stone-500 hover:bg-stone-800 font-bold transition-all text-sm uppercase"
+                >
+                  Error
+                </button>
+                <button 
+                  type="button"
+                  onClick={confirmBroccoliPleno}
+                  className="py-4 rounded-2xl bg-emerald-600 text-stone-950 font-black hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/20 text-sm uppercase"
+                >
+                  ¡Reclamar!
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

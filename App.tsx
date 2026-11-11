@@ -2955,6 +2955,11 @@ REGLAS DE SELECCIÓN:
                     allScores={data.food?.dailyScores || {}}
                     meals={activeConfig.meals}
                     dishes={currentDishes}
+                    showHabitWheels={true}
+                    foodState={data.food}
+                    onUpdateFoodState={(newFood) => {
+                      setData(prev => ({ ...prev, food: newFood }));
+                    }}
                     confirmButtonText="Siguiente"
                     onDismissTelon={() => {
                       // X avanza a la siguiente pantalla sin repetir este mismo día en esta sesión
