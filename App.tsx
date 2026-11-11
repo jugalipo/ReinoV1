@@ -4833,36 +4833,36 @@ REGLAS DE SELECCIÓN:
             <div className="bg-stone-900 rounded-2xl shadow-sm p-6 w-full mt-6 border border-stone-800 transition-all duration-300">
               <div 
                 onClick={() => setIsNubesCollapsed(!isNubesCollapsed)}
-                className="flex items-center justify-between cursor-pointer select-none"
+                className="flex items-center justify-between gap-4 cursor-pointer select-none"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <Cloud className="w-6 h-6 text-stone-400" />
                   <h2 className="text-xl font-bold text-stone-200">Nubes</h2>
                 </div>
-              </div>
 
-              {isNubesCollapsed && (data.projects || []).length > 0 && (
-                <div 
-                  className="grid w-full mt-3 gap-1 animate-in fade-in duration-300 cursor-pointer"
-                  style={{ gridTemplateColumns: `repeat(${(data.projects || []).length}, minmax(0, 1fr))` }}
-                  onClick={() => setIsNubesCollapsed(false)}
-                >
-                  {(data.projects || []).map((proj, idx) => {
-                    const completedCount = (data.projects || []).filter(p => p.completed).length;
-                    const isFilled = idx < completedCount;
-                    return (
-                      <div 
-                        key={proj.id}
-                        className={`w-2.5 h-2.5 max-w-full aspect-square mx-auto rounded-full transition-all duration-300 ${
-                          isFilled 
-                            ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)] animate-pulse' 
-                            : 'bg-stone-950 border border-stone-800'
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-              )}
+                {/* Línea de progreso segmentada en rayas verticales (estilo Hunos) */}
+                {(data.projects || []).length > 0 && (
+                  <div 
+                    className="flex-1 flex items-center gap-[2.5px] sm:gap-1 h-3.5 px-0.5"
+                    title={`${(data.projects || []).filter(p => p.completed).length} de ${(data.projects || []).length} completados`}
+                  >
+                    {(data.projects || []).map((_, idx) => {
+                      const completedCount = (data.projects || []).filter(p => p.completed).length;
+                      const isFilled = idx < completedCount;
+                      return (
+                        <div 
+                          key={idx}
+                          className={`flex-1 h-full rounded-[1.5px] transition-all duration-300 ${
+                            isFilled 
+                              ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]' 
+                              : 'bg-stone-800 border border-stone-800/80'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               {!isNubesCollapsed && (
                 <div className="mt-4 animate-in fade-in duration-300">
