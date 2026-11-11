@@ -1802,7 +1802,7 @@ Ejemplo de respuesta en "text":
     const leonesHuno = findHunoForFrontOrFocus('leones');
     const leonesFront = fronts.leones;
     const leonesText = leonesFront?.text?.trim() || leonesHuno?.text || 'T1 Leones 20\'';
-    const leonesDone = leonesFront ? !!leonesFront.completed : (leonesHuno ? leonesHuno.completed : false);
+    const leonesDone = !!leonesFront?.completed;
     candidates.push({
       id: leonesHuno ? leonesHuno.id : 'front-leones',
       hunoId: leonesHuno?.id,
@@ -1818,7 +1818,7 @@ Ejemplo de respuesta en "text":
     const setsHuno = findHunoForFrontOrFocus('sets');
     const setaFront = fronts.seta;
     const setaText = setaFront?.text?.trim() || setsHuno?.text || 'Setas 30\'';
-    const setaDone = setaFront ? !!setaFront.completed : (setsHuno ? setsHuno.completed : false);
+    const setaDone = !!setaFront?.completed;
     candidates.push({
       id: setsHuno ? setsHuno.id : 'front-seta',
       hunoId: setsHuno?.id,
@@ -1834,7 +1834,7 @@ Ejemplo de respuesta en "text":
     const trainsHuno = findHunoForFrontOrFocus('trains');
     const trenFront = fronts.tren;
     const trenText = trenFront?.text?.trim() || trainsHuno?.text || 'Trenes 110\'';
-    const trenDone = trenFront ? !!trenFront.completed : (trainsHuno ? trainsHuno.completed : false);
+    const trenDone = !!trenFront?.completed;
     candidates.push({
       id: trainsHuno ? trainsHuno.id : 'front-tren',
       hunoId: trainsHuno?.id,
@@ -1850,7 +1850,7 @@ Ejemplo de respuesta en "text":
     const robleHuno = findHunoForFrontOrFocus('forjas');
     const robleFront = fronts.roble;
     const robleText = robleFront?.text?.trim() || robleHuno?.text || 'T2 Roble 40\'';
-    const robleDone = robleFront ? !!robleFront.completed : (robleHuno ? robleHuno.completed : false);
+    const robleDone = !!robleFront?.completed;
     candidates.push({
       id: robleHuno ? robleHuno.id : 'front-roble',
       hunoId: robleHuno?.id,
@@ -1866,7 +1866,7 @@ Ejemplo de respuesta en "text":
     const yunqueHuno = findHunoForFrontOrFocus('yunque');
     const yunqueFront = fronts.yunque;
     const yunqueText = yunqueFront?.text?.trim() || yunqueHuno?.text || 'T3 Yunque 20\'';
-    const yunqueDone = yunqueFront ? !!yunqueFront.completed : (yunqueHuno ? yunqueHuno.completed : false);
+    const yunqueDone = !!yunqueFront?.completed;
     candidates.push({
       id: yunqueHuno ? yunqueHuno.id : 'front-yunque',
       hunoId: yunqueHuno?.id,
@@ -1888,7 +1888,7 @@ Ejemplo de respuesta en "text":
       ? `Hablar con ${urgentFriend.name} (${evaluateFriendHealth(urgentFriend).days === 999 ? 'sin registro' : `${evaluateFriendHealth(urgentFriend).days}d`})`
       : (brotesHuno?.text || "Brotes 20'");
     const brotesText = brotesFront?.text?.trim() || fallbackBrotesText;
-    const brotesDone = brotesFront ? !!brotesFront.completed : (brotesHuno ? brotesHuno.completed : false);
+    const brotesDone = !!brotesFront?.completed;
     candidates.push({
       id: brotesHuno ? brotesHuno.id : 'front-brotes',
       hunoId: brotesHuno?.id,
@@ -1907,7 +1907,7 @@ Ejemplo de respuesta en "text":
     });
     const gimnasiaFront = fronts.gimnasia;
     const gimnasiaText = gimnasiaFront?.text?.trim() || gimnasiaHuno?.text || "Gim 🏋️ 60'";
-    const gimnasiaDone = gimnasiaFront ? !!gimnasiaFront.completed : (gimnasiaHuno ? gimnasiaHuno.completed : false);
+    const gimnasiaDone = !!gimnasiaFront?.completed;
     candidates.push({
       id: gimnasiaHuno ? gimnasiaHuno.id : 'front-gimnasia',
       hunoId: gimnasiaHuno?.id,
@@ -1926,7 +1926,7 @@ Ejemplo de respuesta en "text":
     });
     const lecturaFront = fronts.lectura;
     const lecturaText = lecturaFront?.text?.trim() || lecturaHuno?.text || "Leer 📖 30'";
-    const lecturaDone = lecturaFront ? !!lecturaFront.completed : (lecturaHuno ? lecturaHuno.completed : false);
+    const lecturaDone = !!lecturaFront?.completed;
     candidates.push({
       id: lecturaHuno ? lecturaHuno.id : 'front-lectura',
       hunoId: lecturaHuno?.id,
@@ -1945,7 +1945,7 @@ Ejemplo de respuesta en "text":
     });
     const nubesFront = fronts.nubes;
     const nubesText = nubesFront?.text?.trim() || nubesHuno?.text || "Nubes 🌦️ 44'";
-    const nubesDone = nubesFront ? !!nubesFront.completed : (nubesHuno ? nubesHuno.completed : false);
+    const nubesDone = !!nubesFront?.completed;
     candidates.push({
       id: nubesHuno ? nubesHuno.id : 'front-nubes',
       hunoId: nubesHuno?.id,
@@ -2390,6 +2390,9 @@ REGLAS DE SELECCIÓN:
     const candidates = getFocusCandidates();
     const candidate = candidates.find(c => c.id === taskId);
     if (candidate) {
+      if (candidate.frontKey) {
+        return candidate.completed;
+      }
       if (candidate.hunoId) {
         const huno = data.hunos.find(t => t.id === candidate.hunoId);
         return huno ? huno.completed : candidate.completed;

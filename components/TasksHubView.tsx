@@ -158,22 +158,12 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     }
   };
 
-  // Detectar estado cumplido del Huno correspondiente en la ventana de inicio
-  const isHunoDone = (matchFn: (huno: typeof data.hunos[0]) => boolean): boolean => {
-    const found = (data.hunos || []).find(matchFn);
-    return found ? found.completed : false;
-  };
-
   // Validar si los frentes inyectados pertenecen a la fecha de hoy
   const isFrontFromToday = injectedFronts?.date === todayStr;
 
-  // 1. TRENES (Huno: trains / tren)
-  const hunoTrenDone = isHunoDone(h => {
-    const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'trains' || h.text.toLowerCase().includes('tren');
-  });
+  // 1. TRENES
   const trenInjected = isFrontFromToday ? injectedFronts?.fronts?.tren : undefined;
-  const isTrenDone = (trenInjected?.completed === true) || hunoTrenDone;
+  const isTrenDone = trenInjected?.completed === true;
   const toggleTrain = () => {
     const nextVal = !isTrenDone;
     updateInjectedFrontStatus('tren', nextVal);
@@ -183,13 +173,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
-  // 2. SETAS (Huno: sets / seta)
-  const hunoSetaDone = isHunoDone(h => {
-    const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'sets' || h.text.toLowerCase().includes('seta');
-  });
+  // 2. SETAS
   const setaInjected = isFrontFromToday ? injectedFronts?.fronts?.seta : undefined;
-  const isSetaDone = (setaInjected?.completed === true) || hunoSetaDone;
+  const isSetaDone = setaInjected?.completed === true;
   const toggleSeta = () => {
     const nextVal = !isSetaDone;
     updateInjectedFrontStatus('seta', nextVal);
@@ -199,13 +185,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
-  // 3. ROBLE (Huno: forjas / roble / T2)
-  const hunoRobleDone = isHunoDone(h => {
-    const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'forjas' || h.text.toLowerCase().includes('roble') || h.text.includes('T2');
-  });
+  // 3. ROBLE
   const robleInjected = isFrontFromToday ? injectedFronts?.fronts?.roble : undefined;
-  const isRobleDone = (robleInjected?.completed === true) || hunoRobleDone;
+  const isRobleDone = robleInjected?.completed === true;
   const toggleRoble = () => {
     const nextVal = !isRobleDone;
     updateInjectedFrontStatus('roble', nextVal);
@@ -215,12 +197,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
-  // 4. YUNQUE (Huno: yunque / T3 / huno-8)
-  const hunoYunqueDone = isHunoDone(h =>
-    h.text.toLowerCase().includes('yunque') || h.text.includes('T3') || h.id === 'huno-8'
-  );
+  // 4. YUNQUE
   const yunqueInjected = isFrontFromToday ? injectedFronts?.fronts?.yunque : undefined;
-  const isYunqueDone = (yunqueInjected?.completed === true) || hunoYunqueDone;
+  const isYunqueDone = yunqueInjected?.completed === true;
   const toggleYunque = () => {
     const nextVal = !isYunqueDone;
     updateInjectedFrontStatus('yunque', nextVal);
@@ -229,13 +208,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     );
   };
 
-  // 5. LEONES (Huno: leones / T1)
-  const hunoLeonesDone = isHunoDone(h => {
-    const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'leones' || h.text.toLowerCase().includes('león') || h.text.toLowerCase().includes('leon') || h.text.includes('T1');
-  });
+  // 5. LEONES
   const leonesInjected = isFrontFromToday ? injectedFronts?.fronts?.leones : undefined;
-  const isLeonDone = (leonesInjected?.completed === true) || hunoLeonesDone;
+  const isLeonDone = leonesInjected?.completed === true;
   const toggleLeon = () => {
     const nextVal = !isLeonDone;
     updateInjectedFrontStatus('leones', nextVal);
@@ -245,13 +220,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
-  // 6. BROTES (Huno: huno-2 / love / ❤️ Brotes)
-  const hunoBrotesDone = isHunoDone(h => {
-    const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'love' || h.id === 'huno-2' || h.text.includes('❤️') || h.text.toLowerCase().includes('brote');
-  });
+  // 6. BROTES
   const brotesInjected = isFrontFromToday ? injectedFronts?.fronts?.brotes : undefined;
-  const isBrotesDone = (brotesInjected?.completed === true) || hunoBrotesDone;
+  const isBrotesDone = brotesInjected?.completed === true;
   const toggleBrotes = () => {
     const nextVal = !isBrotesDone;
     updateInjectedFrontStatus('brotes', nextVal);
@@ -261,13 +232,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
-  // 7. GIMNASIA (Huno: huno-1 / exercise / Gim 🏋️ 60')
-  const hunoGimnasiaDone = isHunoDone(h => {
-    const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'exercise' || h.id === 'huno-1' || h.text.toLowerCase().includes('gim') || h.text.toLowerCase().includes('entreno');
-  });
+  // 7. GIMNASIA
   const gimnasiaInjected = isFrontFromToday ? injectedFronts?.fronts?.gimnasia : undefined;
-  const isGimnasiaDone = (gimnasiaInjected?.completed === true) || hunoGimnasiaDone;
+  const isGimnasiaDone = gimnasiaInjected?.completed === true;
   const toggleGimnasia = () => {
     const nextVal = !isGimnasiaDone;
     updateInjectedFrontStatus('gimnasia', nextVal);
@@ -277,13 +244,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
-  // 8. LECTURA (Huno: huno-3 / read / Leer 📖 30')
-  const hunoLecturaDone = isHunoDone(h => {
-    const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'read' || h.id === 'huno-3' || h.text.toLowerCase().includes('leer') || h.text.toLowerCase().includes('lectura');
-  });
+  // 8. LECTURA
   const lecturaInjected = isFrontFromToday ? injectedFronts?.fronts?.lectura : undefined;
-  const isLecturaDone = (lecturaInjected?.completed === true) || hunoLecturaDone;
+  const isLecturaDone = lecturaInjected?.completed === true;
   const toggleLectura = () => {
     const nextVal = !isLecturaDone;
     updateInjectedFrontStatus('lectura', nextVal);
@@ -293,13 +256,9 @@ export const TasksHubView: React.FC<TasksHubViewProps> = ({
     });
   };
 
-  // 9. NUBES (Huno: huno-13 / projects / Nubes 🌦️ 44')
-  const hunoNubesDone = isHunoDone(h => {
-    const sc = h.shortcut || getCanonicalHunoShortcut(h);
-    return sc === 'projects' || h.id === 'huno-13' || h.text.toLowerCase().includes('nube') || h.text.toLowerCase().includes('proyecto');
-  });
+  // 9. NUBES
   const nubesInjected = isFrontFromToday ? injectedFronts?.fronts?.nubes : undefined;
-  const isNubesDone = (nubesInjected?.completed === true) || hunoNubesDone;
+  const isNubesDone = nubesInjected?.completed === true;
   const toggleNubes = () => {
     const nextVal = !isNubesDone;
     updateInjectedFrontStatus('nubes', nextVal);
