@@ -22,6 +22,258 @@ const MushroomIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+interface EnergyLineChartProps {
+  history: number[];
+  max?: number;
+}
+
+const EnergyLineChart: React.FC<EnergyLineChartProps> = ({ history, max = 10 }) => {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  // Pad or trim to exactly 30 points
+  const pointsData = useMemo(() => {
+    const list = history.slice(-30);
+    const padded = Array(Math.max(0, 30 - list.length)).fill(1).concat(list);
+    return padded;
+  }, [history]);
+
+  const svgWidth = 320;
+  const svgHeight = 88;
+  const paddingLeft = 24;
+  const paddingRight = 12;
+  const paddingTop = 10;
+  const paddingBottom = 12;
+
+  const usableWidth = svgWidth - paddingLeft - paddingRight;
+  const usableHeight = svgHeight - paddingTop - paddingBottom;
+
+  const points = useMemo(() => {
+    const stepX = usableWidth / Math.max(1, pointsData.length - 1);
+    return pointsData.map((val, idx) => {
+      const clampedVal = Math.max(0, Math.min(max, val));
+      const x = paddingLeft + idx * stepX;
+      const y = (svgHeight - paddingBottom) - (clampedVal / max) * usableHeight;
+      return { x, y, val: clampedVal, idx };
+    });
+  }, [pointsData, max, usableWidth, usableHeight]);
+
+  const linePath = useMemo(() => {
+    if (points.length === 0) return '';
+    if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+
+    let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+    const minY = paddingTop;
+    const maxY = svgHeight - paddingBottom;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i === 0 ? 0 : i - 1];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2 >= points.length ? points.length - 1 : i + 2];
+
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = Math.max(minY, Math.min(maxY, p1.y + (p2.y - p0.y) / 6));
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = Math.max(minY, Math.min(maxY, p2.y - (p3.y - p1.y) / 6));
+
+      path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+    return path;
+  }, [points]);
+
+  const areaPath = useMemo(() => {
+    if (!linePath || points.length === 0) return '';
+    const lastX = points[points.length - 1].x.toFixed(1);
+    const firstX = points[0].x.toFixed(1);
+    const bottomY = (svgHeight - paddingBottom).toFixed(1);
+    return `${linePath} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+  }, [linePath, points]);
+
+  const handlePointer = (clientX: number, target: HTMLElement) => {
+    const rect = target.getBoundingClientRect();
+    const relX = (clientX - rect.left) / rect.width;
+    const leftRatio = paddingLeft / svgWidth;
+    const rightRatio = (svgWidth - paddingRight) / svgWidth;
+    const normX = (relX - leftRatio) / (rightRatio - leftRatio);
+    const idx = Math.min(points.length - 1, Math.max(0, Math.round(normX * (points.length - 1))));
+    setHoveredIdx(idx);
+  };
+
+  const currentPoint = points[points.length - 1];
+  const activePoint = hoveredIdx !== null ? points[hoveredIdx] : null;
+
+  return (
+    <div 
+      className="relative h-24 w-full bg-stone-950/40 rounded-xl border border-stone-800/60 overflow-hidden select-none"
+      onMouseMove={(e) => handlePointer(e.clientX, e.currentTarget)}
+      onMouseLeave={() => setHoveredIdx(null)}
+      onTouchStart={(e) => {
+        if (e.touches[0]) handlePointer(e.touches[0].clientX, e.currentTarget);
+      }}
+      onTouchMove={(e) => {
+        if (e.touches[0]) handlePointer(e.touches[0].clientX, e.currentTarget);
+      }}
+      onTouchEnd={() => setHoveredIdx(null)}
+    >
+      {/* Top right indicator badge */}
+      <div className="absolute top-1.5 right-2 flex items-center gap-1.5 bg-stone-900/80 border border-stone-800/90 rounded-md px-2 py-0.5 pointer-events-none shadow-sm z-10">
+        <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">
+          {activePoint ? (activePoint.idx === points.length - 1 ? 'Hoy' : `Hace ${points.length - 1 - activePoint.idx}d`) : 'Hoy'}
+        </span>
+        <span className="text-[10px] font-mono font-black text-orange-400">
+          {(activePoint ? activePoint.val : (currentPoint?.val ?? 1)).toFixed(0)}/{max}
+        </span>
+      </div>
+
+      <svg 
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`} 
+        preserveAspectRatio="none"
+        className="w-full h-full block"
+      >
+        <defs>
+          <linearGradient id="energySplineGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f97316" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="#f97316" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+
+        {/* Reference Line Top (10) */}
+        <line 
+          x1={paddingLeft} 
+          y1={paddingTop} 
+          x2={svgWidth - paddingRight} 
+          y2={paddingTop} 
+          stroke="#44403c" 
+          strokeWidth="1" 
+          strokeDasharray="3 3" 
+          vectorEffect="non-scaling-stroke" 
+        />
+        <text 
+          x={paddingLeft - 6} 
+          y={paddingTop + 3} 
+          fill="#78716c" 
+          fontSize="8" 
+          fontFamily="monospace" 
+          fontWeight="bold"
+          textAnchor="end"
+        >
+          {max}
+        </text>
+
+        {/* Reference Line Mid (5) */}
+        <line 
+          x1={paddingLeft} 
+          y1={paddingTop + usableHeight / 2} 
+          x2={svgWidth - paddingRight} 
+          y2={paddingTop + usableHeight / 2} 
+          stroke="#292524" 
+          strokeWidth="0.75" 
+          strokeDasharray="2 4" 
+          vectorEffect="non-scaling-stroke" 
+        />
+        <text 
+          x={paddingLeft - 6} 
+          y={paddingTop + usableHeight / 2 + 3} 
+          fill="#57534e" 
+          fontSize="7" 
+          fontFamily="monospace" 
+          textAnchor="end"
+        >
+          {Math.round(max / 2)}
+        </text>
+
+        {/* Reference Line Bottom (0) */}
+        <line 
+          x1={paddingLeft} 
+          y1={svgHeight - paddingBottom} 
+          x2={svgWidth - paddingRight} 
+          y2={svgHeight - paddingBottom} 
+          stroke="#44403c" 
+          strokeWidth="1" 
+          strokeDasharray="3 3" 
+          vectorEffect="non-scaling-stroke" 
+        />
+        <text 
+          x={paddingLeft - 6} 
+          y={svgHeight - paddingBottom + 3} 
+          fill="#78716c" 
+          fontSize="8" 
+          fontFamily="monospace" 
+          fontWeight="bold"
+          textAnchor="end"
+        >
+          0
+        </text>
+
+        {/* Filled Area */}
+        {areaPath && (
+          <path d={areaPath} fill="url(#energySplineGradient)" />
+        )}
+
+        {/* Smooth Curve */}
+        {linePath && (
+          <path 
+            d={linePath} 
+            fill="none" 
+            stroke="#f97316" 
+            strokeWidth="2.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            vectorEffect="non-scaling-stroke" 
+          />
+        )}
+
+        {/* Today's Point (Permanent marker on latest point) */}
+        {currentPoint && (
+          <g>
+            <circle 
+              cx={currentPoint.x} 
+              cy={currentPoint.y} 
+              r="6" 
+              fill="#f97316" 
+              fillOpacity="0.25" 
+            />
+            <circle 
+              cx={currentPoint.x} 
+              cy={currentPoint.y} 
+              r="3.5" 
+              fill="#f97316" 
+              stroke="#ffffff" 
+              strokeWidth="1.5" 
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        )}
+
+        {/* Hover Indicator */}
+        {activePoint && (
+          <g>
+            <line 
+              x1={activePoint.x} 
+              y1={paddingTop} 
+              x2={activePoint.x} 
+              y2={svgHeight - paddingBottom} 
+              stroke="#ea580c" 
+              strokeWidth="1" 
+              strokeDasharray="2 2" 
+              vectorEffect="non-scaling-stroke" 
+            />
+            <circle 
+              cx={activePoint.x} 
+              cy={activePoint.y} 
+              r="4.5" 
+              fill="#f97316" 
+              stroke="#ffffff" 
+              strokeWidth="2" 
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        )}
+      </svg>
+    </div>
+  );
+};
+
 export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = [], onUpdate, onBack, onNavigate }) => {
   const { stats, exercise, food, friends, sets, trains, hunos } = data;
 
@@ -400,14 +652,21 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
     return `50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 0, ${50 - Math.tan((360 - degrees) * Math.PI / 180) * 50}% 0`;
   };
 
-  const renderHistoryBar = (value: number, max: number, colorClass: string, isCurrent: boolean = false, hideText: boolean = false) => {
+  const renderHistoryBar = (
+    value: number, 
+    max: number, 
+    colorClass: string, 
+    isCurrent: boolean = false, 
+    hideText: boolean = false,
+    trackBg?: string
+  ) => {
     const height = max === 0 ? 0 : (value / max) * 100;
     return (
       <div className="flex-1 flex flex-col items-center gap-1 group">
-        <div className="flex-1 w-full flex items-end bg-stone-950/40 rounded-t-sm">
+        <div className={`flex-1 w-full flex items-end ${trackBg || 'bg-stone-950/40'} rounded-t-sm overflow-hidden transition-colors`}>
           <div 
             className={`w-full rounded-t-sm transition-all duration-700 ${colorClass} ${isCurrent ? 'opacity-100 shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'opacity-60'}`} 
-            style={{ height: `${Math.max(5, height)}%` }}
+            style={{ height: `${value > 0 ? Math.max(5, height) : 0}%` }}
           ></div>
         </div>
         {!hideText && <span className={`text-[8px] font-mono ${isCurrent ? 'text-white font-bold' : 'text-stone-600'} group-hover:text-stone-400`}>{value}</span>}
@@ -1079,10 +1338,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
               </div>
             </button>
             <div className="relative h-24 flex gap-1 px-1">
-              <div className="absolute top-0 left-1 right-1 border-t border-dashed border-stone-700/60 pointer-events-none z-10" />
               {paddedTrainsHistory.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 11)}
+                  {renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 11, false, i === 11 ? 'bg-blue-500/30' : 'bg-blue-500/20')}
                 </React.Fragment>
               ))}
             </div>
@@ -1096,10 +1354,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
               </div>
             </button>
             <div className="relative h-24 flex gap-1 px-1">
-              <div className="absolute top-0 left-1 right-1 border-t border-dashed border-stone-700/60 pointer-events-none z-10" />
               {paddedSetsHistory.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, setsMax, 'bg-red-600', i === 19)}
+                  {renderHistoryBar(v, setsMax, 'bg-red-600', i === 19, false, i === 19 ? 'bg-red-500/30' : 'bg-red-500/20')}
                 </React.Fragment>
               ))}
             </div>
@@ -1113,10 +1370,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
               </div>
             </button>
             <div className="relative h-24 flex gap-[2px] px-1">
-              <div className="absolute top-0 left-1 right-1 border-t border-dashed border-stone-700/60 pointer-events-none z-10" />
               {hunosHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, hunosMax, 'bg-orange-600', i === 29, true)}
+                  {renderHistoryBar(v, hunosMax, 'bg-orange-600', i === 29, true, i === 29 ? 'bg-orange-500/30' : 'bg-orange-500/20')}
                 </React.Fragment>
               ))}
             </div>
@@ -1129,14 +1385,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
                 <span className="text-xs font-black text-stone-400 tracking-widest uppercase truncate">ENERGÍA (30 DÍAS)</span>
               </div>
             </div>
-            <div className="relative h-24 flex gap-[2px] px-1">
-              <div className="absolute top-0 left-1 right-1 border-t border-dashed border-stone-700/60 pointer-events-none z-10" />
-              {energyHistoryToDisplay.map((v, i) => (
-                <React.Fragment key={i}>
-                  {renderHistoryBar(v, energyMax, 'bg-orange-500', i === 29, true)}
-                </React.Fragment>
-              ))}
-            </div>
+            <EnergyLineChart history={energyHistoryToDisplay} max={energyMax} />
           </div>
 
           <div>
