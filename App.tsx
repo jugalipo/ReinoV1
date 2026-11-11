@@ -3594,11 +3594,7 @@ REGLAS DE SELECCIÓN:
   const [authError, setAuthError] = useState<string | null>(null);
   const [showGympiezaModal, setShowGympiezaModal] = useState(false);
 
-  // Magic Task Interception States
-  const [magicTaskId, setMagicTaskId] = useState<string | null>(() => {
-    return new URLSearchParams(window.location.search).get('magicTask');
-  });
-  const [magicTaskProcessing, setMagicTaskProcessing] = useState<boolean>(!!magicTaskId);
+
 
   // --- MOBILE BACK BUTTON SUPPORT ---
   useEffect(() => {
@@ -3678,55 +3674,7 @@ REGLAS DE SELECCIÓN:
     }
   };
 
-  useEffect(() => {
-    if (!magicTaskId || !authReady) return;
 
-    if (!user) {
-      setMagicTaskProcessing(false);
-      return;
-    }
-
-    setMagicTaskProcessing(true);
-
-    const executeMagicTask = async () => {
-      try {
-        const hunosDocRef = doc(db, 'users', user.uid, 'habits', 'hunos');
-        const hunosSnap = await getDoc(hunosDocRef);
-
-        let hunosUpdated = false;
-        let hunosItems = [];
-        if (hunosSnap.exists()) {
-          hunosItems = hunosSnap.data()?.items || [];
-        }
-
-        hunosItems = hunosItems.map((task: any) => {
-          if (task.id === magicTaskId) {
-            hunosUpdated = true;
-            return { ...task, completed: true };
-          }
-          return task;
-        });
-
-        if (hunosUpdated) {
-          await setDoc(hunosDocRef, { items: hunosItems }, { merge: true });
-          console.log("Magic task updated successfully in Firestore.");
-        } else {
-          console.log("Magic task not found in hunos.");
-        }
-      } catch (error) {
-        console.error("Error executing magic task:", error);
-      } finally {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('magicTask');
-        window.history.replaceState(null, '', url.pathname + url.search);
-
-        setMagicTaskId(null);
-        setMagicTaskProcessing(false);
-      }
-    };
-
-    executeMagicTask();
-  }, [authReady, user, magicTaskId]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -4108,15 +4056,7 @@ REGLAS DE SELECCIÓN:
 
   }, [data, loaded, user, isInitializing]);
 
-  if (magicTaskProcessing) {
-    return (
-      <div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative flex items-center justify-center">
-        <div className="text-xl text-stone-400 font-medium tracking-tight">
-          Registrado por Sebastian.
-        </div>
-      </div>
-    );
-  }
+
 
   if (!loaded || !authReady) return (
     <div className="bg-stone-950 min-h-screen text-stone-200 font-sans select-none sm:select-text relative">
