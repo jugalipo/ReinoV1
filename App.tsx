@@ -537,7 +537,7 @@ const getWeekLabel = () => {
   return `Semana ${weekNum} · ${sunday.getDate()} ${monthNames[sunday.getMonth()]}`;
 };
 
-const getSeasonalConfig = () => {
+export const getSeasonalConfig = () => {
   const month = new Date().getMonth(); // 0-11
   if (month >= 3 && month <= 5) {
     return {

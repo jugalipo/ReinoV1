@@ -17,14 +17,13 @@ import {
   Sparkles,
   Target,
   Trash2,
-  TreeDeciduous,
   Trophy,
   Utensils,
   Zap
 } from 'lucide-react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getCanonicalHunoShortcut } from '../App';
+import { getCanonicalHunoShortcut, getSeasonalConfig } from '../App';
 import { DailyHunos } from './DailyHunos';
 import { SetsView } from './SetsView';
 import { TrainView } from './TrainView';
@@ -638,8 +637,43 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
             </div>
           </div>
 
-          {/* DERECHA: Modo Enfoque ⚡ fijo + 3 Accesos con barra + 📊 Estadísticas */}
-          <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {/* CENTRO: 20 Hojas / Iconos Estacionales - Progreso Trimestral Roble (Click abre Medallero) */}
+          {(() => {
+            const seasonalConfig = getSeasonalConfig();
+            const robleProg = data.robleProgress ?? forjasProgress ?? 0;
+            const filledRobleLeaves = Math.min(20, Math.max(0, Math.round((robleProg / 100) * 20)));
+            const SeasonalIcon = seasonalConfig.icon;
+
+            return (
+              <div className="flex-1 max-w-xl mx-4">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('forjas')}
+                  className="w-full h-10 px-4 rounded-xl bg-stone-900/60 hover:bg-stone-900 border border-stone-800/80 hover:border-amber-800/50 transition-all active:scale-[0.99] group cursor-pointer flex items-center justify-between shadow-sm"
+                  title="Roble · Medallero del Reino"
+                >
+                  <div className="w-full flex items-center justify-between gap-1 sm:gap-2">
+                    {Array.from({ length: 20 }).map((_, idx) => {
+                      const isLit = idx < filledRobleLeaves;
+                      return (
+                        <SeasonalIcon
+                          key={idx}
+                          className={`w-4 h-4 transition-all duration-300 ${
+                            isLit
+                              ? seasonalConfig.activeClass
+                              : seasonalConfig.inactiveClass
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* DERECHA: Modo Enfoque ⚡ fijo + Accesos rápidos + 📊 Estadísticas */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={onTriggerFocus}
@@ -694,23 +728,6 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                     </svg>
                   );
                 })()}
-              </button>
-
-              {/* Roble */}
-              <button
-                onClick={() => onNavigate('forjas')}
-                title="Roble"
-                className="w-10 h-10 bg-orange-50 dark:bg-orange-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-900/50 group relative cursor-pointer"
-              >
-                <div className="flex-1 flex items-center justify-center">
-                  <TreeDeciduous className="w-4 h-4 text-orange-500 group-hover:text-orange-400 transition-colors" />
-                </div>
-                <div className="w-full h-1 bg-orange-200 dark:bg-orange-900/40 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-orange-500 transition-all duration-300"
-                    style={{ width: `${forjasProgress}%` }}
-                  />
-                </div>
               </button>
 
               {/* Jumangiare */}
