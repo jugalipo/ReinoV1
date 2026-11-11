@@ -28,8 +28,6 @@ interface EnergyLineChartProps {
 }
 
 const EnergyLineChart: React.FC<EnergyLineChartProps> = ({ history, max = 10 }) => {
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-
   // Pad or trim to exactly 30 points
   const pointsData = useMemo(() => {
     const list = history.slice(-30);
@@ -89,42 +87,10 @@ const EnergyLineChart: React.FC<EnergyLineChartProps> = ({ history, max = 10 }) 
     return `${linePath} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
   }, [linePath, points]);
 
-  const handlePointer = (clientX: number, target: HTMLElement) => {
-    const rect = target.getBoundingClientRect();
-    const relX = (clientX - rect.left) / rect.width;
-    const leftRatio = paddingLeft / svgWidth;
-    const rightRatio = (svgWidth - paddingRight) / svgWidth;
-    const normX = (relX - leftRatio) / (rightRatio - leftRatio);
-    const idx = Math.min(points.length - 1, Math.max(0, Math.round(normX * (points.length - 1))));
-    setHoveredIdx(idx);
-  };
-
   const currentPoint = points[points.length - 1];
-  const activePoint = hoveredIdx !== null ? points[hoveredIdx] : null;
 
   return (
-    <div 
-      className="relative h-24 w-full bg-stone-950/40 rounded-xl border border-stone-800/60 overflow-hidden select-none"
-      onMouseMove={(e) => handlePointer(e.clientX, e.currentTarget)}
-      onMouseLeave={() => setHoveredIdx(null)}
-      onTouchStart={(e) => {
-        if (e.touches[0]) handlePointer(e.touches[0].clientX, e.currentTarget);
-      }}
-      onTouchMove={(e) => {
-        if (e.touches[0]) handlePointer(e.touches[0].clientX, e.currentTarget);
-      }}
-      onTouchEnd={() => setHoveredIdx(null)}
-    >
-      {/* Top right indicator badge */}
-      <div className="absolute top-1.5 right-2 flex items-center gap-1.5 bg-stone-900/80 border border-stone-800/90 rounded-md px-2 py-0.5 pointer-events-none shadow-sm z-10">
-        <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">
-          {activePoint ? (activePoint.idx === points.length - 1 ? 'Hoy' : `Hace ${points.length - 1 - activePoint.idx}d`) : 'Hoy'}
-        </span>
-        <span className="text-[10px] font-mono font-black text-orange-400">
-          {(activePoint ? activePoint.val : (currentPoint?.val ?? 1)).toFixed(0)}/{max}
-        </span>
-      </div>
-
+    <div className="relative h-24 w-full bg-stone-950/40 rounded-xl border border-stone-800/60 overflow-hidden select-none">
       <svg 
         viewBox={`0 0 ${svgWidth} ${svgHeight}`} 
         preserveAspectRatio="none"
@@ -240,31 +206,6 @@ const EnergyLineChart: React.FC<EnergyLineChartProps> = ({ history, max = 10 }) 
               fill="#f97316" 
               stroke="#ffffff" 
               strokeWidth="1.5" 
-              vectorEffect="non-scaling-stroke"
-            />
-          </g>
-        )}
-
-        {/* Hover Indicator */}
-        {activePoint && (
-          <g>
-            <line 
-              x1={activePoint.x} 
-              y1={paddingTop} 
-              x2={activePoint.x} 
-              y2={svgHeight - paddingBottom} 
-              stroke="#ea580c" 
-              strokeWidth="1" 
-              strokeDasharray="2 2" 
-              vectorEffect="non-scaling-stroke" 
-            />
-            <circle 
-              cx={activePoint.x} 
-              cy={activePoint.y} 
-              r="4.5" 
-              fill="#f97316" 
-              stroke="#ffffff" 
-              strokeWidth="2" 
               vectorEffect="non-scaling-stroke"
             />
           </g>
@@ -665,7 +606,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
       <div className="flex-1 flex flex-col items-center gap-1 group">
         <div className={`flex-1 w-full flex items-end ${trackBg || 'bg-stone-950/40'} rounded-t-sm overflow-hidden transition-colors`}>
           <div 
-            className={`w-full rounded-t-sm transition-all duration-700 ${colorClass} ${isCurrent ? 'opacity-100 shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'opacity-60'}`} 
+            className={`w-full rounded-t-sm transition-all duration-700 ${colorClass} ${isCurrent ? 'opacity-100 shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'opacity-75'}`} 
             style={{ height: `${value > 0 ? Math.max(5, height) : 0}%` }}
           ></div>
         </div>
@@ -1340,7 +1281,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
             <div className="relative h-24 flex gap-1 px-1">
               {paddedTrainsHistory.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 11, false, i === 11 ? 'bg-blue-500/30' : 'bg-blue-500/20')}
+                  {renderHistoryBar(v, trainsMax, 'bg-blue-600', i === 11, false, i === 11 ? 'bg-blue-500/15' : 'bg-blue-500/10')}
                 </React.Fragment>
               ))}
             </div>
@@ -1356,7 +1297,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
             <div className="relative h-24 flex gap-1 px-1">
               {paddedSetsHistory.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, setsMax, 'bg-red-600', i === 19, false, i === 19 ? 'bg-red-500/30' : 'bg-red-500/20')}
+                  {renderHistoryBar(v, setsMax, 'bg-red-600', i === 19, false, i === 19 ? 'bg-red-500/15' : 'bg-red-500/10')}
                 </React.Fragment>
               ))}
             </div>
@@ -1372,7 +1313,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
             <div className="relative h-24 flex gap-[2px] px-1">
               {hunosHistoryToDisplay.map((v, i) => (
                 <React.Fragment key={i}>
-                  {renderHistoryBar(v, hunosMax, 'bg-orange-600', i === 29, true, i === 29 ? 'bg-orange-500/30' : 'bg-orange-500/20')}
+                  {renderHistoryBar(v, hunosMax, 'bg-orange-600', i === 29, true, i === 29 ? 'bg-orange-500/15' : 'bg-orange-500/10')}
                 </React.Fragment>
               ))}
             </div>
