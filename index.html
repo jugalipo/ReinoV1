@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0a09" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0c0a09" />
     <title>EL REINO</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="manifest" href="/manifest.json" />
@@ -35,7 +35,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
-        /* Tema oscuro original */
+        color-scheme: dark;
+
+        /* Tema oscuro único */
         --stone-950: 12 10 9;      /* #0c0a09 */
         --stone-900: 28 25 23;     /* #1c1917 */
         --stone-800: 41 37 36;     /* #292524 */
@@ -56,31 +58,6 @@
         --mushroom-empty: #450a0a;
         --mushroom-stroke: #1c1917;
         --mushroom-stem: #ffffff;
-      }
-      @media (prefers-color-scheme: light) {
-        :root {
-          /* Tema claro con alto contraste y legibilidad */
-          --stone-950: 248 250 252;  /* #f8fafc (fondo general claro) */
-          --stone-900: 255 255 255;  /* #ffffff (tarjetas y paneles elevados) */
-          --stone-800: 226 232 240;  /* #e2e8f0 (bordes y divisores nítidos) */
-          --stone-700: 203 213 225;  /* #cbd5e1 */
-          --stone-600: 148 163 184;  /* #94a3b8 */
-          --stone-500: 100 116 139;  /* #64748b */
-          --stone-400: 71 85 105;    /* #475569 (texto secundario muy legible) */
-          --stone-300: 51 65 85;     /* #334155 */
-          --stone-200: 15 23 42;     /* #0f172a (texto principal oscuro de máximo contraste) */
-          --stone-100: 2 6 23;       /* #020617 (títulos y texto enfatizado) */
-          --stone-50:  255 255 255;
-
-          --bg-body: #f8fafc;
-          --text-body: #0f172a;
-          --scrollbar-thumb: #cbd5e1;
-          --scrollbar-track: #f8fafc;
-
-          --mushroom-empty: #fee2e2;
-          --mushroom-stroke: #fca5a5;
-          --mushroom-stem: #f8fafc;
-        }
       }
       body {
         font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;

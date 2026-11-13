@@ -616,7 +616,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                   const isFilled = i < Math.floor(bosqueWeeklyMinutes / 20);
                   const bgClass = isFilled
                     ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                    : 'bg-slate-200 dark:bg-emerald-950/40 border border-slate-300 dark:border-emerald-900/30';
+                    : 'bg-emerald-950/40 border border-emerald-900/30';
                   return (
                     <div key={i} className={`flex-1 aspect-square rounded-[4px] transition-all duration-300 ${bgClass}`} />
                   );
@@ -628,7 +628,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                   const isFilled = absIndex < Math.floor(bosqueWeeklyMinutes / 20);
                   const bgClass = isFilled
                     ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
-                    : 'bg-slate-200 dark:bg-emerald-950/40 border border-slate-300 dark:border-emerald-900/30';
+                    : 'bg-emerald-950/40 border border-emerald-900/30';
                   return (
                     <div key={i} className={`flex-1 aspect-square rounded-[4px] transition-all duration-300 ${bgClass}`} />
                   );
@@ -691,7 +691,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
               <button
                 onClick={() => onNavigate('love')}
                 title="Brotes"
-                className="w-10 h-10 bg-pink-50 dark:bg-pink-950/30 rounded-xl flex items-center justify-center p-1.5 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors group relative cursor-pointer"
+                className="w-10 h-10 bg-pink-950/30 rounded-xl flex items-center justify-center p-1.5 hover:bg-pink-900/50 transition-colors group relative cursor-pointer"
               >
                 {(() => {
                   const loveProg = loveProgress;
@@ -734,7 +734,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
               <button
                 onClick={onFoodClick}
                 title="Jumangiare"
-                className={`w-10 h-10 bg-lime-50 dark:bg-lime-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative cursor-pointer ${
+                className={`w-10 h-10 bg-lime-950/30 rounded-xl flex flex-col items-center justify-between p-1.5 hover:bg-lime-900/50 transition-colors border border-lime-900/50 group relative cursor-pointer ${
                   currentFoodScore < 0 ? 'animate-blink' : isFoodPleno ? 'scale-[1.05] animate-pulse' : ''
                 }`}
               >
@@ -752,7 +752,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = ({
                   />
                 </div>
                 <div
-                  className={`w-full h-1 bg-lime-200 dark:bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${
+                  className={`w-full h-1 bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${
                     currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'
                   }`}
                 >

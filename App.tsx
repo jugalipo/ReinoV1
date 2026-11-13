@@ -544,28 +544,28 @@ export const getSeasonalConfig = () => {
       season: 'Primavera',
       icon: Leaf,
       activeClass: 'text-lime-400 drop-shadow-[0_0_8px_rgba(163,230,53,0.6)] fill-lime-400/20',
-      inactiveClass: 'text-stone-700/60 dark:text-stone-800'
+      inactiveClass: 'text-stone-800'
     };
   } else if (month >= 6 && month <= 8) {
     return {
       season: 'Verano',
       icon: Sun,
       activeClass: 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)] fill-amber-400/20',
-      inactiveClass: 'text-stone-700/60 dark:text-stone-800'
+      inactiveClass: 'text-stone-800'
     };
   } else if (month >= 9 && month <= 11) {
     return {
       season: 'Otoño',
       icon: Leaf,
       activeClass: 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)] fill-orange-400/20',
-      inactiveClass: 'text-stone-700/60 dark:text-stone-800'
+      inactiveClass: 'text-stone-800'
     };
   } else {
     return {
       season: 'Invierno',
       icon: Snowflake,
       activeClass: 'text-sky-300 drop-shadow-[0_0_8px_rgba(125,211,252,0.6)]',
-      inactiveClass: 'text-stone-700/60 dark:text-stone-800'
+      inactiveClass: 'text-stone-800'
     };
   }
 };
@@ -2717,7 +2717,7 @@ REGLAS DE SELECCIÓN:
                             setData(nextData);
                             advanceToNextTelonStep(nextData);
                           }}
-                          className="aspect-square rounded-full border-2 border-amber-300 dark:border-amber-900/40 bg-amber-50 dark:bg-stone-900 text-amber-900 dark:text-amber-200 hover:border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-sm hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                          className="aspect-square rounded-full border-2 border-amber-900/40 bg-stone-900 text-amber-200 hover:border-amber-500 hover:bg-amber-900/20 active:scale-95 transition-all font-black text-lg flex items-center justify-center shadow-sm hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
                         >
                           {val}
                         </button>
@@ -4655,7 +4655,7 @@ REGLAS DE SELECCIÓN:
                 onClick={() => setView('trains')}
                 className={`aspect-[4/3] rounded-2xl p-4 flex items-center justify-center transition-all duration-700 border shadow-sm group ${isTrainPleno
                     ? 'bg-blue-600/30 border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.4)] ring-2 ring-blue-500/20 scale-[1.02] animate-pulse'
-                    : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                    : 'bg-blue-950/30 border-blue-900/50 hover:bg-blue-900/50'
                   }`}
               >
                 <div className={`w-full h-full flex items-center justify-center transition-all ${isTrainPleno ? 'brightness-125 saturate-150' : ''}`}>
@@ -4666,7 +4666,7 @@ REGLAS DE SELECCIÓN:
                 onClick={() => setView('sets')}
                 className={`aspect-[4/3] rounded-2xl p-4 flex items-center justify-center transition-all duration-700 border shadow-sm group ${isSetsPleno
                     ? 'bg-red-600/30 border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.4)] ring-2 ring-red-500/20 scale-[1.02] animate-pulse'
-                    : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/50'
+                    : 'bg-red-950/30 border-red-900/50 hover:bg-red-900/50'
                   }`}
               >
                 <div className={`w-full h-full flex items-center justify-center transition-all ${isSetsPleno ? 'brightness-125 saturate-150' : ''}`}>
@@ -4712,7 +4712,7 @@ REGLAS DE SELECCIÓN:
               <button
                 type="button"
                 onClick={() => setView('love')}
-                className="col-span-1 h-full aspect-square mx-auto bg-pink-50 dark:bg-pink-950/30 rounded-2xl flex items-center justify-center p-2 hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors group relative cursor-pointer shadow-sm"
+                className="col-span-1 h-full aspect-square mx-auto bg-pink-950/30 rounded-2xl flex items-center justify-center p-2 hover:bg-pink-900/50 transition-colors group relative cursor-pointer shadow-sm"
                 title="Brotes"
               >
                 {(() => {
@@ -4758,7 +4758,7 @@ REGLAS DE SELECCIÓN:
                   <div className="flex gap-1 w-full">
                     {Array.from({ length: 6 }).map((_, i) => {
                       const isFilled = i < Math.floor(bosqueWeeklyMinutes / 20);
-                      const bgClass = isFilled ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-200 dark:bg-emerald-950/40 border border-slate-300 dark:border-emerald-900/30';
+                      const bgClass = isFilled ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-emerald-950/40 border border-emerald-900/30';
                       return <div key={i} className={`flex-1 aspect-square rounded-md transition-all duration-300 ${bgClass}`} />;
                     })}
                   </div>
@@ -4766,7 +4766,7 @@ REGLAS DE SELECCIÓN:
                     {Array.from({ length: 6 }).map((_, i) => {
                       const absIndex = i + 6;
                       const isFilled = absIndex < Math.floor(bosqueWeeklyMinutes / 20);
-                      const bgClass = isFilled ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'bg-slate-200 dark:bg-emerald-950/40 border border-slate-300 dark:border-emerald-900/30';
+                      const bgClass = isFilled ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'bg-emerald-950/40 border border-emerald-900/30';
                       return <div key={i} className={`flex-1 aspect-square rounded-md transition-all duration-300 ${bgClass}`} />;
                     })}
                   </div>
@@ -4780,7 +4780,7 @@ REGLAS DE SELECCIÓN:
                   setView('food');
                   setData(prev => ({ ...prev, lastFoodEntryClick: Date.now() }));
                 }}
-                className={`col-span-1 h-full aspect-square mx-auto bg-lime-50 dark:bg-lime-950/30 rounded-2xl flex flex-col items-center justify-between p-2 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition-colors border border-lime-200 dark:border-lime-900/50 group relative cursor-pointer shadow-sm ${
+                className={`col-span-1 h-full aspect-square mx-auto bg-lime-950/30 rounded-2xl flex flex-col items-center justify-between p-2 hover:bg-lime-900/50 transition-colors border border-lime-900/50 group relative cursor-pointer shadow-sm ${
                   currentFoodScore < 0 
                     ? 'animate-blink' 
                     : isFoodPleno
@@ -4802,7 +4802,7 @@ REGLAS DE SELECCIÓN:
                     }`}
                   />
                 </div>
-                <div className={`w-full h-1 bg-lime-200 dark:bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
+                <div className={`w-full h-1 bg-lime-900/40 rounded-full overflow-hidden transition-opacity duration-300 ${currentFoodScore < 0 ? 'opacity-0' : 'opacity-100'}`}>
                   <div
                     className="h-full bg-lime-500 transition-all duration-500"
                     style={{ width: `${Math.max(0, Math.min(100, (currentFoodScore / 200) * 100))}%` }}
