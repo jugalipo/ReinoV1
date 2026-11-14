@@ -457,6 +457,9 @@ const INITIAL_DATA: AppData = {
     completed: false,
     subtasks: task.subtasks.map((st, j) => ({ id: `sub-${i}-${j}`, text: st, completed: false }))
   })),
+  setsHistoryMap: {},
+  trainsHistoryMap: {},
+  projectsHistoryMap: {},
   friends: [],
   food: {
     score: 0,
@@ -646,10 +649,10 @@ const serializeAppData = (data: AppData) => {
   const rawDocs = [
     { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastBrotesTelonDate: data.lastBrotesTelonDate || "", lastDelayedHunosDate: data.lastDelayedHunosDate || "", lastFocusDate: data.lastFocusDate || "", robleProgress: data.robleProgress ?? 0 } },
     { id: 'hunos', data: { items: data.hunos } },
-    { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
-    { id: 'sets', data: { items: data.sets } },
+    { id: 'trains', data: { items: data.trains, annual: data.annualTrains, historyMap: data.trainsHistoryMap || {} } },
+    { id: 'sets', data: { items: data.sets, historyMap: data.setsHistoryMap || {} } },
     { id: 'friends', data: { items: data.friends } },
-    { id: 'projects', data: { items: data.projects } },
+    { id: 'projects', data: { items: data.projects, historyMap: data.projectsHistoryMap || {} } },
     { id: 'forjas', data: { items: data.forjas } },
     { id: 'forjaTasks', data: { items: data.forjaTasks } },
     { id: 'leones', data: { items: data.leones } },
@@ -684,12 +687,15 @@ const deserializeAppData = (docs: any[]): AppData => {
     } else if (doc.id === 'trains') {
       result.trains = doc.data.items || INITIAL_DATA.trains;
       result.annualTrains = doc.data.annual || INITIAL_DATA.annualTrains;
+      result.trainsHistoryMap = doc.data.historyMap || {};
     } else if (doc.id === 'sets') {
       result.sets = doc.data.items || INITIAL_DATA.sets;
+      result.setsHistoryMap = doc.data.historyMap || {};
     } else if (doc.id === 'friends') {
       result.friends = doc.data.items || INITIAL_DATA.friends;
     } else if (doc.id === 'projects') {
       result.projects = doc.data.items || INITIAL_DATA.projects;
+      result.projectsHistoryMap = doc.data.historyMap || {};
     } else if (doc.id === 'forjas') {
       result.forjas = doc.data.items || INITIAL_DATA.forjas;
     } else if (doc.id === 'forjaTasks') {
@@ -920,8 +926,11 @@ const processResets = (parsed: AppData): AppData => {
 
     const completedSetIds = result.sets.filter(t => t.completed).map(t => t.id);
     if (!result.setsHistoryMap) result.setsHistoryMap = {};
-    const resetDateKey = new Date(Date.now()).toDateString();
-    if (completedSetIds.length > 0) result.setsHistoryMap[resetDateKey] = completedSetIds;
+    const resetDateKey = lastSetsResetDate.toDateString();
+    if (completedSetIds.length > 0) {
+      const existing = result.setsHistoryMap[resetDateKey] || [];
+      result.setsHistoryMap[resetDateKey] = Array.from(new Set([...existing, ...completedSetIds]));
+    }
 
     const allSetsCompleted = completedCount === result.sets.length;
     if (allSetsCompleted && !result.setsPlenoClaimed) {
@@ -980,10 +989,13 @@ const processResets = (parsed: AppData): AppData => {
     const actionableTrains = result.trains.filter(t => !t.skipThisMonth);
     const completedCount = actionableTrains.filter(t => t.completed).length;
 
-    const completedTrainIds = actionableTrains.filter(t => t.completed).map(t => t.id);
+    const completedTrainIds = result.trains.filter(t => t.completed).map(t => t.id);
     if (!result.trainsHistoryMap) result.trainsHistoryMap = {};
-    const todayStr = new Date(Date.now()).toDateString();
-    if (completedTrainIds.length > 0) result.trainsHistoryMap[todayStr] = completedTrainIds;
+    const resetDateKey = lastTrainsResetDate.toDateString();
+    if (completedTrainIds.length > 0) {
+      const existing = result.trainsHistoryMap[resetDateKey] || [];
+      result.trainsHistoryMap[resetDateKey] = Array.from(new Set([...existing, ...completedTrainIds]));
+    }
 
     const allTrainsCompleted = actionableTrains.length > 0 && actionableTrains.every(t => t.completed);
     if (allTrainsCompleted && !result.trainsPlenoClaimed) {
@@ -3812,6 +3824,7 @@ REGLAS DE SELECCIÓN:
             try {
               const freshSnapshot = await getDocsFromServer(habitsRef);
               if (!freshSnapshot.empty) {
+                isServerSynced.current = true;
                 if (pendingWritesTimer.current) {
                   clearTimeout(pendingWritesTimer.current);
                   pendingWritesTimer.current = null;
@@ -3820,9 +3833,19 @@ REGLAS DE SELECCIÓN:
                 const newData = deserializeAppData(docs);
                 const processedData = processResets(newData);
                 const newProcessedStr = JSON.stringify(processedData);
+                const newDataStr = JSON.stringify(newData);
+                const needsLocalResetWrite = newDataStr !== newProcessedStr;
                 if (lastSnapshotData.current !== newProcessedStr) {
-                  lastSnapshotData.current = newProcessedStr;
-                  isRemoteUpdate.current = true;
+                  const docsForDiff = serializeAppData(needsLocalResetWrite ? newData : processedData);
+                  const docsMap: Record<string, string> = {};
+                  docsForDiff.forEach(d => {
+                    docsMap[d.id] = JSON.stringify(d.data);
+                  });
+                  lastDocsData.current = docsMap;
+                  lastSnapshotData.current = needsLocalResetWrite ? newDataStr : newProcessedStr;
+                  if (!needsLocalResetWrite) {
+                    isRemoteUpdate.current = true;
+                  }
                   setData(processedData);
                 }
               }

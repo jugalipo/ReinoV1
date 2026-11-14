@@ -58,11 +58,14 @@ export const CategoryHistoryModal: React.FC<Props> = ({
     timeframe === 'mes' ? monthsList[0] : yearsList[0]
   );
 
-  // Update selected period when timeframe changes
+  // Update selected period when timeframe changes or current selection becomes invalid
   React.useEffect(() => {
-    if (timeframe === 'mes') setSelectedPeriod(monthsList[0]);
-    else if (timeframe === 'año') setSelectedPeriod(yearsList[0]);
-  }, [timeframe, monthsList, yearsList]);
+    if (timeframe === 'mes' && !monthsList.includes(selectedPeriod)) {
+      setSelectedPeriod(monthsList[0] || '');
+    } else if (timeframe === 'año' && !yearsList.includes(selectedPeriod)) {
+      setSelectedPeriod(yearsList[0] || '');
+    }
+  }, [timeframe, monthsList, yearsList, selectedPeriod]);
 
   const formatMonth = (mStr: string) => {
     const [y, m] = mStr.split('-');
