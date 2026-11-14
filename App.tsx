@@ -868,6 +868,13 @@ const processResets = (parsed: AppData): AppData => {
 
   const now = new Date();
   const today = now.toDateString();
+  if (!result.projectsHistoryMap) { result.projectsHistoryMap = {}; }
+  if (Object.keys(result.projectsHistoryMap).length === 0) {
+    const completedProjIds = (result.projects || []).filter(p => p.completed).map(p => p.id);
+    if (completedProjIds.length > 0) {
+      result.projectsHistoryMap[today] = completedProjIds;
+    }
+  }
   if (result.lastDate !== today) {
     const yesterdayKey = result.lastDate || '';
     if (yesterdayKey) {
@@ -4306,9 +4313,18 @@ REGLAS DE SELECCIÓN:
   };
   const cancelProjectPleno = () => {
     if (lastProjectToggledIndex !== null) {
-      const reverted = [...data.projects];
-      reverted[lastProjectToggledIndex].completed = false;
-      setData({ ...data, projects: reverted });
+      const todayStr = new Date(Date.now()).toDateString();
+      setData(prev => {
+        const targetProj = prev.projects[lastProjectToggledIndex];
+        const reverted = prev.projects.map((p, idx) =>
+          idx === lastProjectToggledIndex ? { ...p, completed: false } : p
+        );
+        const hm = { ...(prev.projectsHistoryMap || {}) };
+        if (targetProj && hm[todayStr]) {
+          hm[todayStr] = hm[todayStr].filter(id => id !== targetProj.id);
+        }
+        return { ...prev, projects: reverted, projectsHistoryMap: hm };
+      });
     }
     setShowProjectConfirm(false);
     setLastProjectToggledIndex(null);

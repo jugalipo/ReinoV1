@@ -113,6 +113,14 @@
       .animate-cutlery-bounce {
         animation: cutlery-bounce 0.8s infinite ease-in-out;
       }
+      dialog:modal {
+        overscroll-behavior: contain;
+      }
+      dialog::backdrop {
+        overflow: hidden;
+        overscroll-behavior: contain;
+        background: rgba(0, 0, 0, 0.85);
+      }
     </style>
   <script type="importmap">
 {

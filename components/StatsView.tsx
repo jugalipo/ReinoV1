@@ -4,6 +4,7 @@ import { ArrowLeft, Trophy, Flame, Target, Train, Heart, Dumbbell, Utensils, Mes
 import { HunosYearInPixelsModal } from './HunosYearInPixelsModal';
 import { HunosMonthLineChartModal } from './HunosMonthLineChartModal';
 import { CategoryHistoryModal } from './CategoryHistoryModal';
+import { EnergyHistoryModal } from './EnergyHistoryModal';
 import { useModalHistory } from '../hooks/useModalHistory';
 
 import { calculateAllDaysTotal } from './FoodBoardView';
@@ -232,6 +233,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
   const [showSetsModal, setShowSetsModal] = useState(false);
   const [showTrainsModal, setShowTrainsModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [showEnergyModal, setShowEnergyModal] = useState(false);
   const [showInteractionsModal, setShowInteractionsModal] = useState(false);
   const [interactionTimeframe, setInteractionTimeframe] = useState<'mes' | 'año' | 'siempre'>('mes');
   const [interactionSelectedPeriod, setInteractionSelectedPeriod] = useState<string>('');
@@ -288,6 +290,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
   useModalHistory(showSetsModal, () => setShowSetsModal(false));
   useModalHistory(showTrainsModal, () => setShowTrainsModal(false));
   useModalHistory(showProjectsModal, () => setShowProjectsModal(false));
+  useModalHistory(showEnergyModal, () => setShowEnergyModal(false));
   useModalHistory(showInteractionsModal, () => setShowInteractionsModal(false));
   useModalHistory(!!viewingHistoryForTask, () => setViewingHistoryForTask(null));
   // ---------------------------------------------
@@ -616,7 +619,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
     );
   };
 
-  const renderMiniBarChart = (values: number[], labels: string[], maxPossible: number = 5, logsCount: number = 0) => {
+  const renderMiniBarChart = (values: number[], labels: string[], maxPossible: number = 5, logsCount: number = 0, integerValues: boolean = false) => {
     const hasData = values.some(v => v > 0);
     const highestValue = Math.max(...values, 0);
     
@@ -635,11 +638,11 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
             const isMax = highestValue > 0 && v === highestValue;
             const height = (v / maxPossible) * 100;
             return (
-              <div key={i} className="flex-1 flex flex-col items-center group relative">
+              <div key={i} className="flex-1 min-w-0 flex flex-col items-center group relative">
                 {/* Floating Value Tag */}
                 <div className="h-4 flex items-center justify-center mb-1">
                   <span className={`text-[9px] font-mono font-black ${v > 0 ? (isMax ? 'text-orange-500' : 'text-stone-400') : 'opacity-0'}`}>
-                    {v.toFixed(v === 0 ? 0 : 1)}
+                    {integerValues ? Math.round(v) : v.toFixed(v === 0 ? 0 : 1)}
                   </span>
                 </div>
 
@@ -656,8 +659,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
                 </div>
                 
                 {/* Day/Month Label */}
-                <span className={`text-[10px] font-black mt-2 h-4 ${isMax ? 'text-orange-500 underline decoration-2 underline-offset-4' : 'text-stone-600'}`}>
-                  {labels[i]}
+                <span className={`text-[10px] font-black mt-2 h-4 truncate max-w-full ${isMax ? 'text-orange-500 underline decoration-2 underline-offset-4' : 'text-stone-600'}`}>
+                  {labels[i] ?? ''}
                 </span>
               </div>
             );
@@ -697,17 +700,128 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
   const paddedInteractionsHistory = Array(Math.max(0, 12 - interactionsHistoryToDisplay.length)).fill(0).concat(interactionsHistoryToDisplay);
   const interactionsMax = Math.max(...paddedInteractionsHistory, 10); // Floor of 10 for better scaling
 
+  const monthlyInteractionsByKey = useMemo(() => {
+    const map: Record<string, number> = {};
+    const now = new Date();
+    const curY = now.getFullYear();
+    const curM = now.getMonth();
+
+    // Map current month + up to 11 historical monthly snapshots from stats.interactionsHistory
+    const curKey = `${curY}-${String(curM + 1).padStart(2, '0')}`;
+    map[curKey] = currentMonthInteractions;
+
+    const past = stats.interactionsHistory || [];
+    for (let i = 1; i <= 11; i++) {
+      const idx = past.length - i;
+      if (idx < 0) break;
+      const d = new Date(curY, curM - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      map[key] = past[idx] || 0;
+    }
+
+    // Fallback/supplement from timestamped friend history entries when not in the 12-month array
+    const historyByMonth: Record<string, number> = {};
+    friends.forEach(f => {
+      (f.history || []).forEach(entry => {
+        const d = new Date(entry.timestamp);
+        if (isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        historyByMonth[key] = (historyByMonth[key] || 0) + 1;
+      });
+    });
+    Object.entries(historyByMonth).forEach(([k, cnt]) => {
+      if (map[k] === undefined) map[k] = cnt;
+    });
+
+    return map;
+  }, [stats.interactionsHistory, currentMonthInteractions, friends]);
+
   const interactionTotals = useMemo(() => {
     const totals = { person: 0, call: 0, gift: 0, photo: 0, message: 0 };
+    if (interactionTimeframe === 'siempre') {
+      friends.forEach(f => {
+        totals.person += f.interactions?.person || 0;
+        totals.call += f.interactions?.call || 0;
+        totals.gift += f.interactions?.gift || 0;
+        totals.photo += f.interactions?.photo || 0;
+        totals.message += f.interactions?.message || 0;
+      });
+      return totals;
+    }
+
     friends.forEach(f => {
-      totals.person += f.interactions?.person || 0;
-      totals.call += f.interactions?.call || 0;
-      totals.gift += f.interactions?.gift || 0;
-      totals.photo += f.interactions?.photo || 0;
-      totals.message += f.interactions?.message || 0;
+      (f.history || []).forEach(entry => {
+        const d = new Date(entry.timestamp);
+        if (isNaN(d.getTime())) return;
+        const include =
+          interactionTimeframe === 'año'
+            ? d.getFullYear().toString() === interactionSelectedPeriod
+            : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === interactionSelectedPeriod;
+        if (include && totals[entry.type] !== undefined) {
+          totals[entry.type] += 1;
+        }
+      });
     });
     return totals;
-  }, [friends]);
+  }, [friends, interactionTimeframe, interactionSelectedPeriod]);
+
+  const interactionChart = useMemo(() => {
+    const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const singleMonths = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+    const now = new Date();
+
+    if (interactionTimeframe === 'mes') {
+      const [yStr, mStr] = (interactionSelectedPeriod || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`).split('-');
+      const endY = parseInt(yStr, 10) || now.getFullYear();
+      const endM = (parseInt(mStr, 10) || now.getMonth() + 1) - 1;
+      const values: number[] = [];
+      const labels: string[] = [];
+      for (let offset = 5; offset >= 0; offset--) {
+        const d = new Date(endY, endM - offset, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        values.push(monthlyInteractionsByKey[key] || 0);
+        labels.push(shortMonths[d.getMonth()]);
+      }
+      return {
+        title: 'Evolución (6 meses)',
+        values,
+        labels,
+        max: Math.max(...values, 10),
+        total: values.reduce((a, b) => a + b, 0)
+      };
+    }
+
+    if (interactionTimeframe === 'año') {
+      const targetYear = parseInt(interactionSelectedPeriod || now.getFullYear().toString(), 10);
+      const values = Array.from({ length: 12 }, (_, m) => {
+        const key = `${targetYear}-${String(m + 1).padStart(2, '0')}`;
+        return monthlyInteractionsByKey[key] || 0;
+      });
+      return {
+        title: `Evolución (${targetYear})`,
+        values,
+        labels: singleMonths,
+        max: Math.max(...values, 10),
+        total: values.reduce((a, b) => a + b, 0)
+      };
+    }
+
+    const values: number[] = [];
+    const labels: string[] = [];
+    for (let offset = 11; offset >= 0; offset--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      values.push(monthlyInteractionsByKey[key] || 0);
+      labels.push(singleMonths[d.getMonth()]);
+    }
+    return {
+      title: 'Evolución (12 meses)',
+      values,
+      labels,
+      max: Math.max(...values, 10),
+      total: values.reduce((a, b) => a + b, 0)
+    };
+  }, [interactionTimeframe, interactionSelectedPeriod, monthlyInteractionsByKey]);
 
   // Logic for 20-week Exercise evolution
   const exerciseHistoryToDisplay = useMemo(() => {
@@ -1320,12 +1434,12 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
           </div>
 
           <div>
-            <div className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 cursor-default text-left">
-              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner">
+            <button onClick={() => setShowEnergyModal(true)} className="inline-flex items-center bg-stone-900/50 border border-stone-800/80 rounded-full p-1 mb-4 hover:bg-stone-800 transition-colors group text-left">
+              <div className="bg-stone-900 border border-stone-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-inner group-hover:bg-stone-800 transition-colors">
                 <Activity className="w-4 h-4 text-orange-500 shrink-0" />
-                <span className="text-xs font-black text-stone-400 tracking-widest uppercase truncate">ENERGÍA (30 DÍAS)</span>
+                <span className="text-xs font-black text-stone-400 group-hover:text-stone-300 transition-colors tracking-widest uppercase truncate">ENERGÍA (30 DÍAS)</span>
               </div>
-            </div>
+            </button>
             <EnergyLineChart history={energyHistoryToDisplay} max={energyMax} />
           </div>
 
@@ -1752,8 +1866,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
             </div>
             
             <div className="overflow-y-auto p-4">
-              {/* Category Breakdown (Accumulated) */}
-              <div className="grid grid-cols-5 gap-2 mb-6">
+              {/* Category Breakdown */}
+              <div className="grid grid-cols-5 gap-2 mb-3">
                 {(['person', 'call', 'gift', 'photo', 'message'] as const).map(type => {
                   const icons = { person: '🫂', call: '📞', gift: '🎁', photo: '📸', message: '💬' };
                   return (
@@ -1767,19 +1881,36 @@ export const StatsView: React.FC<StatsViewProps> = ({ data, bosqueExercises = []
                 })}
               </div>
 
+              {interactionTimeframe === 'mes' &&
+                (Object.values(interactionTotals) as number[]).reduce((a, b) => a + b, 0) === 0 &&
+                (monthlyInteractionsByKey[interactionSelectedPeriod] || 0) > 0 && (
+                  <p className="text-[10px] text-center text-stone-500 mb-4">
+                    Total del mes: <span className="font-mono font-bold text-pink-400">{monthlyInteractionsByKey[interactionSelectedPeriod]}</span> (sin desglose por canal)
+                  </p>
+                )}
+
               {/* History Chart */}
-              <div className="border-t border-stone-800 pt-4">
-                <h4 className="text-[10px] font-black text-stone-600 uppercase tracking-widest mb-4">Evolución (6 meses)</h4>
+              <div className="border-t border-stone-800 pt-4 mt-3">
+                <h4 className="text-[10px] font-black text-stone-600 uppercase tracking-widest mb-4">{interactionChart.title}</h4>
                 {renderMiniBarChart(
-                   interactionsHistoryToDisplay, 
-                   ['5M', '4M', '3M', '2M', '1M', 'Hoy'], 
-                   interactionsMax,
-                   interactionsHistoryToDisplay.reduce((a, b) => a + b, 0)
+                   interactionChart.values,
+                   interactionChart.labels,
+                   interactionChart.max,
+                   interactionChart.total,
+                   true
                 )}
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {showEnergyModal && (
+        <EnergyHistoryModal
+          energyToday={data.energy || 1}
+          energyHistory={data.energyHistory || {}}
+          onClose={() => setShowEnergyModal(false)}
+        />
       )}
     </div>
   );
