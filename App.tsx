@@ -649,14 +649,17 @@ const serializeAppData = (data: AppData) => {
   const rawDocs = [
     { id: 'core', data: { lastDate: data.lastDate, lastSetsReset: data.lastSetsReset, lastTrainsReset: data.lastTrainsReset, setsPlenoClaimed: data.setsPlenoClaimed, trainsPlenoClaimed: data.trainsPlenoClaimed, stats: data.stats, food: data.food, exercise: data.exercise, billetesState: data.billetesState, huchaCount: data.huchaCount, leonesState: data.leonesState, leonesCount: data.leonesCount, reminders: data.reminders, piano: data.piano, weeklyGoals: data.weeklyGoals, reminderTime: data.reminderTime, lastReminderDate: data.lastReminderDate, gympieza: data.gympieza, loveTreeSortBy: data.loveTreeSortBy, streakReviewedDays: data.streakReviewedDays || {}, firewallDay: data.firewallDay || 0, firewallLastCompletedDate: data.firewallLastCompletedDate || "", firewallChecked: data.firewallChecked || { ducha: false, calle: false, huno: false }, lastFoodEntryClick: data.lastFoodEntryClick || 0, lastBookFormSunday: data.lastBookFormSunday || "", lastMovieFormDate: data.lastMovieFormDate || "", lastDiaryFormDate: data.lastDiaryFormDate || "", lastBrotesTelonDate: data.lastBrotesTelonDate || "", lastDelayedHunosDate: data.lastDelayedHunosDate || "", lastFocusDate: data.lastFocusDate || "", robleProgress: data.robleProgress ?? 0 } },
     { id: 'hunos', data: { items: data.hunos } },
-    { id: 'trains', data: { items: data.trains, annual: data.annualTrains, historyMap: data.trainsHistoryMap || {} } },
-    { id: 'sets', data: { items: data.sets, historyMap: data.setsHistoryMap || {} } },
+    { id: 'trains', data: { items: data.trains, annual: data.annualTrains } },
+    { id: 'sets', data: { items: data.sets } },
     { id: 'friends', data: { items: data.friends } },
-    { id: 'projects', data: { items: data.projects, historyMap: data.projectsHistoryMap || {} } },
+    { id: 'projects', data: { items: data.projects } },
     { id: 'forjas', data: { items: data.forjas } },
     { id: 'forjaTasks', data: { items: data.forjaTasks } },
     { id: 'leones', data: { items: data.leones } },
     { id: 'hunosHistory', data: { items: data.hunosHistory } },
+    { id: 'trainsHistory', data: { items: data.trainsHistoryMap || {} } },
+    { id: 'setsHistory', data: { items: data.setsHistoryMap || {} } },
+    { id: 'projectsHistory', data: { items: data.projectsHistoryMap || {} } },
     { id: 'energy', data: { value: data.energy || 1, history: data.energyHistory || {} } },
     { id: 'caminos', data: { items: data.caminos || [] } },
   ];
@@ -668,6 +671,13 @@ const serializeAppData = (data: AppData) => {
 
 const deserializeAppData = (docs: any[]): AppData => {
   const result: any = { ...INITIAL_DATA };
+  const legacyHistory: {
+    trains?: Record<string, string[]>;
+    sets?: Record<string, string[]>;
+    projects?: Record<string, string[]>;
+  } = {};
+  const hasDedicated = { trains: false, sets: false, projects: false };
+
   docs.forEach(doc => {
     if (doc.id === 'core') {
       Object.assign(result, doc.data);
@@ -687,15 +697,21 @@ const deserializeAppData = (docs: any[]): AppData => {
     } else if (doc.id === 'trains') {
       result.trains = doc.data.items || INITIAL_DATA.trains;
       result.annualTrains = doc.data.annual || INITIAL_DATA.annualTrains;
-      result.trainsHistoryMap = doc.data.historyMap || {};
+      if (doc.data.historyMap && Object.keys(doc.data.historyMap).length > 0) {
+        legacyHistory.trains = doc.data.historyMap;
+      }
     } else if (doc.id === 'sets') {
       result.sets = doc.data.items || INITIAL_DATA.sets;
-      result.setsHistoryMap = doc.data.historyMap || {};
+      if (doc.data.historyMap && Object.keys(doc.data.historyMap).length > 0) {
+        legacyHistory.sets = doc.data.historyMap;
+      }
     } else if (doc.id === 'friends') {
       result.friends = doc.data.items || INITIAL_DATA.friends;
     } else if (doc.id === 'projects') {
       result.projects = doc.data.items || INITIAL_DATA.projects;
-      result.projectsHistoryMap = doc.data.historyMap || {};
+      if (doc.data.historyMap && Object.keys(doc.data.historyMap).length > 0) {
+        legacyHistory.projects = doc.data.historyMap;
+      }
     } else if (doc.id === 'forjas') {
       result.forjas = doc.data.items || INITIAL_DATA.forjas;
     } else if (doc.id === 'forjaTasks') {
@@ -704,6 +720,15 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.leones = doc.data.items || INITIAL_DATA.leones;
     } else if (doc.id === 'hunosHistory') {
       result.hunosHistory = doc.data.items || INITIAL_DATA.hunosHistory;
+    } else if (doc.id === 'trainsHistory') {
+      hasDedicated.trains = true;
+      result.trainsHistoryMap = doc.data.items || {};
+    } else if (doc.id === 'setsHistory') {
+      hasDedicated.sets = true;
+      result.setsHistoryMap = doc.data.items || {};
+    } else if (doc.id === 'projectsHistory') {
+      hasDedicated.projects = true;
+      result.projectsHistoryMap = doc.data.items || {};
     } else if (doc.id === 'energy') {
       result.energy = doc.data.value || 1;
       result.energyHistory = doc.data.history || {};
@@ -711,6 +736,11 @@ const deserializeAppData = (docs: any[]): AppData => {
       result.caminos = doc.data.items || INITIAL_DATA.caminos || [];
     }
   });
+
+  if (!hasDedicated.trains) result.trainsHistoryMap = legacyHistory.trains || {};
+  if (!hasDedicated.sets) result.setsHistoryMap = legacyHistory.sets || {};
+  if (!hasDedicated.projects) result.projectsHistoryMap = legacyHistory.projects || {};
+
   return result as AppData;
 };
 
